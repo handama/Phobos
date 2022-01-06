@@ -187,7 +187,7 @@ public:
 
 	static void TeamMemberSetGroup(TeamClass* pTeam, int group);
 
-	static void DistributedLoadOntoTransport(TeamClass* pTeam);
+	static void DistributedLoadOntoTransport(TeamClass* pTeam, bool loadOnlyFirstLevel);
 
 	static bool IsValidFriendlyTarget(TeamClass* pTeam, int group, TechnoClass* target, bool isSelfNaval, bool isSelfAircraft, bool isFriendly);
 
