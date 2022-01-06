@@ -4,6 +4,8 @@
 
 #include <Ext/Scenario/Body.h>
 
+#define TECHNO_IS_ALIVE(tech) (!tech->InLimbo && tech->Health > 0)
+
 template<> const DWORD Extension<ScriptClass>::Canary = 0x3B3B3B3B;
 ScriptExt::ExtContainer ScriptExt::ExtMap;
 
@@ -2938,6 +2940,12 @@ void ScriptExt::VariablesHandler(TeamClass* pTeam, PhobosScripts eAction, int nA
 		VariableBinaryOperationHandler<true, true, operation_or>(pTeam, nLoArg, nHiArg); break;
 	case PhobosScripts::GlobalVariableAndByGlobal:
 		VariableBinaryOperationHandler<true, true, operation_and>(pTeam, nLoArg, nHiArg); break;
+	case PhobosScripts::ChangeTeamGroup:
+		TeamMemberSetGroup(pTeam, nArg); break;
+	case PhobosScripts::DistributedLoading:
+		DistributedLoadOntoTransport(pTeam); break;
+	case PhobosScripts::FollowFriendlyByGroup:
+		FollowFriendlyByGroup(pTeam, nArg); break;
 	}
 }
 
