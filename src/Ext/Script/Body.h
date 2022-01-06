@@ -192,9 +192,9 @@ public:
 
 	static void DistributedLoadOntoTransport(TeamClass* pTeam);
 
-	static bool IsValidFriendlyTarget(TeamClass* pTeam, int group, TechnoClass* target, bool isSelfNaval, bool isSelfAircraft);
+	static bool IsValidFriendlyTarget(TeamClass* pTeam, int group, TechnoClass* target, bool isSelfNaval, bool isSelfAircraft, bool isFriendly);
 
-	static void FollowFriendlyByGroup(TeamClass* pTeam, int group);
+	static void FollowTargetByGroup(TeamClass* pTeam, int group, bool isFriendly);
 
 	static void Mission_Attack_List(TeamClass *pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
 	static void Mission_Attack_List1Random(TeamClass *pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
