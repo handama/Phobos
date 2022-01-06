@@ -2916,7 +2916,9 @@ void ScriptExt::VariablesHandler(TeamClass* pTeam, PhobosScripts eAction, int nA
 	case PhobosScripts::DistributedLoading:
 		DistributedLoadOntoTransport(pTeam); break;
 	case PhobosScripts::FollowFriendlyByGroup:
-		FollowFriendlyByGroup(pTeam, nArg); break;
+		FollowTargetByGroup(pTeam, nArg, true); break;
+	case PhobosScripts::FollowEnemyByGroup:
+		FollowTargetByGroup(pTeam, nArg, false); break;
 	}
 }
 
