@@ -1201,6 +1201,83 @@ In `aimd.ini`:
 x=i,n             ; where 548 <= i <= 571, n is made up of two parts, the low 16 bits is being used to store the variable index, the high 16 bits is being used for storing the global variable index.
 ```
 
+### `572` Change Team Member Group
+- Force change the current team member's group into script action argument value. 
+    - However the remaining script will not perform by the rest of the members, but non-combat command such as Set Local can still take effect.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=572,n           ; integer
+```
+
+### `573` Distributed Load Onto Transports
+- Instruct team member to enter nearest TRANSPORT until there's no valid TRANSPORT or PASSENGERS.
+    - The script will consider any unit with the largest `SizeLimit` as "transport" in this team, anything other than this will consider as "passenger". To determine largest `SizeLimit`, see argument type.
+    - The loading procedure will begin from the passenger which has the largest `Size`. Upon distribution completed, all passenger will gather around their designated transport. The script will loop until there's no valid transport or passenger.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=573,n           ; integer
+```
+
+| *Argument* | *Load Type*     | *Detail*                                                                                            |
+| :------:   | :-------------: | :-------------------------------------------------------------------------------------------------: |
+0            | FirstLayer      | Max `SizeLimit` is determined by any valid transport available in current team |
+other than 0 | DecreasingLimit | Max `SizeLimit` will only find from valid transport which still have at least 1 space for passenger |
+
+- *Example*
+Consider these 2 Vehicle
+```ini
+[TRANS_A]
+Passengers=4
+SizeLimit=2
+Size=12
+
+[TRASN_B]
+Passengers=1
+SizeLimit=1
+Size=3
+```
+Consider a taskforce type
+```ini
+[TF0001]
+0=1,TRANS_A
+1=4,TRANS_B
+2=8,E1
+```
+- Using "FirstLayer" load type will ultimately load 4 E1 into TRANS_A and 0 in any of TRANS_B. The max `SizeLimit` will always be 2, same as TRANS_A, and there are no valid passengers in second distribution. Script will proceed to next action.
+- Using "DecreasingLimit" load type will load 4 E1 into TRANS_A in first distribution, which results TRANS_A has 0 passenger space remaining. In second distribution, max `SizeLimit` will only pick from TRANS_B, thus there will be 4 E1 load onto 4 TRANS_B. In third distribution, there are no valid passengers left, script will proceed to next action.
+
+### `574` Follow Friendly Object by Group
+- Inscruct the team member to follow nearest available friendly unit/aircraft/infantry/building with the same group indicated by script argument.
+    - If all team member has `Naval=yes`, this team will considered as "Naval Team", can follow only which unit has `Naval=yes`.
+    - If all team member has `ConsideredAircraft=yes`, this team will considered as "Air Team", and can follow anything.
+    - If this team is either "Naval Team" nor "Air Team", it cannot follow anyting with `ConsideredAircraft=yes` or `Naval=yes`.
+- If the distance between target and team member less than `[General] > CloseEnough`, this member will temporary stop following and start guarding area. If the target moves away, this member will resume following.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=574,n           ; integer
+```
+
+### `575` Follow Enemy Object by Group
+- Inscruct the team member to follow nearest available enemy unit/aircraft/infantry/building with the same group indicated by script argument.
+    - If all team member has `Naval=yes`, this team will considered as "Naval Team", can follow only which unit has `Naval=yes`.
+    - If all team member has `ConsideredAircraft=yes`, this team will considered as "Air Team", and can follow anything.
+    - If this team is either "Naval Team" nor "Air Team", it cannot follow anyting with `ConsideredAircraft=yes` or `Naval=yes`.
+- If the distance between target and team member less than `[General] > CloseEnough`, this member will temporary stop following and start guarding area. If the target moves away, this member will resume following.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=575,n           ; integer
+```
+
+
+
 ## Super Weapons
 
 ### LimboDelivery

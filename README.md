@@ -111,6 +111,7 @@ Credits
 - **Dmitry Volkov** - extensive and thorough testing
 - **Rise of the East community** - extensive playtesting of in-dev features
 - **Chasheen (Chasheenburg)** - CN docs translation
+- **FrozenFog** - ScriptType Actions 572-575 aim for AI enhancing
 
 Thanks to everyone who uses Phobos, tests changes and reports bugs! You can show your appreciation and help project by displaying the logo (monochrome version can be found [here](logo-mono.png)) in your client/launcher (make it open Phobos GitHub page for extra fanciness), linking to Phobos repository, contributing or donating to us via the links above.
 
