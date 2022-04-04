@@ -198,6 +198,15 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 	case PhobosScripts::RandomSkipNextAction:
 		ScriptExt::SkipNextAction(pTeam, -1);
 		break;
+	case PhobosScripts::ChangeTeamGroup:
+		ScriptExt::TeamMemberSetGroup(pTeam, argument); 
+		break;
+	case PhobosScripts::DistributedLoading:
+		ScriptExt::DistributedLoadOntoTransport(pTeam, argument); 
+		break;
+	case PhobosScripts::FollowFriendlyByGroup:
+		ScriptExt::FollowFriendlyByGroup(pTeam, argument); 
+		break;
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
 		if (action > 70 && !IsExtVariableAction(action))
@@ -2747,6 +2756,384 @@ void ScriptExt::SkipNextAction(TeamClass* pTeam, int successPercentage = 0)
 	pTeam->StepCompleted = true;
 }
 
+void ScriptExt::TeamMemberSetGroup(TeamClass* pTeam, int group)
+{
+	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+		pUnit->Group = group;
+	// All member did not match the team type
+	// the remaining script will not continue
+	// This script marks the end of this team's action
+	// - FrozenFog
+	pTeam->StepCompleted = true;
+}
+
+bool ScriptExt::StopTeamMemberMoving(TeamClass* pTeam)
+{
+	bool stillMoving = false;
+	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+	{
+		if (pUnit->CurrentMission == Mission::Move || pUnit->Locomotor->Is_Moving())
+		{
+			pUnit->ForceMission(Mission::Wait);
+			pUnit->CurrentTargets.Clear();
+			pUnit->SetTarget(nullptr);
+			pUnit->SetFocus(nullptr);
+			pUnit->SetDestination(nullptr, true);
+			stillMoving = true;
+		}
+	}
+	return stillMoving;
+}
+
+void ScriptExt::DistributedLoadOntoTransport(TeamClass* pTeam, int nArg)
+{
+	/*
+	type 0: stop member from gathering
+	type 1: don't stop, gather near team center position, countdown timer LOWORD seconds
+	*/
+
+	const int CAN_PROCEED = 1;
+	const int T1_WAITING = 2;
+	int nType = HIWORD(nArg);
+	int nNum = LOWORD(nArg);
+	auto pExt = TeamExt::ExtMap.Find(pTeam);
+	auto remainingSize = [](FootClass* src)
+	{
+		auto type = src->GetTechnoType();
+		return type->Passengers - src->Passengers.GetTotalSize();
+	};
+
+	// Wait for timer stop
+	if (pTeam->GuardAreaTimer.TimeLeft > 0)
+	{
+		pTeam->GuardAreaTimer.TimeLeft--;
+		return;
+	}
+	else if (pExt->GenericStatus == T1_WAITING)
+	{
+		bool stillMoving = StopTeamMemberMoving(pTeam);
+		if (!stillMoving)
+		{
+			pExt->GenericStatus = CAN_PROCEED;
+			goto beginLoad;
+		}
+	}
+
+	// Check if this script can skip this frame
+	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+	{
+		// If anyone is entering transport, means this script is now proceeding
+		if (pUnit->GetCurrentMission() == Mission::Enter)
+			return;
+	}
+
+	// Status jump
+	if (pExt->GenericStatus == CAN_PROCEED)
+		goto beginLoad;
+
+	// switch mode
+	// 0: stop member from gathering
+	if (nType == 0)
+	{
+		// If anyone is moving, stop now, and add timer
+		// why team member will converge upon team creation
+		// fuck you westwood
+		pTeam->Focus = nullptr;
+		pTeam->QueuedFocus = nullptr;
+		bool stillMoving = StopTeamMemberMoving(pTeam);
+		if (stillMoving)
+		{
+			pTeam->GuardAreaTimer.Start(45);
+			return;
+		}
+	}
+	// 1: don't stop, maintain former operation
+	// default: gather near team center position (upon team creation, it's auto), countdown timer HIWORD seconds
+	else if (nType == 1)
+	{
+		if (pExt->GenericStatus == T1_WAITING)
+			return;
+		pTeam->GuardAreaTimer.Start(nNum * 15);
+		pExt->GenericStatus = T1_WAITING;
+		return;
+	}
+
+beginLoad:
+	// Now we're talking
+	DynamicVectorClass<FootClass*> transports, passengers;
+	std::unordered_map<FootClass*, double> transportSpaces;
+	// Find max SizeLimit to determine which type is considered as transport
+	double maxSizeLimit = 0;
+	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+	{
+		auto pType = pUnit->GetTechnoType();
+		if (remainingSize(pUnit) > 0)
+			maxSizeLimit = std::max(maxSizeLimit, pType->SizeLimit);
+	}
+	// No transports remaining
+	if (maxSizeLimit == 0)
+	{
+		pTeam->StepCompleted = true;
+		pExt->GenericStatus = 0;
+		return;
+	}
+	// All member share this SizeLimit will consider as transport
+	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+	{
+		auto pType = pUnit->GetTechnoType();
+		if (pType->SizeLimit == maxSizeLimit)
+		{
+			int space = remainingSize(pUnit);
+			transports.AddItem(pUnit);
+			transportSpaces[pUnit] = space;
+		}
+		else
+			passengers.AddItem(pUnit);
+	}
+	// If there are no passengers
+	// then this script is done
+	if (passengers.Count == 0)
+	{
+		pTeam->StepCompleted = true;
+		pExt->GenericStatus = 0;
+		return;
+	}
+
+	// Load logic
+	// range prioritize
+	bool passengerLoading = false;
+	// larger size first
+	auto sizeSort = [](FootClass* a, FootClass* b)
+	{
+		return a->GetTechnoType()->Size > b->GetTechnoType()->Size;
+	};
+	std::sort(passengers.begin(), passengers.end(), sizeSort);
+	for (auto pPassenger : passengers)
+	{
+		auto pPassengerType = pPassenger->GetTechnoType();
+		// Is legal loadable unit ?
+		if (pPassengerType->WhatAmI() != AbstractType::AircraftType &&
+				!pPassengerType->ConsideredAircraft &&
+				TECHNO_IS_ALIVE(pPassenger))
+		{
+			FootClass* targetTransport = nullptr;
+			double distance = INFINITY;
+			for (auto pTransport : transports)
+			{
+				auto pTransportType = pTransport->GetTechnoType();
+				double currentSpace = transportSpaces[pTransport];
+				// Can unit load onto this car ?
+				if (currentSpace > 0 &&
+					pPassengerType->Size > 0 &&
+					pPassengerType->Size <= pTransportType->SizeLimit &&
+					pPassengerType->Size <= currentSpace)
+				{
+					double d = pPassenger->DistanceFrom(pTransport);
+					if (d < distance)
+					{
+						targetTransport = pTransport;
+						distance = d;
+					}
+				}
+			}
+			// This is nearest available transport
+			if (targetTransport)
+			{
+				// Get on the car
+				if (pPassenger->GetCurrentMission() != Mission::Enter)
+				{
+					pPassenger->QueueMission(Mission::Enter, true);
+					pPassenger->SetTarget(nullptr);
+					pPassenger->SetDestination(targetTransport, false);
+					transportSpaces[targetTransport] -= pPassengerType->Size;
+					passengerLoading = true;
+				}
+			}
+		}
+	}
+	// If no one is loading, this script is done
+	if (!passengerLoading)
+	{
+		pTeam->StepCompleted = true;
+		pExt->GenericStatus = 0;
+	}
+	// Load logic
+	// speed prioritize
+	//for (auto pTransport : transports)
+	//{
+	//	DynamicVectorClass<FootClass*> loadedUnits;
+	//	auto pTransportType = pTransport->GetTechnoType();
+	//	double currentSpace = pTransportType->Passengers - pTransport->Passengers.GetTotalSize();
+	//	if (currentSpace == 0) continue;
+	//	for (auto pUnit : passengers)
+	//	{
+	//		auto pUnitType = pUnit->GetTechnoType();
+	//		// Is legal loadable unit ?
+	//		if (pUnitType->WhatAmI() != AbstractType::AircraftType &&
+	//			!pUnit->InLimbo &&
+	//			!pUnitType->ConsideredAircraft &&
+	//			pUnit->Health > 0 &&
+	//			pUnit != pTransport)
+	//		{
+	//			// Can unit load onto this car ?
+	//			if (pUnitType->Size > 0
+	//				&& pUnitType->Size <= pTransportType->SizeLimit
+	//				&& pUnitType->Size <= currentSpace)
+	//			{
+	//				// Get on the car
+	//				if (pUnit->GetCurrentMission() != Mission::Enter)
+	//				{
+	//					transportsNoSpace = false;
+	//					pUnit->QueueMission(Mission::Enter, true);
+	//					pUnit->SetTarget(nullptr);
+	//					pUnit->SetDestination(pTransport, false);
+	//					currentSpace -= pUnitType->Size;
+	//					loadedUnits.AddItem(pUnit);
+	//				}
+	//			}
+	//		}
+	//		if (currentSpace == 0) break;
+	//	}
+	//	for (auto pRemove : loadedUnits) passengers.Remove(pRemove);
+	//	loadedUnits.Clear();
+	//}
+	//if (transportsNoSpace)
+	//{
+	//	pTeam->StepCompleted = true;
+	//	return;
+	//}
+}
+
+// Only used by FollowFriendlyByGroup
+bool ScriptExt::IsValidFriendlyTarget(TeamClass* pTeam, int group, TechnoClass* target, bool isSelfNaval, bool isSelfAircraft, bool isFriendly)
+{
+	if (!target) return false;
+	if (TECHNO_IS_ALIVE(target) && target->Group == group)
+	{
+		auto pType = target->GetTechnoType();
+		// Friendly?
+		if (isFriendly ^ pTeam->Owner->IsAlliedWith(target->Owner)) 
+			return false;
+		// Only aircraft team can follow friendly aircraft
+		if (isSelfAircraft) 
+			return true;
+		else if (pType->ConsideredAircraft)
+			return false;
+		// If team is naval, only follow friendly naval
+		if (isSelfNaval ^ pType->Naval) 
+			return false;
+		// No underground
+		if (target->InWhichLayer() == Layer::Underground) 
+			return false;
+
+		return true;
+	}
+	return false;
+}
+
+void ScriptExt::FollowFriendlyByGroup(TeamClass* pTeam, int group)
+{
+	bool isSelfNaval = true, isSelfAircraft = true;
+	double distMin = std::numeric_limits<double>::infinity();
+	CellStruct* teamPosition = nullptr;
+	TechnoClass* target = nullptr;
+	// Use timer to reduce unnecessary cycle
+	if (pTeam->GuardAreaTimer.TimeLeft <= 0)
+	{
+		// If all member is naval, will only follow friendly navals
+		for (auto pMember = pTeam->FirstUnit; pMember; pMember = pMember->NextTeamMember)
+		{
+			if (!teamPosition) 
+				teamPosition = &(pMember->GetCell()->MapCoords);
+			auto pMemberType = pMember->GetTechnoType();
+			isSelfNaval = isSelfNaval && pMemberType->Naval;
+			isSelfAircraft = isSelfAircraft && pMemberType->ConsideredAircraft;
+		}
+		// If previous target is valid, skip this check
+		auto dest = abstract_cast<TechnoClass*>(pTeam->Focus);
+		if (IsValidFriendlyTarget(pTeam, group, dest, isSelfNaval, isSelfAircraft, true))
+		{
+			for (auto pMember = pTeam->FirstUnit; pMember; pMember = pMember->NextTeamMember)
+			{
+				double d = pMember->GetMapCoords().DistanceFrom(dest->GetCell()->MapCoords);
+				if (d * 256 > RulesClass::Instance->CloseEnough)
+				{
+					if (isSelfAircraft)
+					{
+						pMember->SetDestination(dest, false);
+						pMember->QueueMission(Mission::Move, true);
+					}
+					else
+					{
+						pMember->QueueMission(Mission::Area_Guard, true);
+						pMember->SetTarget(nullptr);
+						pMember->SetFocus(dest);
+					}
+				}
+				else
+				{
+					if (!isSelfAircraft)
+					{
+						pMember->SetDestination(nullptr, false);
+						pMember->CurrentMission = Mission::Area_Guard;
+						pMember->Focus = nullptr;
+					}
+					else
+						pMember->QueueMission(Mission::Area_Guard, true);
+				}
+			}
+			pTeam->GuardAreaTimer.Start(30);
+			return;
+		}
+		// Now looking for target
+		for (int i = 0; i < TechnoClass::Array->Count; i++)
+		{
+			auto pTechno = (*TechnoClass::Array)[i];
+
+			if (IsValidFriendlyTarget(pTeam, group, pTechno, isSelfNaval, isSelfAircraft, true))
+			{
+				// candidate
+				auto coord = pTechno->GetCell();
+				double distance = coord->MapCoords.DistanceFromSquared(*teamPosition);
+				if (distance < distMin)
+				{
+					target = pTechno;
+					distMin = distance;
+				}
+			}
+		}
+		if (target)
+		{
+			if (isSelfAircraft)
+			{
+				for (auto pMember = pTeam->FirstUnit; pMember; pMember = pMember->NextTeamMember)
+				{
+					//pMember->SetTarget(target);
+					//pMember->SetFocus(target);
+					pMember->SetDestination(target, false);
+					pMember->QueueMission(Mission::Move, true);
+				}
+			}
+			else
+			{
+				for (auto pMember = pTeam->FirstUnit; pMember; pMember = pMember->NextTeamMember)
+				{
+					pMember->QueueMission(Mission::Area_Guard, true);
+					pMember->SetTarget(nullptr);
+					pMember->SetFocus(target);
+				}
+			}
+			pTeam->Focus = target;
+			pTeam->GuardAreaTimer.Start(30);
+		}
+		// If there's no valid target, continue script
+		else
+			pTeam->StepCompleted = true;
+	}
+	else
+		pTeam->GuardAreaTimer.TimeLeft--;
+}
+
 void ScriptExt::VariablesHandler(TeamClass* pTeam, PhobosScripts eAction, int nArg)
 {
 	struct operation_set { int operator()(const int& a, const int& b) { return b; } };
@@ -2911,14 +3298,6 @@ void ScriptExt::VariablesHandler(TeamClass* pTeam, PhobosScripts eAction, int nA
 		VariableBinaryOperationHandler<true, true, operation_or>(pTeam, nLoArg, nHiArg); break;
 	case PhobosScripts::GlobalVariableAndByGlobal:
 		VariableBinaryOperationHandler<true, true, operation_and>(pTeam, nLoArg, nHiArg); break;
-	case PhobosScripts::ChangeTeamGroup:
-		TeamMemberSetGroup(pTeam, nArg); break;
-	case PhobosScripts::DistributedLoading:
-		DistributedLoadOntoTransport(pTeam, nArg == 0); break;
-	case PhobosScripts::FollowFriendlyByGroup:
-		FollowTargetByGroup(pTeam, nArg, true); break;
-	case PhobosScripts::FollowEnemyByGroup:
-		FollowTargetByGroup(pTeam, nArg, false); break;
 	}
 }
 

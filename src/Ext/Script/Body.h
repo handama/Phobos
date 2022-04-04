@@ -62,6 +62,9 @@ enum class PhobosScripts : unsigned int
 	UnregisterGreatSuccess = 111,
 	GatherAroundLeader = 112,
 	RandomSkipNextAction = 113,
+	ChangeTeamGroup = 114,
+	DistributedLoading = 115,
+	FollowFriendlyByGroup = 116,
 
 	// Variables
 	LocalVariableSet = 500,
@@ -187,11 +190,12 @@ public:
 
 	static void TeamMemberSetGroup(TeamClass* pTeam, int group);
 
-	static void DistributedLoadOntoTransport(TeamClass* pTeam, bool loadOnlyFirstLevel);
+	static void DistributedLoadOntoTransport(TeamClass* pTeam, int type);
+	static bool StopTeamMemberMoving(TeamClass* pTeam);
 
 	static bool IsValidFriendlyTarget(TeamClass* pTeam, int group, TechnoClass* target, bool isSelfNaval, bool isSelfAircraft, bool isFriendly);
 
-	static void FollowTargetByGroup(TeamClass* pTeam, int group, bool isFriendly);
+	static void FollowFriendlyByGroup(TeamClass* pTeam, int group);
 
 	static void Mission_Attack_List(TeamClass *pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
 	static void Mission_Attack_List1Random(TeamClass *pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
