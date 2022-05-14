@@ -207,6 +207,9 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 	case PhobosScripts::FollowFriendlyByGroup:
 		ScriptExt::FollowFriendlyByGroup(pTeam, argument); 
 		break;
+	case PhobosScripts::RallyUnitWithSameGroup:
+		ScriptExt::RallyUnitInMap(pTeam, argument);
+		break;
 	case PhobosScripts::StopForceJumpCountdown:
 		// Stop Timed Jump
 		ScriptExt::Stop_ForceJump_Countdown(pTeam);
@@ -2788,11 +2791,10 @@ void ScriptExt::SkipNextAction(TeamClass* pTeam, int successPercentage = 0)
 void ScriptExt::TeamMemberSetGroup(TeamClass* pTeam, int group)
 {
 	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+	{
 		pUnit->Group = group;
-	// All member did not match the team type
-	// the remaining script will not continue
-	// This script marks the end of this team's action
-	// - FrozenFog
+		pTeam->AddMember(pUnit, false);
+	}
 	pTeam->StepCompleted = true;
 }
 
@@ -2816,13 +2818,20 @@ bool ScriptExt::StopTeamMemberMoving(TeamClass* pTeam)
 
 void ScriptExt::DistributedLoadOntoTransport(TeamClass* pTeam, int nArg)
 {
+	const int T_NO_GATHER = 0, T_COUNTDOWN = 1, T_AVGPOS = 2;
 	/*
-	type 0: stop member from gathering
-	type 1: don't stop, gather near team center position, countdown timer LOWORD seconds
+	type 0: stop member from gathering and begin load now
+	type 1: don't stop, maintain previous action, countdown LOWORD seconds then begin load
+	type 2: don't stop, gether around first member's position range LOWORD then begin load
 	*/
 
-	const int CAN_PROCEED = 1;
-	const int T1_WAITING = 2;
+	// can proceed to load calculate logic
+	const int R_CAN_PROCEED = 1;
+	// type 1 waiting stage, start timer and wait timer stop, when stop, proceed to loading
+	const int R_WAITING = 2;
+	// type 2 waiting stage, start timer and wait timer stop, when stop, check average position
+	const int R_WAIT_POS = 3;
+
 	int nType = HIWORD(nArg);
 	int nNum = LOWORD(nArg);
 	auto pExt = TeamExt::ExtMap.Find(pTeam);
@@ -2832,19 +2841,62 @@ void ScriptExt::DistributedLoadOntoTransport(TeamClass* pTeam, int nArg)
 		return type->Passengers - src->Passengers.GetTotalSize();
 	};
 
+	auto pFoot = pTeam->FirstUnit;
+	auto timer = pFoot->BlockagePathTimer;
 	// Wait for timer stop
 	if (pTeam->GuardAreaTimer.TimeLeft > 0)
 	{
 		pTeam->GuardAreaTimer.TimeLeft--;
 		return;
 	}
-	else if (pExt->GenericStatus == T1_WAITING)
+	// type 1 times up
+	else if (pExt->GenericStatus == R_WAITING)
 	{
 		bool stillMoving = StopTeamMemberMoving(pTeam);
 		if (!stillMoving)
 		{
-			pExt->GenericStatus = CAN_PROCEED;
+			pExt->GenericStatus = R_CAN_PROCEED;
 			goto beginLoad;
+		}
+	}
+	// type 2 times up, check distance
+	else if (pExt->GenericStatus == R_WAIT_POS)
+	{
+		bool canProceed = true;
+		auto pCell = pFoot->GetCell();
+
+		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+		{
+			// no blockage, just keep moving
+			if (pUnit->Locomotor->Is_Moving_Now())
+			{
+				canProceed = false;
+				continue;
+			}
+
+			if (pUnit->DistanceFrom(pFoot) / 256 <= nNum)
+			{
+				pUnit->StopMoving();
+				pUnit->CurrentTargets.Clear();
+				pUnit->SetTarget(nullptr);
+				pUnit->SetFocus(nullptr);
+				pUnit->SetDestination(nullptr, true);
+			}
+			else
+			{
+				pUnit->MoveTo(&pCell->GetCoords());
+				canProceed = false;
+			}
+		}
+		if (canProceed)
+		{
+			pExt->GenericStatus = R_CAN_PROCEED;
+			return;
+		}
+		else
+		{
+			pTeam->GuardAreaTimer.Start(5);
+			return;
 		}
 	}
 
@@ -2857,12 +2909,12 @@ void ScriptExt::DistributedLoadOntoTransport(TeamClass* pTeam, int nArg)
 	}
 
 	// Status jump
-	if (pExt->GenericStatus == CAN_PROCEED)
+	if (pExt->GenericStatus == R_CAN_PROCEED)
 		goto beginLoad;
 
 	// switch mode
 	// 0: stop member from gathering
-	if (nType == 0)
+	if (nType == T_NO_GATHER)
 	{
 		// If anyone is moving, stop now, and add timer
 		// why team member will converge upon team creation
@@ -2876,14 +2928,26 @@ void ScriptExt::DistributedLoadOntoTransport(TeamClass* pTeam, int nArg)
 			return;
 		}
 	}
-	// 1: don't stop, maintain former operation
-	// default: gather near team center position (upon team creation, it's auto), countdown timer HIWORD seconds
-	else if (nType == 1)
+	// 1: don't stop, maintain previous action
+	// default: gather near team center position (upon team creation, it's auto), countdown timer LOWORD seconds
+	else if (nType == T_COUNTDOWN)
 	{
-		if (pExt->GenericStatus == T1_WAITING)
+		if (pExt->GenericStatus == R_WAITING)
 			return;
 		pTeam->GuardAreaTimer.Start(nNum * 15);
-		pExt->GenericStatus = T1_WAITING;
+		pExt->GenericStatus = R_WAITING;
+		return;
+	}
+	// 2: don't stop, manually gather around first member's position
+	else if (nType == T_AVGPOS)
+	{
+		auto pCell = pFoot->GetCell();
+		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+		{
+			pUnit->MoveTo(&pCell->GetCoords());
+		}
+		pTeam->GuardAreaTimer.Start(5);
+		pExt->GenericStatus = R_WAIT_POS;
 		return;
 	}
 
@@ -2896,8 +2960,7 @@ beginLoad:
 	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
 	{
 		auto pType = pUnit->GetTechnoType();
-		if (remainingSize(pUnit) > 0)
-			maxSizeLimit = std::max(maxSizeLimit, pType->SizeLimit);
+		maxSizeLimit = std::max(maxSizeLimit, pType->SizeLimit);
 	}
 	// No transports remaining
 	if (maxSizeLimit == 0)
@@ -2926,6 +2989,15 @@ beginLoad:
 		pTeam->StepCompleted = true;
 		pExt->GenericStatus = 0;
 		return;
+	}
+	// If transport is on building, scatter, and discard this frame
+	for (auto pUnit : transports)
+	{
+		if (pUnit->GetCell()->GetBuilding())
+		{
+			pUnit->Scatter(pUnit->GetCoords(), true, false);
+			return;
+		}
 	}
 
 	// Load logic
@@ -3033,7 +3105,6 @@ beginLoad:
 	//}
 }
 
-// Only used by FollowFriendlyByGroup
 bool ScriptExt::IsValidFriendlyTarget(TeamClass* pTeam, int group, TechnoClass* target, bool isSelfNaval, bool isSelfAircraft, bool isFriendly)
 {
 	if (!target) return false;
@@ -3161,6 +3232,82 @@ void ScriptExt::FollowFriendlyByGroup(TeamClass* pTeam, int group)
 	}
 	else
 		pTeam->GuardAreaTimer.TimeLeft--;
+}
+
+void ScriptExt::RallyUnitInMap(TeamClass* pTeam, int nArg)
+{
+	auto pType = pTeam->Type;
+	for (int i = 0; i < FootClass::Array->Count; i++)
+	{
+		auto pFoot = (*FootClass::Array)[i];
+
+		// Must be owner and with same group
+		if (pFoot
+			&& TECHNO_IS_ALIVE(pFoot)
+			&& pFoot->Owner == pTeam->Owner
+			&& pFoot->Group == pType->Group
+			&& IsValidRallyTarget(pTeam, pFoot, nArg))
+		{
+			// This will bypass any recruiting restrictions, except group (this action's purpose)
+			if (pType->Recruiter)
+				pTeam->AddMember(pFoot, true);
+			// Only rally unit's parent team set Recruitable = yes and Priority less than this team
+			else if (pFoot->RecruitableB)
+			{
+				if (pFoot->Team)
+				{
+					if (pFoot->Team->Type->Priority < pType->Priority)
+						pTeam->AddMember(pFoot, true);
+				}
+				else
+					pTeam->AddMember(pFoot, true);
+			}
+		}
+	}
+	pTeam->StepCompleted = true;
+}
+
+bool ScriptExt::IsValidRallyTarget(TeamClass* pTeam, FootClass* pFoot, int nType)
+{
+	auto type = pFoot->WhatAmI();
+	auto pTechnoType = pFoot->GetTechnoType();
+	auto pAircraftType = abstract_cast<AircraftTypeClass*>(pTechnoType);
+	TaskForceClass* pTaskforce = pTeam->Type->TaskForce;
+	if (!pTechnoType)
+		return false;
+
+	switch (nType)
+	{
+	case 0: // Anything
+		return true;
+	case 1: // Infantry
+		return type == AbstractType::Infantry;
+	case 2: // Vehicles
+		return type == AbstractType::Unit;
+	case 3: // Air Units
+		return pTechnoType->ConsideredAircraft || type == AbstractType::Aircraft;
+	case 4: // Naval units
+		return type == AbstractType::Unit && pTechnoType->Naval;
+	case 5: // Ground units
+		return (type == AbstractType::Unit || type == AbstractType::Infantry)
+			&& (!pTechnoType->ConsideredAircraft && !pTechnoType->Naval);
+	case 6: // Dockable fighters
+		if (pAircraftType)
+			return type == AbstractType::Aircraft && pAircraftType->AirportBound;
+		return false;
+	case 7: // Same type in taskforce
+		if (pTaskforce)
+		{
+			for (auto const& pEntry : pTaskforce->Entries)
+			{
+				if (pEntry.Type && pEntry.Type == pTechnoType)
+					return true;
+			}
+		}
+		return false;
+	default:
+		return false;
+	}
 }
 
 void ScriptExt::VariablesHandler(TeamClass* pTeam, PhobosScripts eAction, int nArg)

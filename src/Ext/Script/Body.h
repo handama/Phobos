@@ -65,6 +65,7 @@ enum class PhobosScripts : unsigned int
 	ChangeTeamGroup = 114,
 	DistributedLoading = 115,
 	FollowFriendlyByGroup = 116,
+	RallyUnitWithSameGroup = 117,
 	StopForceJumpCountdown = 124,
 	NextLineForceJumpCountdown = 125,
 	SameLineForceJumpCountdown = 126,
@@ -192,13 +193,13 @@ public:
 	static void UnregisterGreatSuccess(TeamClass * pTeam);
 
 	static void TeamMemberSetGroup(TeamClass* pTeam, int group);
-
 	static void DistributedLoadOntoTransport(TeamClass* pTeam, int type);
-	static bool StopTeamMemberMoving(TeamClass* pTeam);
+	static void FollowFriendlyByGroup(TeamClass* pTeam, int group);
+	static void RallyUnitInMap(TeamClass* pTeam, int nArg);
 
 	static bool IsValidFriendlyTarget(TeamClass* pTeam, int group, TechnoClass* target, bool isSelfNaval, bool isSelfAircraft, bool isFriendly);
-
-	static void FollowFriendlyByGroup(TeamClass* pTeam, int group);
+	static bool StopTeamMemberMoving(TeamClass* pTeam);
+	static bool IsValidRallyTarget(TeamClass* pTeam, FootClass* pFoot, int nType);
 
 	static void Mission_Attack_List(TeamClass *pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
 	static void Mission_Attack_List1Random(TeamClass *pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
