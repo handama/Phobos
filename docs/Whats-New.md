@@ -278,9 +278,6 @@ New:
 - Shared Ammo for transports to passengers (by FS-21)
 - Additional critical hit logic customizations (by Starkku)
 - Laser trails for VoxelAnims (by Otamaa)
-- Script Action 572 to change team member's group (by FrozenFog)
-- Script Action 573: distributed load onto transport (by FrozenFog)
-- Script Action 574 & 575: instruct team to follow friendly/enemy object with certain group value (by FrozenFog)
 
 Vanilla fixes:
 - Fixed laser drawing code to allow for thicker lasers in house color draw mode (by Kerbiter, ChrisLv_CN)
