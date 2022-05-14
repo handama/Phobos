@@ -198,6 +198,18 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 	case PhobosScripts::RandomSkipNextAction:
 		ScriptExt::SkipNextAction(pTeam, -1);
 		break;
+	case PhobosScripts::ChangeTeamGroup:
+		ScriptExt::TeamMemberSetGroup(pTeam, argument); 
+		break;
+	case PhobosScripts::DistributedLoading:
+		ScriptExt::DistributedLoadOntoTransport(pTeam, argument); 
+		break;
+	case PhobosScripts::FollowFriendlyByGroup:
+		ScriptExt::FollowFriendlyByGroup(pTeam, argument); 
+		break;
+	case PhobosScripts::RallyUnitWithSameGroup:
+		ScriptExt::RallyUnitInMap(pTeam, argument);
+		break;
 	case PhobosScripts::StopForceJumpCountdown:
 		// Stop Timed Jump
 		ScriptExt::Stop_ForceJump_Countdown(pTeam);
@@ -3474,6 +3486,14 @@ void ScriptExt::VariablesHandler(TeamClass* pTeam, PhobosScripts eAction, int nA
 		VariableBinaryOperationHandler<true, true, operation_or>(pTeam, nLoArg, nHiArg); break;
 	case PhobosScripts::GlobalVariableAndByGlobal:
 		VariableBinaryOperationHandler<true, true, operation_and>(pTeam, nLoArg, nHiArg); break;
+	case PhobosScripts::ChangeTeamGroup:
+		TeamMemberSetGroup(pTeam, nArg); break;
+	case PhobosScripts::DistributedLoading:
+		DistributedLoadOntoTransport(pTeam, nArg == 0); break;
+	case PhobosScripts::FollowFriendlyByGroup:
+		FollowTargetByGroup(pTeam, nArg, true); break;
+	case PhobosScripts::FollowEnemyByGroup:
+		FollowTargetByGroup(pTeam, nArg, false); break;
 	}
 }
 
