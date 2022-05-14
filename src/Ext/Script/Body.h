@@ -66,6 +66,9 @@ enum class PhobosScripts : unsigned int
 	DistributedLoading = 115,
 	FollowFriendlyByGroup = 116,
 	RallyUnitWithSameGroup = 117,
+	StopForceJumpCountdown = 124,
+	NextLineForceJumpCountdown = 125,
+	SameLineForceJumpCountdown = 126,
 
 	// Variables
 	LocalVariableSet = 500,
@@ -206,6 +209,8 @@ public:
 	static void SetMoveMissionEndMode(TeamClass* pTeam, int mode);
 	static void SkipNextAction(TeamClass* pTeam, int successPercentage);
 	static FootClass* FindTheTeamLeader(TeamClass* pTeam);
+	static void Set_ForceJump_Countdown(TeamClass *pTeam, bool repeatLine, int count);
+	static void Stop_ForceJump_Countdown(TeamClass *pTeam);
 
 	static bool IsExtVariableAction(int action);
 	static void VariablesHandler(TeamClass* pTeam, PhobosScripts eAction, int nArg);

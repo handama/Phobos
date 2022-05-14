@@ -421,3 +421,63 @@ DEFINE_HOOK(0x54D138, JumpjetLocomotionClass_Movement_AI_SpeedModifiers, 0x6)
 
 	return 0;
 }
+
+DEFINE_HOOK(0x73B2A2, UnitClass_DrawObject_DrawerBlitterFix, 0x6)
+{
+	enum { SkipGameCode = 0x73B2C3 };
+
+	GET(UnitClass* const, pThis, ESI);
+	GET(BlitterFlags, blitterFlags, EDI);
+
+	R->EAX(pThis->GetDrawer()->SelectPlainBlitter(blitterFlags));
+
+	return SkipGameCode;
+}
+
+// Set all bullet params (Bright) from weapon for nuke carrier weapon.
+DEFINE_HOOK(0x44CABA, BuildingClass_Mission_Missile_BulletParams, 0x7)
+{
+	enum { SkipGameCode = 0x44CAF2 };
+
+	GET(BuildingClass* const, pThis, ESI);
+	GET(CellClass* const, pTarget, EAX);
+
+	auto pWeapon = SuperWeaponTypeClass::Array->GetItem(pThis->FiringSWType)->WeaponType;
+	BulletClass* pBullet = nullptr;
+
+	if (pWeapon)
+		pBullet = pWeapon->Projectile->CreateBullet(pTarget, pThis, pWeapon->Damage, pWeapon->Warhead, 255, pWeapon->Bright);
+
+	R->EAX(pBullet);
+	R->EBX(pWeapon);
+	return SkipGameCode;
+}
+
+// Set all bullet params (Bright) from weapon for nuke payload weapon.
+DEFINE_HOOK(0x46B3E6, BulletClass_NukeMaker_BulletParams, 0x8)
+{
+	enum { SkipGameCode = 0x46B40D };
+
+	GET_STACK(BulletClass* const, pThis, STACK_OFFS(0x70, 0x60));
+	GET_STACK(TechnoClass* const, pOwner, STACK_OFFS(0x74, 0x50));
+	GET(WeaponTypeClass* const, pWeapon, ESI);
+	GET(AbstractClass* const, pTarget, EBX);
+
+	pThis->Construct(pWeapon->Projectile, pTarget, pOwner, pWeapon->Damage, pWeapon->Warhead, pWeapon->Speed, pWeapon->Bright);
+
+	R->EDI(pThis);
+	return SkipGameCode;
+}
+
+DEFINE_HOOK(0x6FA781, TechnoClass_AI_SelfHealing_BuildingGraphics, 0x6)
+{
+	GET(TechnoClass*, pThis, ESI);
+
+	if (auto const pBuilding = abstract_cast<BuildingClass*>(pThis))
+	{
+		pBuilding->UpdatePlacement(PlacementType::Redraw);
+		pBuilding->ToggleDamagedAnims(false);
+	}
+
+	return 0;
+}

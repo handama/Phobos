@@ -1,6 +1,7 @@
 #include "Body.h"
 
 #include <Ext/House/Body.h>
+#include <Utilities/GeneralUtils.h>
 
 template<> const DWORD Extension<BuildingTypeClass>::Canary = 0x11111111;
 BuildingTypeExt::ExtContainer BuildingTypeExt::ExtMap;
@@ -63,37 +64,6 @@ int BuildingTypeExt::GetUpgradesAmount(BuildingTypeClass* pBuilding, HouseClass*
 	return isUpgrade ? result : -1;
 }
 
-bool BuildingTypeExt::CanGrindTechno(BuildingClass* pBuilding, TechnoClass* pTechno)
-{
-	if (!pBuilding->Type->Grinding || (pTechno->WhatAmI() != AbstractType::Infantry && pTechno->WhatAmI() != AbstractType::Unit))
-		return false;
-
-	if ((pBuilding->Type->InfantryAbsorb || pBuilding->Type->UnitAbsorb) && 
-		(pTechno->WhatAmI() == AbstractType::Infantry && !pBuilding->Type->InfantryAbsorb ||
-		pTechno->WhatAmI() == AbstractType::Unit && !pBuilding->Type->UnitAbsorb))
-	{
-		return false;
-	}
-
-	if (const auto pExt = BuildingTypeExt::ExtMap.Find(pBuilding->Type))
-	{
-		if (pBuilding->Owner == pTechno->Owner && !pExt->Grinding_AllowOwner)
-			return false;
-
-		if (pBuilding->Owner != pTechno->Owner && pBuilding->Owner->IsAlliedWith(pTechno) && !pExt->Grinding_AllowAllies)
-			return false;
-
-		if (pExt->Grinding_AllowTypes.size() > 0 && !pExt->Grinding_AllowTypes.Contains(pTechno->GetTechnoType()))
-			return false;
-
-		if (pExt->Grinding_DisallowTypes.size() > 0 && pExt->Grinding_DisallowTypes.Contains(pTechno->GetTechnoType()))
-			return false;
-	}
-
-	return true;
-}
-
-
 void BuildingTypeExt::ExtData::Initialize()
 {
 
@@ -130,6 +100,9 @@ void BuildingTypeExt::ExtData::LoadFromINIFile(CCINIClass* const pINI)
 	this->Grinding_DisallowTypes.Read(exINI, pSection, "Grinding.DisallowTypes");
 	this->Grinding_Sound.Read(exINI, pSection, "Grinding.Sound");
 	this->Grinding_Weapon.Read(exINI, pSection, "Grinding.Weapon", true);
+	this->Grinding_DisplayRefund.Read(exINI, pSection, "Grinding.DisplayRefund");
+	this->Grinding_DisplayRefund_Houses.Read(exINI, pSection, "Grinding.DisplayRefund.Houses");
+	this->Grinding_DisplayRefund_Offset.Read(exINI, pSection, "Grinding.DisplayRefund.Offset");
 
 	// Ares SuperWeapons tag
 	pINI->ReadString(pSection, "SuperWeapons", "", Phobos::readBuffer);
@@ -171,6 +144,26 @@ void BuildingTypeExt::ExtData::LoadFromINIFile(CCINIClass* const pINI)
 	}
 
 	this->Refinery_UseStorage.Read(exINI, pSection, "Refinery.UseStorage");
+
+	this->PlacementPreview_Show.Read(exINI, pSection, "PlacementPreview.Show");
+
+	if (pINI->GetString(pSection, "PlacementPreview.Shape", Phobos::readBuffer))
+	{
+		if (GeneralUtils::IsValidString(Phobos::readBuffer))
+		{
+			// we cannot load same SHP file twice it may produce artifact , prevent it !
+			if (_strcmpi(Phobos::readBuffer, pSection) || _strcmpi(Phobos::readBuffer, pArtSection))
+				this->PlacementPreview_Shape.Read(exINI, pSection, "PlacementPreview.Shape");
+			else
+				Debug::Log("Cannot Load PlacementPreview.Shape for [%s]Art[%s] ! \n",pSection , pArtSection);
+		}
+	}
+
+	this->PlacementPreview_ShapeFrame.Read(exINI, pSection, "PlacementPreview.ShapeFrame");
+	this->PlacementPreview_Offset.Read(exINI, pSection, "PlacementPreview.Offset");
+	this->PlacementPreview_Remap.Read(exINI, pSection, "PlacementPreview.Remap");
+	this->PlacementPreview_Palette.LoadFromINI(pINI, pSection, "PlacementPreview.Palette");
+	this->PlacementPreview_TranslucentLevel.Read(exINI, pSection, "PlacementPreview.Translucent");
 }
 
 void BuildingTypeExt::ExtData::CompleteInitialization()
@@ -197,6 +190,17 @@ void BuildingTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->Grinding_DisallowTypes)
 		.Process(this->Grinding_Sound)
 		.Process(this->Grinding_Weapon)
+		.Process(this->Grinding_DisplayRefund)
+		.Process(this->Grinding_DisplayRefund_Houses)
+		.Process(this->Grinding_DisplayRefund_Offset)
+		.Process(PlacementPreview_Remap)
+		.Process(PlacementPreview_Palette)
+		.Process(PlacementPreview_Offset)
+		.Process(PlacementPreview_Show)
+		.Process(PlacementPreview_Shape)
+		.Process(PlacementPreview_ShapeFrame)
+		.Process(PlacementPreview_TranslucentLevel)
+
 		;
 }
 

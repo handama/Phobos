@@ -49,6 +49,7 @@ public:
 		Nullable<AnimTypeClass*> PassengerDeletion_Anim;
 		Valueable<bool> Death_NoAmmo;
 		Valueable<int> Death_Countdown;
+		Valueable<bool> Death_Peaceful;
 
 		Valueable<ShieldTypeClass*> ShieldType;
 
@@ -65,8 +66,6 @@ public:
 		Nullable<WeaponTypeClass*> WarpInMinRangeWeapon;
 		Nullable<WeaponTypeClass*> WarpOutWeapon;
 		Valueable<bool> WarpInWeapon_UseDistanceAsDamage;
-		Valueable<bool> WarpInWeapon_FireAsSelf;
-		Valueable<bool> WarpOutWeapon_FireAsSelf;
 
 		ValueableVector<AnimTypeClass*> OreGathering_Anims;
 		ValueableVector<int> OreGathering_Tiberiums;
@@ -103,6 +102,9 @@ public:
 
 		Valueable<bool> Ammo_Shared;
 		Valueable<int> Ammo_Shared_Group;
+		Nullable<bool> JumpjetTurnToTarget;
+
+		Nullable<SelfHealGainType> SelfHealGainType;
 
 		struct LaserTrailDataEntry
 		{
@@ -158,8 +160,6 @@ public:
 			, WarpInMinRangeWeapon {}
 			, WarpOutWeapon {}
 			, WarpInWeapon_UseDistanceAsDamage { false }
-			, WarpInWeapon_FireAsSelf { true }
-			, WarpOutWeapon_FireAsSelf { true }
 			, OreGathering_Anims {}
 			, OreGathering_Tiberiums {}
 			, OreGathering_FramesPerDir {}
@@ -182,6 +182,7 @@ public:
 			, NoAmmoWeapon { -1 }
 			, NoAmmoAmount { 0 }
 			, JumpjetAllowLayerDeviation {}
+			, JumpjetTurnToTarget {}
 			, DeployingAnim_AllowAnyDirection { false }
 			, DeployingAnim_KeepUnitVisible { false }
 			, DeployingAnim_ReverseForUndeploy { true }
@@ -189,9 +190,11 @@ public:
 			, EnemyUIName {}
 			, Death_NoAmmo { false }
 			, Death_Countdown { 0 }
+			, Death_Peaceful { false }
 			, ForceWeapon_Naval_Decloaked { -1 }
 			, Ammo_Shared { false }
 			, Ammo_Shared_Group { -1 }
+			, SelfHealGainType()
 		{ }
 
 		virtual ~ExtData() = default;

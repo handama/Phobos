@@ -19,6 +19,8 @@ DEFINE_HOOK(0x6F9E50, TechnoClass_AI, 0x5)
 	TechnoExt::ApplySpawn_LimitRange(pThis);
 	TechnoExt::CheckDeathConditions(pThis);
 	TechnoExt::EatPassengers(pThis);
+	TechnoExt::UpdateMindControlAnim(pThis);
+	TechnoExt::ForceJumpjetTurnToTarget(pThis);//TODO: move to locomotor processing
 
 	// LaserTrails update routine is in TechnoClass::AI hook because TechnoClass::Draw
 	// doesn't run when the object is off-screen which leads to visual bugs - Kerbiter
@@ -167,12 +169,12 @@ DEFINE_HOOK(0x518505, InfantryClass_TakeDamage_NotHuman, 0x4)
 
 DEFINE_HOOK(0x5218F3, InfantryClass_WhatWeaponShouldIUse_DeployFireWeapon, 0x6)
 {
-    GET(TechnoTypeClass*, pType, ECX);
+	GET(TechnoTypeClass*, pType, ECX);
 
-    if (pType->DeployFireWeapon == -1)
-        return 0x52194E;
+	if (pType->DeployFireWeapon == -1)
+		return 0x52194E;
 
-    return 0;
+	return 0;
 }
 
 // Customizable OpenTopped Properties
@@ -270,7 +272,7 @@ DEFINE_HOOK(0x6FE19A, TechnoClass_FireAt_AreaFire, 0x6)
 	{
 		if (pExt->AreaFire_Target == AreaFireTarget::Random)
 		{
-			auto const range = pWeaponType->Range / 256.0;
+			auto const range = pWeaponType->Range / static_cast<double>(Unsorted::LeptonsPerCell);
 
 			std::vector<CellStruct> adjacentCells = GeneralUtils::AdjacentCellsInRange(static_cast<size_t>(range + 0.99));
 			size_t size = adjacentCells.size();
@@ -355,7 +357,7 @@ DEFINE_HOOK(0x71067B, TechnoClass_EnterTransport_LaserTrails, 0x7)
 
 	if (pTechnoExt && pTechnoTypeExt)
 	{
-		for (auto &pLaserTrail : pTechnoExt->LaserTrails)
+		for (auto& pLaserTrail : pTechnoExt->LaserTrails)
 		{
 			pLaserTrail->Visible = false;
 			pLaserTrail->LastLocation = { };
@@ -372,7 +374,7 @@ DEFINE_HOOK(0x5F4F4E, ObjectClass_Unlimbo_LaserTrails, 0x7)
 	auto pTechnoExt = TechnoExt::ExtMap.Find(pTechno);
 	if (pTechnoExt)
 	{
-		for (auto &pLaserTrail : pTechnoExt->LaserTrails)
+		for (auto& pLaserTrail : pTechnoExt->LaserTrails)
 		{
 			pLaserTrail->LastLocation = { };
 			pLaserTrail->Visible = true;
@@ -402,8 +404,8 @@ DEFINE_HOOK(0x6F3428, TechnoClass_GetWeapon_ForceWeapon, 0x6)
 
 		if (auto pTechnoTypeExt = TechnoTypeExt::ExtMap.Find(pTechnoType))
 		{
-			if (pTechnoTypeExt->ForceWeapon_Naval_Decloaked >= 0 
-				&& pTargetType->Cloakable && pTargetType->Naval 
+			if (pTechnoTypeExt->ForceWeapon_Naval_Decloaked >= 0
+				&& pTargetType->Cloakable && pTargetType->Naval
 				&& pTarget->CloakState == CloakState::Uncloaked)
 			{
 				R->EAX(pTechnoTypeExt->ForceWeapon_Naval_Decloaked);
@@ -423,4 +425,75 @@ DEFINE_HOOK(0x6FB086, TechnoClass_Reload_ReloadAmount, 0x8)
 	TechnoExt::UpdateSharedAmmo(pThis);
 
 	return 0;
+}
+
+DEFINE_HOOK(0x6FF43F, TechnoClass_FireAt_FeedbackWeapon, 0x6)
+{
+	GET(TechnoClass*, pThis, ESI);
+	GET(WeaponTypeClass*, pWeapon, EBX);
+
+	if (auto pWeaponExt = WeaponTypeExt::ExtMap.Find(pWeapon))
+	{
+		if (pWeaponExt->FeedbackWeapon.isset())
+		{
+			auto fbWeapon = pWeaponExt->FeedbackWeapon.Get();
+
+			if (pThis->InOpenToppedTransport && !fbWeapon->FireInTransport)
+				return 0;
+
+			WeaponTypeExt::DetonateAt(fbWeapon, pThis, pThis);
+		}
+	}
+
+	return 0;
+}
+
+DEFINE_HOOK(0x6FD446, TechnoClass_FireLaser_IsSingleColor, 0x7)
+{
+	GET(WeaponTypeClass* const, pWeapon, ECX);
+	GET(LaserDrawClass* const, pLaser, EAX);
+
+	if (auto const pWeaponExt = WeaponTypeExt::ExtMap.Find(pWeapon))
+	{
+		if (!pLaser->IsHouseColor && pWeaponExt->Laser_IsSingleColor)
+			pLaser->IsHouseColor = true;
+	}
+
+	return 0;
+}
+
+DEFINE_HOOK(0x701DFF, TechnoClass_ReceiveDamage_FlyingStrings, 0x7)
+{
+	GET(TechnoClass* const, pThis, ESI);
+	GET(int* const, pDamage, EBX);
+
+	if (Phobos::Debug_DisplayDamageNumbers && *pDamage)
+		TechnoExt::DisplayDamageNumberString(pThis, *pDamage, false);
+
+	return 0;
+}
+
+DEFINE_HOOK(0x6FA793, TechnoClass_AI_SelfHealGain, 0x5)
+{
+	enum { SkipGameSelfHeal = 0x6FA941 };
+
+	GET(TechnoClass*, pThis, ESI);
+
+	TechnoExt::ApplyGainedSelfHeal(pThis);
+
+	return SkipGameSelfHeal;
+}
+
+
+DEFINE_HOOK(0x70A4FB, TechnoClass_Draw_Pips_SelfHealGain, 0x5)
+{
+	enum { SkipGameDrawing = 0x70A6C0 };
+
+	GET(TechnoClass*, pThis, ECX);
+	GET_STACK(Point2D*, pLocation, STACK_OFFS(0x74, -0x4));
+	GET_STACK(RectangleStruct*, pBounds, STACK_OFFS(0x74, -0xC));
+
+	TechnoExt::DrawSelfHealPips(pThis, pLocation, pBounds);
+
+	return SkipGameDrawing;
 }
