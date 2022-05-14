@@ -283,6 +283,85 @@ In `aimd.ini`:
 x=113,n           ; where 0 > n <= 100
 ```
 
+### `114` Change team group
+- Change all team member's group into a specific value, can be negative.
+- This `TeamType`'s group value will not be changed.
+- The script will continue once the change is done.
+- This action will not change this `TeamType`'s group value
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]
+x=114,n           ; n can be negative
+```
+
+### `115` Distributed loading
+| type                | desc                                                                     | Low word nArg |
+| ------------------- |:------------------------------------------------------------------------ | ------------- |
+| 0: Stop immediately | Stop all member's previous action immediately                            | None          |
+| 1: Delay timer      | Maintain all member's previous action for nArg seconds, then begin load  | Seconds       |
+| 2: Gather range     | Gather all unit around one team member, range nArg cell, then begin load | Range (cell)  |
+
+- This action will class all team member into passengers and vehicles, and load all passengers into all available vehicles.
+  - Vehicles: any units in current team which shares a max `SizeLimit`, no matter the `TechType`.
+  - Passengers: all remaining members.
+- Passengers with larger size will load first.
+- The script will continue when no passengers left, or no more room for passengers.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]
+x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 << 16 + 10)
+```
+
+### `116` Follow friendly by group
+- All member will follow a nearest friendly unit with specific group number until the target is destroyed, or group value changed. Then the team will find another nearest available target to follow.
+
+- The behavior varies with this team's member:
+  - If all team member is naval, this team can only follow naval units.
+  - If all team member is airbound, this team can follow anything.
+  - If this team is neither naval nor airbound, this team can only follow ground objects.
+
+- The script will only continue when there are no available friendly target in the entire map.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]
+x=116,n           ; n can be negative
+```
+
+### `117` Rally unit with same group
+- This action will rally all available units share the same group value with this `TeamType`, and recruit them as team member. All rallyed unit will perform all future script action along with this team.
+
+- Will use following logic to rally member:
+  - Same owner (of course)
+  - Unit's current group value equals this `TeamType`'s group value
+  - If this team has `Recruiter=yes`:
+    - No restrictions
+  - If this team has `Recruiter=no`:
+    - Units with `RecruitableB=no` (or their previous `TeamType` has `AreTeamMembersRecruitable=no`) will not be rallyed
+    - If unit is now belongs to another team, this unit can be rallyed only when their parent `TeamType`'s Priority less than (not equal) this `TeamType`'s
+
+| MemberType           | desc                                                                                                        |
+| -------------------- |:----------------------------------------------------------------------------------------------------------- |
+| 0: Anything          | Any type of unit that is available                                                                          |
+| 1: Infantry          | All available friendly `InfantryTypes`                                                                      |
+| 2: Vehicles          | All available friendly `VehicleTypes`                                                                       |
+| 3: Air Units         | All available friendly `AircraftTypes`, and `VehicleTypes` or `InfantryTypes` with `ConsideredAircraft=yes` |
+| 4: Naval             | All available friendly `VehicleTypes` with `Naval=yes`                                                      |
+| 5: Ground Units      | All available friendly `VehicleTypes` and `InfantryTypes` with `ConsideredAircraft=no` and `Naval=no`       |
+| 6: Dockable Fighters | All available friendly `AircraftTypes` with `AirportBound=yes`                                              |
+| 7: Taskforce Member  | Any `TechType` that in this team's `Taskforce`, no amount limitation                                        |
+
+- Rallyed member will not apply this team's member properties (like `AreTeamMembersRecruitable`)
+- The script will continue once a rally attempt is done.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]
+x=117,n           ; n is MemberType
+```
+
 ### `124` Stop the Timed Jumps
 
 - If the Timed Jumps were activated this action stop the process.
