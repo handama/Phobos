@@ -222,18 +222,6 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 		// Start Timed Jump that jumps to the same line when the countdown finish (in frames)
 		ScriptExt::Set_ForceJump_Countdown(pTeam, true, -1);
 		break;
-	case PhobosScripts::ChangeTeamGroup:
-		ScriptExt::TeamMemberSetGroup(pTeam, argument); 
-		break;
-	case PhobosScripts::DistributedLoading:
-		ScriptExt::DistributedLoadOntoTransport(pTeam, argument); 
-		break;
-	case PhobosScripts::FollowFriendlyByGroup:
-		ScriptExt::FollowFriendlyByGroup(pTeam, argument); 
-		break;
-	case PhobosScripts::RallyUnitWithSameGroup:
-		ScriptExt::RallyUnitInMap(pTeam, argument);
-		break;
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
 		if (action > 70 && !IsExtVariableAction(action))
@@ -3491,9 +3479,7 @@ void ScriptExt::VariablesHandler(TeamClass* pTeam, PhobosScripts eAction, int nA
 	case PhobosScripts::DistributedLoading:
 		DistributedLoadOntoTransport(pTeam, nArg == 0); break;
 	case PhobosScripts::FollowFriendlyByGroup:
-		FollowTargetByGroup(pTeam, nArg, true); break;
-	case PhobosScripts::FollowEnemyByGroup:
-		FollowTargetByGroup(pTeam, nArg, false); break;
+		FollowFriendlyByGroup(pTeam, nArg); break;
 	}
 }
 
