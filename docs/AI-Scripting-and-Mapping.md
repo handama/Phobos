@@ -314,6 +314,16 @@ In `aimd.ini`:
 x=126,n           ; integer n=0, in frames
 ```
 
+### `134` Jump Back To Previous Script
+
+- Used in a Random Script picked by action 94. It can jump back to the previous script, and continue in the line after x=94,n.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=134,0
+```
+
 ### `135` Unload from Transports
 
 - A new unload action similar to x=8,n, but can avoid treating `VehicleTypes` with `OpenTopped=yes` and `Gunner=yes` as transports. If `TransportsReturnOnUnload` is set to `yes` in this TeamType, and transports are lost, they will return after unloading.
@@ -336,7 +346,6 @@ x=135,n
 5         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Keep transports and lose units. |
 6         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Lose transports and keep units. |
 7         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Lose transports and units. |
-
 
 ### `500 - 523` Edit Variable
 - Operate a variable's value

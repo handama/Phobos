@@ -211,6 +211,9 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 	case PhobosScripts::UnloadFromTransports:
 		ScriptExt::UnloadFromTransports(pTeam);
 		break;
+	case PhobosScripts::JumpBackToPreviousScript:
+		ScriptExt::JumpBackToPreviousScript(pTeam);
+		break;
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
 		if (action > 70 && !IsExtVariableAction(action))
@@ -1990,6 +1993,7 @@ void ScriptExt::PickRandomScript(TeamClass* pTeam, int idxScriptsList = -1)
 				if (pNewScript->ActionsCount > 0)
 				{
 					changeFailed = false;
+					TeamExt::ExtMap.Find(pTeam)->PreviousScriptList.push_back(pTeam->CurrentScript);
 					pTeam->CurrentScript = nullptr;
 					pTeam->CurrentScript = GameCreate<ScriptClass>(pNewScript);
 
@@ -3257,4 +3261,24 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 	// This action finished
 	pTeam->StepCompleted = true;
 	return;
+}
+
+void ScriptExt::JumpBackToPreviousScript(TeamClass* pTeam)
+{
+	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
+	if (!pTeamData->PreviousScriptList.empty())
+	{
+		pTeam->CurrentScript = nullptr;
+		pTeam->CurrentScript = pTeamData->PreviousScriptList.back();
+		pTeamData->PreviousScriptList.pop_back();
+		pTeam->StepCompleted = true;
+		return;
+	}
+	else
+	{
+		auto pScript = pTeam->CurrentScript;
+		Debug::Log("DEBUG: [%s] [%s](line: %d = %d,%d): Can't find the previous script! This script action must be used after PickRandomScript.\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument);
+		pTeam->StepCompleted = true;
+		return;
+	}
 }
