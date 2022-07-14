@@ -62,6 +62,10 @@ enum class PhobosScripts : unsigned int
 	UnregisterGreatSuccess = 111,
 	GatherAroundLeader = 112,
 	RandomSkipNextAction = 113,
+	ChangeTeamGroup = 114,
+	DistributedLoading = 115,
+	FollowFriendlyByGroup = 116,
+	RallyUnitWithSameGroup = 117,
 	StopForceJumpCountdown = 124,
 	NextLineForceJumpCountdown = 125,
 	SameLineForceJumpCountdown = 126,
@@ -190,6 +194,15 @@ public:
 	static void Mission_Move(TeamClass* pTeam, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
 	static TechnoClass* FindBestObject(TechnoClass *pTechno, int method, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
 	static void UnregisterGreatSuccess(TeamClass * pTeam);
+
+	static void TeamMemberSetGroup(TeamClass* pTeam, int group);
+	static void DistributedLoadOntoTransport(TeamClass* pTeam, int type);
+	static void FollowFriendlyByGroup(TeamClass* pTeam, int group);
+	static void RallyUnitInMap(TeamClass* pTeam, int nArg);
+
+	static bool IsValidFriendlyTarget(TeamClass* pTeam, int group, TechnoClass* target, bool isSelfNaval, bool isSelfAircraft, bool isFriendly);
+	static bool StopTeamMemberMoving(TeamClass* pTeam);
+	static bool IsValidRallyTarget(TeamClass* pTeam, FootClass* pFoot, int nType);
 
 	static void Mission_Attack_List(TeamClass *pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
 	static void Mission_Attack_List1Random(TeamClass *pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);

@@ -28,6 +28,7 @@ public:
 		bool ForceJump_RepeatMode;
 		FootClass* TeamLeader;
 		std::vector<ScriptClass*> PreviousScriptList;
+		int GenericStatus;
 
 		ExtData(TeamClass* OwnerObject) : Extension<TeamClass>(OwnerObject)
 			, WaitNoTargetAttempts { 0 }
@@ -43,6 +44,7 @@ public:
 			, ForceJump_RepeatMode { false }
 			, TeamLeader { nullptr }
 			, PreviousScriptList { }
+			, GenericStatus { 0 }
 		{ }
 
 		virtual ~ExtData() = default;
