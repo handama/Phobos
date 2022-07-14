@@ -3760,7 +3760,7 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 	{
 		for (auto pTransport : transports)
 		{
-			if (!pTransport->GetTechnoType()->SizeLimit == maxSizeLimit)
+			if (pTransport->GetTechnoType()->SizeLimit != maxSizeLimit)
 			{
 				pTeam->LiberateMember(pTransport);
 			}
