@@ -426,6 +426,25 @@ x=135,n
 6         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Lose transports and keep units. |
 7         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Lose transports and units. |
 
+### `136` Distributed loading 2
+| type                | desc                                                                     | Low word nArg |
+| ------------------- |:------------------------------------------------------------------------ | ------------- |
+| 0: Stop immediately | Stop all member's previous action immediately                            | None          |
+| 1: Delay timer      | Maintain all member's previous action for nArg seconds, then begin load  | Seconds       |
+| 2: Gather range     | Gather all unit around one team member, range nArg cell, then begin load | Range (cell)  |
+
+- This action will class all team member into passengers and vehicles, and load all passengers into all available vehicles. 
+  - Vehicles: any units in current team which shares a min `SizeLimit`, no matter the `TechType`.
+  - Passengers: all remaining members.
+- Passengers with larger size will load first.
+- The script will continue when no passengers left, or no more room for passengers.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]
+x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 << 16 + 10)
+```
+
 ### `500 - 523` Edit Variable
 - Operate a variable's value
     - The variable's value type is int16 instead of int32 in trigger actions for some reason, which means it ranges from -2^15 to 2^15-1.

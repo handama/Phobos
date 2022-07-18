@@ -228,6 +228,9 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 	case PhobosScripts::JumpBackToPreviousScript:
 		ScriptExt::JumpBackToPreviousScript(pTeam);
 		break;
+	case PhobosScripts::DistributedLoading2:
+		ScriptExt::DistributedLoadOntoTransport2(pTeam, argument);
+		break;
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
 		if (action > 70 && !IsExtVariableAction(action))
@@ -3667,6 +3670,13 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 	if (!pTeamData)
 		return;
 
+	bool stillMoving = StopTeamMemberMoving(pTeam);
+	if (stillMoving)
+	{
+		pTeam->GuardAreaTimer.Start(45);
+		return;
+	}
+
 	double maxSizeLimit = 0;
 	DynamicVectorClass<FootClass*> transports;
 	DynamicVectorClass<FootClass*> passengers;
@@ -3760,7 +3770,7 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 	{
 		for (auto pTransport : transports)
 		{
-			if (pTransport->GetTechnoType()->SizeLimit != maxSizeLimit)
+			if (!pTransport->GetTechnoType()->SizeLimit == maxSizeLimit)
 			{
 				pTeam->LiberateMember(pTransport);
 			}
@@ -3823,4 +3833,322 @@ void ScriptExt::JumpBackToPreviousScript(TeamClass* pTeam)
 		pTeam->StepCompleted = true;
 		return;
 	}
+}
+
+void ScriptExt::DistributedLoadOntoTransport2(TeamClass* pTeam, int nArg)
+{
+	const int T_NO_GATHER = 0, T_COUNTDOWN = 1, T_AVGPOS = 2;
+	/*
+	type 0: stop member from gathering and begin load now
+	type 1: don't stop, maintain previous action, countdown LOWORD seconds then begin load
+	type 2: don't stop, gether around first member's position range LOWORD then begin load
+	*/
+
+	// can proceed to load calculate logic
+	const int R_CAN_PROCEED = 1;
+	// type 1 waiting stage, start timer and wait timer stop, when stop, proceed to loading
+	const int R_WAITING = 2;
+	// type 2 waiting stage, start timer and wait timer stop, when stop, check average position
+	const int R_WAIT_POS = 3;
+
+	int nType = HIWORD(nArg);
+	int nNum = LOWORD(nArg);
+	auto pExt = TeamExt::ExtMap.Find(pTeam);
+	auto remainingSize = [](FootClass* src)
+	{
+		auto type = src->GetTechnoType();
+		return type->Passengers - src->Passengers.GetTotalSize();
+	};
+
+	auto pFoot = pTeam->FirstUnit;
+	auto timer = pFoot->BlockagePathTimer;
+	// Wait for timer stop
+	if (pTeam->GuardAreaTimer.TimeLeft > 0)
+	{
+		pTeam->GuardAreaTimer.TimeLeft--;
+		return;
+	}
+	// type 1 times up
+	else if (pExt->GenericStatus == R_WAITING)
+	{
+		bool stillMoving = StopTeamMemberMoving(pTeam);
+		if (!stillMoving)
+		{
+			pExt->GenericStatus = R_CAN_PROCEED;
+			goto beginLoad;
+		}
+	}
+	// type 2 times up, check distance
+	else if (pExt->GenericStatus == R_WAIT_POS)
+	{
+		bool canProceed = true;
+		auto pCell = pFoot->GetCell();
+
+		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+		{
+			// no blockage, just keep moving
+			if (pUnit->Locomotor->Is_Moving_Now())
+			{
+				canProceed = false;
+				continue;
+			}
+
+			if (pUnit->DistanceFrom(pFoot) / 256 <= nNum)
+			{
+				pUnit->StopMoving();
+				pUnit->CurrentTargets.Clear();
+				pUnit->SetTarget(nullptr);
+				pUnit->SetFocus(nullptr);
+				pUnit->SetDestination(nullptr, true);
+			}
+			else
+			{
+				pUnit->MoveTo(&pCell->GetCoords());
+				canProceed = false;
+			}
+		}
+		if (canProceed)
+		{
+			pExt->GenericStatus = R_CAN_PROCEED;
+			return;
+		}
+		else
+		{
+			pTeam->GuardAreaTimer.Start(5);
+			return;
+		}
+	}
+
+	// Check if this script can skip this frame
+	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+	{
+		// If anyone is entering transport, means this script is now proceeding
+		if (pUnit->GetCurrentMission() == Mission::Enter)
+			return;
+	}
+
+	// Status jump
+	if (pExt->GenericStatus == R_CAN_PROCEED)
+		goto beginLoad;
+
+	// switch mode
+	// 0: stop member from gathering
+	if (nType == T_NO_GATHER)
+	{
+		// If anyone is moving, stop now, and add timer
+		// why team member will converge upon team creation
+		// fuck you westwood
+		pTeam->Focus = nullptr;
+		pTeam->QueuedFocus = nullptr;
+		bool stillMoving = StopTeamMemberMoving(pTeam);
+		if (stillMoving)
+		{
+			pTeam->GuardAreaTimer.Start(45);
+			return;
+		}
+	}
+	// 1: don't stop, maintain previous action
+	// default: gather near team center position (upon team creation, it's auto), countdown timer LOWORD seconds
+	else if (nType == T_COUNTDOWN)
+	{
+		if (pExt->GenericStatus == R_WAITING)
+			return;
+		pTeam->GuardAreaTimer.Start(nNum * 15);
+		pExt->GenericStatus = R_WAITING;
+		return;
+	}
+	// 2: don't stop, manually gather around first member's position
+	else if (nType == T_AVGPOS)
+	{
+		auto pCell = pFoot->GetCell();
+		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+		{
+			pUnit->MoveTo(&pCell->GetCoords());
+		}
+		pTeam->GuardAreaTimer.Start(5);
+		pExt->GenericStatus = R_WAIT_POS;
+		return;
+	}
+
+beginLoad:
+	// Now we're talking
+	DynamicVectorClass<FootClass*> transports, passengers;
+	std::unordered_map<FootClass*, double> transportSpaces;
+	// Find max SizeLimit to determine which type is considered as transport
+	double maxSizeLimit = 0;
+	double minSizeLimit = INFINITY;
+	std::list<double> SizeLimitLists;
+	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+	{
+		auto pType = pUnit->GetTechnoType();
+		double SizeLimit = pType->SizeLimit;
+		maxSizeLimit = std::max(maxSizeLimit, SizeLimit);
+		if (SizeLimit > 0)
+		{
+			minSizeLimit = std::min(minSizeLimit, SizeLimit);
+			SizeLimitLists.push_back(SizeLimit);
+		}
+	}
+	SizeLimitLists.unique();
+	SizeLimitLists.sort();
+
+	// No transports remaining
+	if (maxSizeLimit == 0)
+	{
+		pTeam->StepCompleted = true;
+		pExt->GenericStatus = 0;
+		return;
+	}
+	// range prioritize
+	//bool passengerLoading = false;
+
+	std::list<double>::iterator eleSizeLimit;
+	for (eleSizeLimit = SizeLimitLists.begin(); eleSizeLimit != SizeLimitLists.end(); ++eleSizeLimit)
+	{
+		double currentSizeLimit = *eleSizeLimit;
+		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+		{
+			auto pType = pUnit->GetTechnoType();
+			if (pType->SizeLimit == currentSizeLimit)
+			{
+				int space = remainingSize(pUnit);
+				transports.AddItem(pUnit);
+				transportSpaces[pUnit] = space;
+			}
+			else
+				passengers.AddItem(pUnit);
+		}
+		// If there are no passengers
+		// then this script is done
+		if (passengers.Count == 0)
+		{
+			pTeam->StepCompleted = true;
+			pExt->GenericStatus = 0;
+			return;
+		}
+		// If transport is on building, scatter, and discard this frame
+		for (auto pUnit : transports)
+		{
+			if (pUnit->GetCell()->GetBuilding())
+			{
+				pUnit->Scatter(pUnit->GetCoords(), true, false);
+				return;
+			}
+		}
+
+		// Load logic
+
+		// larger size first
+		auto sizeSort = [](FootClass* a, FootClass* b)
+		{
+			return a->GetTechnoType()->Size > b->GetTechnoType()->Size;
+		};
+		std::sort(passengers.begin(), passengers.end(), sizeSort);
+		for (auto pPassenger : passengers)
+		{
+			auto pPassengerType = pPassenger->GetTechnoType();
+			// Is legal loadable unit ?
+			if (pPassengerType->WhatAmI() != AbstractType::AircraftType &&
+					!pPassengerType->ConsideredAircraft &&
+					TECHNO_IS_ALIVE(pPassenger))
+			{
+				FootClass* targetTransport = nullptr;
+				double distance = INFINITY;
+				for (auto pTransport : transports)
+				{
+					auto pTransportType = pTransport->GetTechnoType();
+					double currentSpace = transportSpaces[pTransport];
+					// Can unit load onto this car ?
+					if (currentSpace > 0 &&
+						pPassengerType->Size > 0 &&
+						pPassengerType->Size <= pTransportType->SizeLimit &&
+						pPassengerType->Size <= currentSpace)
+					{
+						double d = pPassenger->DistanceFrom(pTransport);
+						if (d < distance)
+						{
+							targetTransport = pTransport;
+							distance = d;
+						}
+					}
+				}
+				// This is nearest available transport
+				if (targetTransport)
+				{
+					// Get on the car
+					if (pPassenger->GetCurrentMission() != Mission::Enter)
+					{
+						pPassenger->QueueMission(Mission::Enter, true);
+						pPassenger->SetTarget(nullptr);
+						pPassenger->SetDestination(targetTransport, false);
+						transportSpaces[targetTransport] -= pPassengerType->Size;
+						//passengerLoading = true;
+					}
+				}
+			}
+		}
+		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+			if (pUnit->GetCurrentMission() == Mission::Enter || pUnit->GetCurrentMission() == Mission::Move)
+				return;
+	}
+
+
+	// This action finished
+	if (pTeam->CurrentScript->HasNextMission())
+		++pTeam->CurrentScript->CurrentMission;
+
+	pTeam->StepCompleted = true;
+	// If no one is loading, this script is done
+	//if (!passengerLoading)
+	//{
+	//	pTeam->StepCompleted = true;
+	//	pExt->GenericStatus = 0;
+	//}
+	// All member share this SizeLimit will consider as transport
+
+	// Load logic
+	// speed prioritize
+	//for (auto pTransport : transports)
+	//{
+	//	DynamicVectorClass<FootClass*> loadedUnits;
+	//	auto pTransportType = pTransport->GetTechnoType();
+	//	double currentSpace = pTransportType->Passengers - pTransport->Passengers.GetTotalSize();
+	//	if (currentSpace == 0) continue;
+	//	for (auto pUnit : passengers)
+	//	{
+	//		auto pUnitType = pUnit->GetTechnoType();
+	//		// Is legal loadable unit ?
+	//		if (pUnitType->WhatAmI() != AbstractType::AircraftType &&
+	//			!pUnit->InLimbo &&
+	//			!pUnitType->ConsideredAircraft &&
+	//			pUnit->Health > 0 &&
+	//			pUnit != pTransport)
+	//		{
+	//			// Can unit load onto this car ?
+	//			if (pUnitType->Size > 0
+	//				&& pUnitType->Size <= pTransportType->SizeLimit
+	//				&& pUnitType->Size <= currentSpace)
+	//			{
+	//				// Get on the car
+	//				if (pUnit->GetCurrentMission() != Mission::Enter)
+	//				{
+	//					transportsNoSpace = false;
+	//					pUnit->QueueMission(Mission::Enter, true);
+	//					pUnit->SetTarget(nullptr);
+	//					pUnit->SetDestination(pTransport, false);
+	//					currentSpace -= pUnitType->Size;
+	//					loadedUnits.AddItem(pUnit);
+	//				}
+	//			}
+	//		}
+	//		if (currentSpace == 0) break;
+	//	}
+	//	for (auto pRemove : loadedUnits) passengers.Remove(pRemove);
+	//	loadedUnits.Clear();
+	//}
+	//if (transportsNoSpace)
+	//{
+	//	pTeam->StepCompleted = true;
+	//	return;
+	//}
 }

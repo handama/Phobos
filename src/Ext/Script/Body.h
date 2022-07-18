@@ -71,6 +71,7 @@ enum class PhobosScripts : unsigned int
 	SameLineForceJumpCountdown = 126,
 	JumpBackToPreviousScript = 134,
 	UnloadFromTransports = 135,
+	DistributedLoading2 = 136,
 	
 
 	// Variables
@@ -197,6 +198,7 @@ public:
 
 	static void TeamMemberSetGroup(TeamClass* pTeam, int group);
 	static void DistributedLoadOntoTransport(TeamClass* pTeam, int type);
+	static void DistributedLoadOntoTransport2(TeamClass* pTeam, int type);
 	static void FollowFriendlyByGroup(TeamClass* pTeam, int group);
 	static void RallyUnitInMap(TeamClass* pTeam, int nArg);
 

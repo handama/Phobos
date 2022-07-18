@@ -157,7 +157,7 @@ public:
 			append("ID = %s, ", pType->ID);
 			append("Owner = %s (%s), ", pFoot->Owner->get_ID(), pFoot->Owner->PlainName);
 			append("Location = (%d, %d), ", pFoot->GetMapCoords().X, pFoot->GetMapCoords().Y);
-			append("Current Mission = %d (%s)\n", pFoot->CurrentMission, getMissionName((int)pFoot->CurrentMission));
+			append("Current Mission = %d (%s), ", pFoot->CurrentMission, getMissionName((int)pFoot->CurrentMission));
 			append("Group = %d, RecruitA = %d, RecruitB = %d\n", pFoot->Group, (int)pFoot->RecruitableA, (int)pFoot->RecruitableB);
 
 			if (pFoot->BelongsToATeam())
@@ -206,7 +206,7 @@ public:
 			auto pTarget = abstract_cast<TechnoClass*>(pFoot->Target);
 			if (pTarget)
 			{
-				append("Target = %s, Distance = %d, Location = (%d, %d)\n", pTarget->GetTechnoType()->ID, (pTarget->DistanceFrom(pFoot) / Unsorted::LeptonsPerCell), pTarget->GetMapCoords().X, pTarget->GetMapCoords().Y);
+				append("Target = %s, Distance = %d, Location = (%d, %d), ", pTarget->GetTechnoType()->ID, (pTarget->DistanceFrom(pFoot) / Unsorted::LeptonsPerCell), pTarget->GetMapCoords().X, pTarget->GetMapCoords().Y);
 			}
 
 			append("Current HP = (%d / %d)", pFoot->Health, pType->Strength);
