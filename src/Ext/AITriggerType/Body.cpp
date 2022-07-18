@@ -29,7 +29,7 @@ void AITriggerTypeExt::ExtData::SaveToStream(PhobosStreamWriter& Stm)
 AITriggerTypeExt::ExtContainer::ExtContainer() : Container("AITriggerTypeClass") { }
 AITriggerTypeExt::ExtContainer::~ExtContainer() = default;
 
-void AITriggerTypeExt::ProcessCondition(AITriggerTypeClass* pAITriggerType, HouseClass* pHouse, int type, int condition)
+void AITriggerTypeExt::ProcessCondition(AITriggerTypeClass * pAITriggerType, HouseClass * pHouse, int type, int condition)
 {
 	//AITriggerType is disabled by default
 	DisableAITrigger(pAITriggerType);
@@ -44,21 +44,21 @@ void AITriggerTypeExt::ProcessCondition(AITriggerTypeClass* pAITriggerType, Hous
 	return;
 }
 
-void AITriggerTypeExt::DisableAITrigger(AITriggerTypeClass* pAITriggerType)
+void AITriggerTypeExt::DisableAITrigger(AITriggerTypeClass * pAITriggerType)
 {
 	pAITriggerType->ConditionType = AITriggerCondition::AIOwns;
 	pAITriggerType->ConditionObject = nullptr;
 	return;
 }
 
-void AITriggerTypeExt::EnableAITrigger(AITriggerTypeClass* pAITriggerType)
+void AITriggerTypeExt::EnableAITrigger(AITriggerTypeClass * pAITriggerType)
 {
 	pAITriggerType->ConditionType = AITriggerCondition::Pool;
 	pAITriggerType->ConditionObject = nullptr;
 	return;
 }
 
-bool AITriggerTypeExt::PickValidHouse(HouseClass* pHouse, HouseClass* pThisHouse, int pickMode)
+bool AITriggerTypeExt::PickValidHouse(HouseClass * pHouse, HouseClass * pThisHouse, int pickMode)
 {
 	//0 = pick enemies(except for neutral); 1 = pick allies(except for neutral); 2 = pick self; 3 = pick all(except for neutral); 
 	//4 = pick enemy human players; 5 = pick allied human players; 6 = pick all human players; 
@@ -84,7 +84,7 @@ bool AITriggerTypeExt::PickValidHouse(HouseClass* pHouse, HouseClass* pThisHouse
 		return false;
 }
 
-bool AITriggerTypeExt::ReadCustomizableAICondition(AITriggerTypeClass* pAITriggerType, HouseClass* pHouse ,int pickMode, int compareMode, int Number, TechnoTypeClass* TechnoType)
+bool AITriggerTypeExt::ReadCustomizableAICondition(AITriggerTypeClass * pAITriggerType, HouseClass * pHouse, int pickMode, int compareMode, int Number, TechnoTypeClass * TechnoType)
 {
 
 	//(TechnoType) 0 = "<"; 1 = "<="; 2 = "=="; 3 = ">="; 4 = ">"; 5 = "!=";
@@ -95,7 +95,7 @@ bool AITriggerTypeExt::ReadCustomizableAICondition(AITriggerTypeClass* pAITrigge
 
 	const int PowerGreenSurplus = 100;
 	int count = 0;
-		
+
 	if (compareMode >= 0 && compareMode <= 5)
 	{
 		for (int i = 0; i < TechnoClass::Array->Count; i++)
@@ -178,7 +178,7 @@ bool AITriggerTypeExt::ReadCustomizableAICondition(AITriggerTypeClass* pAITrigge
 	return false;
 }
 
-void AITriggerTypeExt::CustomizableAICondition(AITriggerTypeClass* pAITriggerType, HouseClass* pHouse, int condition)
+void AITriggerTypeExt::CustomizableAICondition(AITriggerTypeClass * pAITriggerType, HouseClass * pHouse, int condition)
 {
 	auto AIConditionsLists = RulesExt::Global()->AIConditionsLists;
 
@@ -251,7 +251,7 @@ void AITriggerTypeExt::CustomizableAICondition(AITriggerTypeClass* pAITriggerTyp
 				pAITriggerType->IsEnabled = false;
 				return;
 			}
-			
+
 			if (essentialRequirementsCount > -1
 				&& leastOptionalRequirementsCount > -1
 				&& essentialRequirementsCount + leastOptionalRequirementsCount < thisAICondition.Count
