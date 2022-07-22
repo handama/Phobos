@@ -224,6 +224,7 @@ public:
 	template<bool IsSrcGlobal, bool IsGlobal, class _Pr>
 	static void VariableBinaryOperationHandler(TeamClass* pTeam, int nVariable, int nVarToOperate);
 
+	static void TransportsReturn(TeamClass* pTeam, FootClass* pTransport);
 	static void UnloadFromTransports(TeamClass* pTeam);
 	static void JumpBackToPreviousScript(TeamClass* pTeam);
 

@@ -66,7 +66,8 @@ bool AITriggerTypeExt::PickValidHouse(HouseClass * pHouse, HouseClass * pThisHou
 	//10 = pick neutral; 11 = pick all(including neutral);
 	//int pickMode;
 
-	if (((!pThisHouse->IsAlliedWith(pHouse) && !pThisHouse->IsNeutral() && pickMode == 0)
+	if ( !pThisHouse->IsObserver() &&
+		((!pThisHouse->IsAlliedWith(pHouse) && !pThisHouse->IsNeutral() && pickMode == 0)
 		|| (pThisHouse->IsAlliedWith(pHouse) && !pThisHouse->IsNeutral() && pickMode == 1)
 		|| (pThisHouse == pHouse && pickMode == 2)
 		|| (!pThisHouse->IsNeutral() && pickMode == 3)

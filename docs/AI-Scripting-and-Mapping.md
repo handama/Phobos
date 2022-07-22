@@ -353,6 +353,7 @@ x=116,n           ; n can be negative
 | 5: Ground Units      | All available friendly `VehicleTypes` and `InfantryTypes` with `ConsideredAircraft=no` and `Naval=no`       |
 | 6: Dockable Fighters | All available friendly `AircraftTypes` with `AirportBound=yes`                                              |
 | 7: Taskforce Member  | Any `TechType` that in this team's `Taskforce`, no amount limitation                                        |
+| 8: Ground Units      | All available friendly `VehicleTypes` and `InfantryTypes` with `ConsideredAircraft=no` and `Naval=no` and `ResourceGatherer=no` and `Agent=no` and `Slaved=no` and no `DeploysInto`|
 
 - Rallyed member will not apply this team's member properties (like `AreTeamMembersRecruitable`)
 - The script will continue once a rally attempt is done.

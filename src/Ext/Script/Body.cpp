@@ -319,8 +319,8 @@ void ScriptExt::LoadIntoTransports(TeamClass* pTeam)
 			return;
 
 	// This action finished
-	if (pTeam->CurrentScript->HasNextMission())
-		++pTeam->CurrentScript->CurrentMission;
+	//if (pTeam->CurrentScript->HasNextMission())
+	//	++pTeam->CurrentScript->CurrentMission;
 
 	pTeam->StepCompleted = true;
 }
@@ -1869,6 +1869,43 @@ bool ScriptExt::EvaluateObjectWithMask(TechnoClass *pTechno, int mask, int attac
 
 		break;
 
+	case 37:
+		// Buildings and Vehicles
+		pTypeBuilding = abstract_cast<BuildingTypeClass*>(pTechnoType);
+
+		if (!pTechno->Owner->IsNeutral()
+			&& (pTechnoType->WhatAmI() == AbstractType::UnitType
+				|| pTechnoType->WhatAmI() == AbstractType::BuildingType))
+		{
+			return true;
+		}
+
+		break;
+
+	case 38:
+		pTypeBuilding = abstract_cast<BuildingTypeClass*>(pTechnoType);
+
+		// Ground TechnoTypes
+		if ((!pTechno->Owner->IsNeutral()
+			&& (pTechnoType->WhatAmI() == AbstractType::UnitType
+				|| (pTechnoType->WhatAmI() == AbstractType::BuildingType
+					&& pTypeBuilding->UndeploysInto
+					&& !pTypeBuilding->BaseNormal)
+				&& !pTechno->IsInAir()
+				&& !pTechnoType->Naval)) ||
+			(!pTechno->Owner->IsNeutral() && !pTechno->IsInAir() && !pTechnoType->Naval
+				&& (pTechnoType->WhatAmI() == AbstractType::BuildingType
+					|| (pTypeBuilding
+						&& !(pTypeBuilding->Artillary
+							|| pTypeBuilding->TickTank
+							|| pTypeBuilding->ICBMLauncher
+							|| pTypeBuilding->SensorArray)))) ||
+			(!pTechno->Owner->IsNeutral() && !pTechno->IsInAir() && !pTechnoType->Naval && pTechnoType->WhatAmI() == AbstractType::InfantryType))
+		{
+			return true;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -2813,7 +2850,7 @@ bool ScriptExt::StopTeamMemberMoving(TeamClass* pTeam)
 	bool stillMoving = false;
 	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
 	{
-		if (pUnit->CurrentMission == Mission::Move || pUnit->Locomotor->Is_Moving())
+		if (pUnit->CurrentMission == Mission::Move || (pUnit->Locomotor->Is_Moving() && !pUnit->GetTechnoType()->JumpJet))
 		{
 			pUnit->ForceMission(Mission::Wait);
 			pUnit->CurrentTargets.Clear();
@@ -3282,6 +3319,7 @@ bool ScriptExt::IsValidRallyTarget(TeamClass* pTeam, FootClass* pFoot, int nType
 	auto type = pFoot->WhatAmI();
 	auto pTechnoType = pFoot->GetTechnoType();
 	auto pAircraftType = abstract_cast<AircraftTypeClass*>(pTechnoType);
+	auto pInfantryType = abstract_cast<InfantryTypeClass*>(pTechnoType);
 	TaskForceClass* pTaskforce = pTeam->Type->TaskForce;
 	if (!pTechnoType)
 		return false;
@@ -3315,6 +3353,12 @@ bool ScriptExt::IsValidRallyTarget(TeamClass* pTeam, FootClass* pFoot, int nType
 			}
 		}
 		return false;
+	case 8: // Ground units, except for miners and MCVs
+		if (pInfantryType)
+			return (type == AbstractType::Unit || type == AbstractType::Infantry)
+			&& (!pTechnoType->ConsideredAircraft && !pTechnoType->Naval && !pTechnoType->ResourceGatherer && !pTechnoType->DeploysInto && !pTechnoType->Slaved && !pInfantryType->Agent);
+		return (type == AbstractType::Unit || type == AbstractType::Infantry)
+			&& (!pTechnoType->ConsideredAircraft && !pTechnoType->Naval && !pTechnoType->ResourceGatherer && !pTechnoType->DeploysInto && !pTechnoType->Slaved);
 	default:
 		return false;
 	}
@@ -3615,7 +3659,7 @@ void ScriptExt::Set_ForceJump_Countdown(TeamClass *pTeam, bool repeatLine = fals
 
 	// This action finished
 	pTeam->StepCompleted = true;
-	Debug::Log("DEBUG: [%s] [%s](line: %d = %d,%d) Set Timed Jump -> (Countdown: %d, repeat action: %d)\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, count, repeatLine);
+	//Debug::Log("DEBUG: [%s] [%s](line: %d = %d,%d) Set Timed Jump -> (Countdown: %d, repeat action: %d)\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, count, repeatLine);
 }
 
 void ScriptExt::Stop_ForceJump_Countdown(TeamClass *pTeam)
@@ -3636,10 +3680,10 @@ void ScriptExt::Stop_ForceJump_Countdown(TeamClass *pTeam)
 
 	// This action finished
 	pTeam->StepCompleted = true;
-	Debug::Log("DEBUG: [%s] [%s](line: %d = %d,%d): Stopped Timed Jump\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument);
+	//Debug::Log("DEBUG: [%s] [%s](line: %d = %d,%d): Stopped Timed Jump\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument);
 }
 
-void TransportsReturn(TeamClass* pTeam, FootClass* pTransport)
+void ScriptExt::TransportsReturn(TeamClass* pTeam, FootClass* pTransport)
 {
 	if (pTeam->Type->TransportsReturnOnUnload)
 	{
@@ -3770,7 +3814,7 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 	{
 		for (auto pTransport : transports)
 		{
-			if (!pTransport->GetTechnoType()->SizeLimit == maxSizeLimit)
+			if (pTransport->GetTechnoType()->SizeLimit != maxSizeLimit)
 			{
 				pTeam->LiberateMember(pTransport);
 			}
@@ -4015,12 +4059,20 @@ beginLoad:
 				transports.AddItem(pUnit);
 				transportSpaces[pUnit] = space;
 			}
-			else
+			else if (pType->WhatAmI() != AbstractType::AircraftType &&
+					!pType->ConsideredAircraft && !pType->JumpJet &&
+					TECHNO_IS_ALIVE(pUnit))
 				passengers.AddItem(pUnit);
 		}
 		// If there are no passengers
 		// then this script is done
 		if (passengers.Count == 0)
+		{
+			pTeam->StepCompleted = true;
+			pExt->GenericStatus = 0;
+			return;
+		}
+		if (transports.Count == 0)
 		{
 			pTeam->StepCompleted = true;
 			pExt->GenericStatus = 0;
@@ -4049,7 +4101,7 @@ beginLoad:
 			auto pPassengerType = pPassenger->GetTechnoType();
 			// Is legal loadable unit ?
 			if (pPassengerType->WhatAmI() != AbstractType::AircraftType &&
-					!pPassengerType->ConsideredAircraft &&
+					!pPassengerType->ConsideredAircraft && !pPassengerType->JumpJet &&
 					TECHNO_IS_ALIVE(pPassenger))
 			{
 				FootClass* targetTransport = nullptr;
