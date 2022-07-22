@@ -72,6 +72,8 @@ enum class PhobosScripts : unsigned int
 	JumpBackToPreviousScript = 134,
 	UnloadFromTransports = 135,
 	DistributedLoading2 = 136,
+	RepeatAttackIndividuallyCloserThreat = 137,
+	RepeatAttackTypeIndividuallyCloserThreat = 138,
 	
 
 	// Variables
@@ -227,6 +229,8 @@ public:
 	static void TransportsReturn(TeamClass* pTeam, FootClass* pTransport);
 	static void UnloadFromTransports(TeamClass* pTeam);
 	static void JumpBackToPreviousScript(TeamClass* pTeam);
+	static void Mission_Attack_Individually(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType, int IdxAITargetTypeItem);
+	static void Mission_Attack_List_Individually(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
 
 	static ExtContainer ExtMap;
 

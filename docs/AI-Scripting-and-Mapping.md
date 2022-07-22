@@ -42,7 +42,7 @@ In `aimd.ini`:
 x=73,0
 ```
 
-### `74-81` Generic Target Type Attack Action
+### `74-81,137` Generic Target Type Attack Action
 
 - These Actions instruct the TeamType to use the TaskForce to approach and attack the target specified by the second parameter which is an index of a generic pre-defined group. Look at the tables below for the possible Actions (first parameter value) and Arguments (the second parameter value).
   - For threat-based attack actions `TargetSpecialThreatCoefficientDefault` and `EnemyHouseThreatBonus` tags from `rulesmd.ini` are accounted.
@@ -56,14 +56,15 @@ x=i,n             ; where 74 <= i <= 81
 
 | *Action* | *Argument*   | *Repeats* | *Target Priority* | *Description*                                 |
 | :------: | :----------: | :-------: | :---------------: | :-------------------------------------------: |
-74         | Target Type# | Yes | Closer, higher threat |  |
-75         | Target Type# | Yes | Farther, higher threat |  |
-76         | Target Type# | Yes | Closer |  |
-77         | Target Type# | Yes | Farther |  |
-78         | Target Type# | No | Closer, higher threat | Ends when a team member kill the designated target |
-79         | Target Type# | No | Farther, higher threat | Ends when a team member kill the designated target |
-80         | Target Type# | No | Closer | Ends when a team member kill the designated target |
-81         | Target Type# | No | Farther | Ends when a team member kill the designated target |
+|74         | Target Type# | Yes | Closer, higher threat |  |
+|75         | Target Type# | Yes | Farther, higher threat |  |
+|76         | Target Type# | Yes | Closer |  |
+|77         | Target Type# | Yes | Farther |  |
+|78         | Target Type# | No | Closer, higher threat | Ends when a team member kill the designated target |
+|79         | Target Type# | No | Farther, higher threat | Ends when a team member kill the designated target |
+|80         | Target Type# | No | Closer | Ends when a team member kill the designated target |
+|81         | Target Type# | No | Farther | Ends when a team member kill the designated target |
+|137         | Target Type# | Yes | Closer, higher threat | Each team member gets its own target |
 
 - The following values are the *Target Type#* which can be used as second parameter of the new attack script actions:
 
@@ -105,6 +106,8 @@ x=i,n             ; where 74 <= i <= 81
 | 34        | Area Threats      | Any enemy object that is inside of the Team Leader's Guard Area |
 | 35        | Vehicle & Naval Factory | Any enemy `BuildingTypes` with `Factory=UnitType` |
 | 36        | Non-defensive Structures | Any enemy `BuildingTypes` with `IsBaseDefense=no` |
+| 37        | Buildings and Vehicles | Any enemy `BuildingTypes` or `VehicleTypes` |
+| 38        | Ground TechnoTypes | Any enemy `TechnoTypes` without `Naval=yes` |
 
 ### `82` Decrease AI Trigger Current Weight
 
@@ -140,16 +143,17 @@ x=i,n             ; where 84 <= i <= 91 or 104 <= i <= 105
 
 | *Action* | *Argument*   | *Repeats* | *Target Priority* | *Description*                                 |
 | :------: | :----------: | :-------: | :---------------: | :-------------------------------------------: |
-84         | `AITargetTypes` index# | Yes | Closer, higher threat |  |
-85         | `AITargetTypes` index# | Yes | Farther, higher threat |  |
-86         | `AITargetTypes` index# | Yes | Closer |  |
-87         | `AITargetTypes` index# | Yes | Farther |  |
-88         | `AITargetTypes` index# | No | Closer, higher threat | Ends when a team member kill the designated target |
-89         | `AITargetTypes` index# | No | Farther, higher threat | Ends when a team member kill the designated target |
-90         | `AITargetTypes` index# | No | Closer | Ends when a team member kill the designated target |
-91         | `AITargetTypes` index# | No | Farther | Ends when a team member kill the designated target |
-104        | `AITargetTypes` index# | Yes | Closer | Picks 1 random target from the list |
-105        | `AITargetTypes` index# | Yes | Farther | Picks 1 random target from the list |
+|84         | `AITargetTypes` index# | Yes | Closer, higher threat |  |
+|85         | `AITargetTypes` index# | Yes | Farther, higher threat |  |
+|86         | `AITargetTypes` index# | Yes | Closer |  |
+|87         | `AITargetTypes` index# | Yes | Farther |  |
+|88         | `AITargetTypes` index# | No | Closer, higher threat | Ends when a team member kill the designated target |
+|89         | `AITargetTypes` index# | No | Farther, higher threat | Ends when a team member kill the designated target |
+|90         | `AITargetTypes` index# | No | Closer | Ends when a team member kill the designated target |
+|91         | `AITargetTypes` index# | No | Farther | Ends when a team member kill the designated target |
+|104        | `AITargetTypes` index# | Yes | Closer | Picks 1 random target from the list |
+|105        | `AITargetTypes` index# | Yes | Farther | Picks 1 random target from the list |
+|138         | `AITargetTypes` index# | Yes | Closer, higher threat | Each team member gets its own target |
 
 - The second parameter with a 0-based index for the `AITargetTypes` section specifies the list of possible `VehicleTypes`, `AircraftTypes`, `InfantryTypes` and `BuildingTypes` that can be evaluated. The new `AITargetTypes` section must be declared in `rulesmd.ini` for making this script work:
 
