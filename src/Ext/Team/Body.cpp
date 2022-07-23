@@ -24,6 +24,7 @@ void TeamExt::ExtData::Serialize(T& Stm)
 		.Process(this->TeamLeader)
 		.Process(this->PreviousScriptList)
 		.Process(this->GenericStatus)
+		.Process(this->AllPassengers)
 		;
 }
 

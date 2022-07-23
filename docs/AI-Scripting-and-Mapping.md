@@ -129,7 +129,7 @@ In `aimd.ini`:
 x=83,n
 ```
 
-### `84-91`, `104-105`，`138` `AITargetTypes` Attack Action
+### `84-91`, `104-105`, `138` `AITargetTypes` Attack Action
 
 - These Actions instruct the TeamType to use the TaskForce to approach and attack the target specified by the second parameter which is an index of a modder-defined group from `AITargetTypess`. Look at the tables below for the possible Actions (first parameter value) and Arguments (the second parameter value).
   - For threat-based attack actions `TargetSpecialThreatCoefficientDefault` and `EnemyHouseThreatBonus` tags from `rulesmd.ini` are accounted.

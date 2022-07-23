@@ -3722,7 +3722,19 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 	if (!pTeamData)
 		return;
 
-	bool stillMoving = StopTeamMemberMoving(pTeam);
+	bool stillMoving = false;
+	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+	{
+		if (pUnit->CurrentMission == Mission::Move || (pUnit->Locomotor->Is_Moving() && !pUnit->GetTechnoType()->JumpJet))
+		{
+			pUnit->ForceMission(Mission::Wait);
+			pUnit->CurrentTargets.Clear();
+			pUnit->SetTarget(nullptr);
+			pUnit->SetFocus(nullptr);
+			pUnit->SetDestination(nullptr, true);
+			stillMoving = true;
+		}
+	}
 	if (stillMoving)
 	{
 		pTeam->GuardAreaTimer.Start(45);
@@ -3731,9 +3743,9 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 
 	double maxSizeLimit = 0;
 	DynamicVectorClass<FootClass*> transports;
-	DynamicVectorClass<FootClass*> passengers;
+	DynamicVectorClass<FootClass*> AllPassengers;
 	int argument = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument;
-
+	
 	if (argument > 3)
 	{
 		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
@@ -3747,6 +3759,12 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 				&& pUnit->Passengers.NumPassengers > 0
 				&& pUnit->GetTechnoType()->SizeLimit == maxSizeLimit) //Battle Fortress and IFV are not transports.
 			{
+				AllPassengers.AddItem(pUnit->Passengers.FirstPassenger);
+				for (NextObject i(pUnit->Passengers.FirstPassenger->NextObject); i && abstract_cast<FootClass*>(*i); i++)
+				{
+					auto passenger = static_cast<FootClass*>(*i);
+					AllPassengers.AddItem(passenger);
+				}
 				pUnit->QueueMission(Mission::Unload, true);
 			}
 		}
@@ -3757,10 +3775,19 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 		{
 			if (!pUnit->GetTechnoType()->OpenTopped && !pUnit->GetTechnoType()->Gunner && pUnit->Passengers.NumPassengers > 0) //Battle Fortress and IFV are not transports.
 			{
+				AllPassengers.AddItem(pUnit->Passengers.FirstPassenger);
+				for (NextObject i(pUnit->Passengers.FirstPassenger->NextObject); i && abstract_cast<FootClass*>(*i); i++)
+				{
+					auto passenger = static_cast<FootClass*>(*i);
+					AllPassengers.AddItem(passenger);
+				}
 				pUnit->QueueMission(Mission::Unload, true);
 			}
 		}
 	}
+
+	if (pTeamData->AllPassengers.Count == 0)
+		pTeamData->AllPassengers = AllPassengers;
 
 	//unload in progress
 	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
@@ -3773,10 +3800,6 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 		{
 			transports.AddItem(pUnit);
 		}
-		else
-		{
-			passengers.AddItem(pUnit);
-		}
 	}
 
 	//no valid transports
@@ -3786,10 +3809,26 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 		return;
 	}
 
-	//Liberate passengers
-	if (argument == 1)
+	//Save all
+	if (argument == 0 || argument == 4)
 	{
-		for (auto pPassengers : passengers)
+		for (int i = 0; i < pTeamData->AllPassengers.Count; i++)
+		{
+			auto pFoot = (pTeamData->AllPassengers)[i];
+
+			// Must be owner
+			if (pFoot
+				&& !pFoot->InLimbo && pFoot->Health > 0
+				&& pFoot->Owner == pTeam->Owner)
+			{
+				pTeam->AddMember(pFoot, true);
+			}
+		}
+	}
+	//Liberate passengers
+	else if (argument == 1)
+	{
+		for (auto pPassengers : pTeamData->AllPassengers)
 		{
 			pTeam->LiberateMember(pPassengers);
 		}
@@ -3801,6 +3840,18 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 		{
 			TransportsReturn(pTeam, pTransport);
 			pTeam->LiberateMember(pTransport);
+		}
+		for (int i = 0; i < pTeamData->AllPassengers.Count; i++)
+		{
+			auto pFoot = (pTeamData->AllPassengers)[i];
+
+			// Must be owner
+			if (pFoot
+				&& !pFoot->InLimbo && pFoot->Health > 0
+				&& pFoot->Owner == pTeam->Owner)
+			{
+				pTeam->AddMember(pFoot, true);
+			}
 		}
 	}
 	//Liberate whole team
@@ -3827,7 +3878,7 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 				pTeam->LiberateMember(pTransport);
 			}
 		}
-		for (auto pPassengers : passengers)
+		for (auto pPassengers : pTeamData->AllPassengers)
 		{
 			pTeam->LiberateMember(pPassengers);
 		}
@@ -3841,6 +3892,18 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 			{
 				TransportsReturn(pTeam, pTransport);
 				pTeam->LiberateMember(pTransport);
+			}
+		}
+		for (int i = 0; i < pTeamData->AllPassengers.Count; i++)
+		{
+			auto pFoot = (pTeamData->AllPassengers)[i];
+
+			// Must be owner
+			if (pFoot
+				&& !pFoot->InLimbo && pFoot->Health > 0
+				&& pFoot->Owner == pTeam->Owner)
+			{
+				pTeam->AddMember(pFoot, true);
 			}
 		}
 	}
@@ -3863,6 +3926,7 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 	}
 
 	// This action finished
+	pTeamData->AllPassengers.Clear();
 	pTeam->StepCompleted = true;
 	return;
 }
@@ -4997,3 +5061,102 @@ void ScriptExt::Mission_Attack_List_Individually(TeamClass* pTeam, bool repeatAc
 		ScriptExt::Mission_Attack_Individually(pTeam, repeatAction, calcThreatMode, attackAITargetType, -1);
 	}
 }
+
+//void ScriptExt::RallyNearbyUnits(TeamClass* pTeam)
+//{
+//	int rallyDistance = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument;
+//	DynamicVectorClass<FootClass*> unitsReadyToRally;
+//
+//	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+//	{
+//		for (int i = 0; i < FootClass::Array->Count; i++)
+//		{
+//			auto pFoot = (*FootClass::Array)[i];
+//
+//			// Must be owner
+//			if (pFoot
+//				&& !pFoot->InLimbo && pFoot->Health > 0
+//				&& pFoot->Owner == pTeam->Owner
+//				&& pFoot->DistanceFrom(pUnit) / 256.0 <= rallyDistance)
+//			{
+//				unitsReadyToRally.AddItem(pFoot);
+//			}
+//		}
+//	}
+//
+//	if (unitsReadyToRally.Count > 0)
+//	{
+//		for (int i = 0; i < unitsReadyToRally.Count; i++)
+//		{
+//			pTeam->AddMember(unitsReadyToRally.GetItem(i), true);
+//		}
+//	}
+//
+//
+//	// This action finished
+//	pTeam->StepCompleted = true;
+//	return;
+//}
+
+//void ScriptExt::EngineerRepairBrokenBridge(TeamClass* pTeam)
+//{
+//	DynamicVectorClass<BuildingClass *> bridgeRepairHuts;
+//	DynamicVectorClass<CellClass*> bridgeRepairHutsCells;
+//
+//	for (int i = 0; i < TechnoClass::Array->Count; i++)
+//	{
+//		auto pTechno = TechnoClass::Array->GetItem(i);
+//		if (auto pBuilding = abstract_cast<BuildingClass*>(pTechno))
+//		{ 
+//			auto pBuildingType = abstract_cast<BuildingTypeClass*>(pTechno->GetTechnoType());
+//			if (pBuildingType->BridgeRepairHut)
+//			{
+//				bridgeRepairHuts.AddItem(pBuilding);
+//				bridgeRepairHutsCells.AddItem(pBuilding->GetCell());
+//			}
+//		}
+//	}
+//
+//	//for (int i = 0; i < bridgeRepairHutsCells.Count; i++)
+//	//{
+//	//	CellClass* pCell = bridgeRepairHutsCells.GetItem(i);
+//	//	
+//	//	if (pCell->ContainsBridgeEx())
+//	//	{
+//	//		//auto pTerrain = pCell->GetTerrain( 1 );
+//	//		Debug::Log("Height = 233.\n");
+//	//		pCell->FogCell();//BlowUpBridge();
+//	//	}
+//	//	else
+//	//	{
+//	//		Debug::Log("Height = 114.\n");
+//	//		pCell->BridgeOwnerCell->BlowUpBridge();
+//	//	}
+//	//}
+//	//bool HasTarget = false;
+//
+//	//while (!HasTarget)
+//	//{
+//		int IdxSelectedHut = ScenarioClass::Instance->Random.RandomRanged(0, bridgeRepairHuts.Count - 1);
+//		auto SelectedHut = bridgeRepairHuts.GetItem(IdxSelectedHut);
+//
+//
+//		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+//		{
+//			if (SelectedHut->ShouldRebuild)
+//			{
+//				pUnit->SetTarget(SelectedHut);
+//				//HasTarget = true;
+//
+//				if (pUnit->IsEngineer())
+//				{
+//					pUnit->QueueMission(Mission::Capture, true);
+//				}
+//			}
+//		}
+//	//}
+//
+//	//This action finished
+//	pTeam->StepCompleted = true;
+//	return;
+//}
