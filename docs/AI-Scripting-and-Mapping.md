@@ -410,7 +410,9 @@ x=134,0
 
 ### `135` Unload from Transports
 
-- A new unload action similar to x=8,n, but can avoid treating `VehicleTypes` with `OpenTopped=yes` and `Gunner=yes` as transports. If `TransportsReturnOnUnload` is set to `yes` in this TeamType, and transports are lost, they will return after unloading.
+- A new unload action similar to x=8,n, but can avoid treating `VehicleTypes` with `OpenTopped=yes` and `Gunner=yes` as transports.
+  - All `InitialPayload` will be regarded as passengers and added to team.
+  - If `TransportsReturnOnUnload` is set to `yes` in this TeamType, and transports are lost, they will return after unloading.
 
 In `aimd.ini`:
 ```ini
@@ -430,6 +432,7 @@ x=135,n
 5         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Keep transports and lose units. |
 6         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Lose transports and keep units. |
 7         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Lose transports and units. |
+
 
 ### `136` Distributed loading 2
 | type                | desc                                                                     | Low word nArg |
