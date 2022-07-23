@@ -40,7 +40,7 @@ By default Phobos doesn't do any very noticeable changes except a few bugfixes. 
 Documentation
 -------------
 
-- [Official docs](https://phobos.readthedocs.io) (also available in [Chinese](https://phobos.readthedocs.io/zh_CN/latest))
+- [Official docs](https://phobos-docs.readthedocs.io)
 
 You can switch between versions (displays latest develop nightly version by default) in the bottom left corner, as well as download a PDF version.
 
