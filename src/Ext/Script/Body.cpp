@@ -6585,7 +6585,8 @@ void ScriptExt::StopIfHumanOrAI(TeamClass* pTeam)
 		pTeam->CurrentScript->ClearMission();
 	else if (argument == 1 && !pTeam->FirstUnit->Owner->ControlledByHuman())
 		pTeam->CurrentScript->ClearMission();
-
+	else
+		pTeam->StepCompleted = true;
 	return;
 }
 
