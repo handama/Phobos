@@ -76,6 +76,7 @@ enum class PhobosScripts : unsigned int
 	RepeatAttackTypeIndividuallyCloserThreat = 138,
 	RepeatAttackIndividuallyCloserThreat2 = 139,
 	RepeatAttackTypeIndividuallyCloserThreat2 = 140,
+	SetAttackTargetRank = 141,
 	//RallyNearbyUnits = 139,
 	//EngineerRepairBrokenBridge = 139,	
 
@@ -189,7 +190,7 @@ public:
 	static void WaitUntilFullAmmoAction(TeamClass * pTeam);
 	static void Mission_Gather_NearTheLeader(TeamClass *pTeam, int countdown);
 	static void Mission_Attack(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType, int IdxAITargetTypeItem);
-	static TechnoClass* GreatestThreat(TechnoClass* pTechno, int method, int calcThreatMode, HouseClass* onlyTargetThisHouseEnemy, int attackAITargetType, int idxAITargetTypeItem, bool agentMode);
+	static TechnoClass* GreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode, HouseClass* onlyTargetThisHouseEnemy, int attackAITargetType, int idxAITargetTypeItem, bool agentMode);
 	static bool EvaluateObjectWithMask(TechnoClass* pTechno, int mask, int attackAITargetType, int idxAITargetTypeItem, TechnoClass *pTeamLeader);
 
 	static void DecreaseCurrentTriggerWeight(TeamClass* pTeam, bool forceJumpLine, double modifier);
@@ -198,7 +199,7 @@ public:
 	static void TeamWeightReward(TeamClass *pTeam, double award);
 	static void PickRandomScript(TeamClass * pTeam, int idxScriptsList);
 	static void Mission_Move(TeamClass* pTeam, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
-	static TechnoClass* FindBestObject(TechnoClass *pTechno, int method, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
+	static TechnoClass* FindBestObject(TechnoClass *pTechno, TeamClass* pTeam, int method, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
 	static void UnregisterGreatSuccess(TeamClass * pTeam);
 
 	static void TeamMemberSetGroup(TeamClass* pTeam, int group);
@@ -237,6 +238,7 @@ public:
 	static void Mission_Attack_Individually2(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType, int IdxAITargetTypeItem);
 	static void Mission_Attack_List_Individually2(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
 	static void RallyNearbyUnits(TeamClass* pTeam);
+	static void SetAttackTargetRank(TeamClass* pTeam);
 	//static void EngineerRepairBrokenBridge(TeamClass* pTeam);
 
 	static ExtContainer ExtMap;

@@ -247,6 +247,9 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 		// Threats specific targets that are close have more priority. Kill until no more targets.
 		ScriptExt::Mission_Attack_List_Individually2(pTeam, true, 0, -1);
 		break;
+	case PhobosScripts::SetAttackTargetRank:
+		ScriptExt::SetAttackTargetRank(pTeam);
+		break;
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
 		if (action > 70 && !IsExtVariableAction(action))
@@ -818,7 +821,7 @@ void ScriptExt::Mission_Attack(TeamClass *pTeam, bool repeatAction = true, int c
 			enemyHouse = HouseClass::Array->GetItem(pLeaderUnit->Owner->EnemyHouseIndex);
 
 		int targetMask = scriptArgument;
-		selectedTarget = GreatestThreat(pLeaderUnit, targetMask, calcThreatMode, enemyHouse, attackAITargetType, idxAITargetTypeItem, agentMode);
+		selectedTarget = GreatestThreat(pLeaderUnit, pTeam, targetMask, calcThreatMode, enemyHouse, attackAITargetType, idxAITargetTypeItem, agentMode);
 
 		if (selectedTarget)
 		{
@@ -1088,7 +1091,7 @@ void ScriptExt::Mission_Attack(TeamClass *pTeam, bool repeatAction = true, int c
 	}
 }
 
-TechnoClass* ScriptExt::GreatestThreat(TechnoClass *pTechno, int method, int calcThreatMode = 0, HouseClass* onlyTargetThisHouseEnemy = nullptr, int attackAITargetType = -1, int idxAITargetTypeItem = -1, bool agentMode = false)
+TechnoClass* ScriptExt::GreatestThreat(TechnoClass *pTechno, TeamClass* pTeam, int method, int calcThreatMode = 0, HouseClass* onlyTargetThisHouseEnemy = nullptr, int attackAITargetType = -1, int idxAITargetTypeItem = -1, bool agentMode = false)
 {
 	TechnoClass *bestObject = nullptr;
 	double bestVal = -1;
@@ -1104,6 +1107,32 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass *pTechno, int method, int cal
 
 		if (!object || !objectType || !pTechnoType)
 			continue;
+
+		auto pTeamData = TeamExt::ExtMap.Find(pTeam);
+		if (pTeamData)
+		{
+			int attackTargetRank = pTeamData->AttackTargetRank;
+			if (attackTargetRank == 0)
+			{
+				if (!object->Veterancy.IsRookie())
+					continue;
+			}
+			else if (attackTargetRank == 1)
+			{
+				if (!object->Veterancy.IsVeteran())
+					continue;
+			}
+			else if (attackTargetRank == 2)
+			{
+				if (!object->Veterancy.IsElite())
+					continue;
+			}
+			else if (attackTargetRank == 3)
+			{
+				if (object->Veterancy.IsRookie())
+					continue;
+			}
+		}
 
 		// Note: the TEAM LEADER is picked for this task, be careful with leadership values in your mod
 		int weaponIndex = pTechno->SelectWeapon(object);
@@ -2219,7 +2248,7 @@ void ScriptExt::Mission_Move(TeamClass *pTeam, int calcThreatMode = 0, bool pick
 		// This part of the code is used for picking a new target.
 
 		int targetMask = scriptArgument;
-		selectedTarget = FindBestObject(pLeaderUnit, targetMask, calcThreatMode, pickAllies, attackAITargetType, idxAITargetTypeItem);
+		selectedTarget = FindBestObject(pLeaderUnit, pTeam, targetMask, calcThreatMode, pickAllies, attackAITargetType, idxAITargetTypeItem);
 
 		if (selectedTarget)
 		{
@@ -2329,7 +2358,7 @@ void ScriptExt::Mission_Move(TeamClass *pTeam, int calcThreatMode = 0, bool pick
 	}
 }
 
-TechnoClass* ScriptExt::FindBestObject(TechnoClass *pTechno, int method, int calcThreatMode = 0, bool pickAllies = false, int attackAITargetType = -1, int idxAITargetTypeItem = -1)
+TechnoClass* ScriptExt::FindBestObject(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode = 0, bool pickAllies = false, int attackAITargetType = -1, int idxAITargetTypeItem = -1)
 {
 	TechnoClass *bestObject = nullptr;
 	double bestVal = -1;
@@ -2360,6 +2389,32 @@ TechnoClass* ScriptExt::FindBestObject(TechnoClass *pTechno, int method, int cal
 
 		if (!object || !objectType || !pTechnoType)
 			continue;
+
+		auto pTeamData = TeamExt::ExtMap.Find(pTeam);
+		if (pTeamData)
+		{
+			int attackTargetRank = pTeamData->AttackTargetRank;
+			if (attackTargetRank == 0)
+			{
+				if (!object->Veterancy.IsRookie())
+					continue;
+			}
+			else if (attackTargetRank == 1)
+			{
+				if (!object->Veterancy.IsVeteran())
+					continue;
+			}
+			else if (attackTargetRank == 2)
+			{
+				if (!object->Veterancy.IsElite())
+					continue;
+			}
+			else if (attackTargetRank == 3)
+			{
+				if (object->Veterancy.IsRookie())
+					continue;
+			}
+		}
 
 		if (enemyHouse && enemyHouse != object->Owner)
 			continue;
@@ -4614,6 +4669,31 @@ void ScriptExt::Mission_Attack_Individually(TeamClass* pTeam, bool repeatAction 
 				if (!object || !objectType || !pTechnoType)
 					continue;
 
+				if (pTeamData)
+				{
+					int attackTargetRank = pTeamData->AttackTargetRank;
+					if (attackTargetRank == 0)
+					{
+						if (!object->Veterancy.IsRookie())
+							continue;
+					}
+					else if (attackTargetRank == 1)
+					{
+						if (!object->Veterancy.IsVeteran())
+							continue;
+					}
+					else if (attackTargetRank == 2)
+					{
+						if (!object->Veterancy.IsElite())
+							continue;
+					}
+					else if (attackTargetRank == 3)
+					{
+						if (object->Veterancy.IsRookie())
+							continue;
+					}
+				}
+
 				// Note: the TEAM LEADER is picked for this task, be careful with leadership values in your mod
 				int weaponIndex = pLeaderUnit->SelectWeapon(object);
 				auto weaponType = pLeaderUnit->GetWeapon(weaponIndex)->WeaponType;
@@ -5405,6 +5485,31 @@ void ScriptExt::Mission_Attack_Individually2(TeamClass* pTeam, bool repeatAction
 					if (!object || !objectType || !pTechnoType)
 						continue;
 
+					if (pTeamData)
+					{
+						int attackTargetRank = pTeamData->AttackTargetRank;
+						if (attackTargetRank == 0)
+						{
+							if (!object->Veterancy.IsRookie())
+								continue;
+						}
+						else if (attackTargetRank == 1)
+						{
+							if (!object->Veterancy.IsVeteran())
+								continue;
+						}
+						else if (attackTargetRank == 2)
+						{
+							if (!object->Veterancy.IsElite())
+								continue;
+						}
+						else if (attackTargetRank == 3)
+						{
+							if (object->Veterancy.IsRookie())
+								continue;
+						}
+					}
+
 					// Note: the TEAM LEADER is picked for this task, be careful with leadership values in your mod
 					int weaponIndex = pLeaderUnit->SelectWeapon(object);
 					auto weaponType = pLeaderUnit->GetWeapon(weaponIndex)->WeaponType;
@@ -6001,6 +6106,31 @@ void ScriptExt::Mission_Attack_Individually2(TeamClass* pTeam, bool repeatAction
 					if (!object || !objectType || !pTechnoType)
 						continue;
 
+					if (pTeamData)
+					{
+						int attackTargetRank = pTeamData->AttackTargetRank;
+						if (attackTargetRank == 0)
+						{
+							if (!object->Veterancy.IsRookie())
+								continue;
+						}
+						else if (attackTargetRank == 1)
+						{
+							if (!object->Veterancy.IsVeteran())
+								continue;
+						}
+						else if (attackTargetRank == 2)
+						{
+							if (!object->Veterancy.IsElite())
+								continue;
+						}
+						else if (attackTargetRank == 3)
+						{
+							if (object->Veterancy.IsRookie())
+								continue;
+						}
+					}
+
 					// Note: the TEAM LEADER is picked for this task, be careful with leadership values in your mod
 					int weaponIndex = pLeaderUnit->SelectWeapon(object);
 					auto weaponType = pLeaderUnit->GetWeapon(weaponIndex)->WeaponType;
@@ -6432,6 +6562,18 @@ void ScriptExt::Mission_Attack_List_Individually2(TeamClass* pTeam, bool repeatA
 		ScriptExt::Mission_Attack_Individually2(pTeam, repeatAction, calcThreatMode, attackAITargetType, -1);
 	}
 }
+
+void ScriptExt::SetAttackTargetRank(TeamClass* pTeam)
+{
+	int argument = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument;
+	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
+	if (pTeamData)
+		pTeamData->AttackTargetRank = argument;
+	//This action finished
+	pTeam->StepCompleted = true;
+	return;
+}
+
 
 
 //void ScriptExt::RallyNearbyUnits(TeamClass* pTeam)

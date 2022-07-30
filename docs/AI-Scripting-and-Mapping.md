@@ -455,6 +455,21 @@ In `aimd.ini`:
 x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 << 16 + 10)
 ```
 
+### `141` Set Target Rank
+
+- After using this script, all `Generic Target Type Attack Action`, `AITargetTypes Attack Action`, and `Moving Team to techno location` will only pick targets with specific ranks.
+
+- The possible argument values are:
+
+| *Argument* | *Description*                       |
+| :------: | :-------------------------------------------: |
+-1         | Deafult setting (pick all ranks) |
+0         | only pick Rookie  |
+1         | only pick Veteran |
+2         | only pick Elite |
+3         | pick Veteran and Elite |
+
+
 ### `500 - 523` Edit Variable
 - Operate a variable's value
     - The variable's value type is int16 instead of int32 in trigger actions for some reason, which means it ranges from -2^15 to 2^15-1.

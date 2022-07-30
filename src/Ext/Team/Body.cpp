@@ -25,6 +25,7 @@ void TeamExt::ExtData::Serialize(T& Stm)
 		.Process(this->PreviousScriptList)
 		.Process(this->GenericStatus)
 		.Process(this->AllPassengers)
+		.Process(this->AttackTargetRank)
 		;
 }
 

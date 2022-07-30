@@ -92,6 +92,8 @@ bool AITriggerTypeExt::ReadCustomizableAICondition(AITriggerTypeClass * pAITrigg
 	//6 = power green; 7 = power yellow; 8 = power red;
 	//(Money) 9 = "<"; 10 = "<="; 11 = "=="; 12 = ">="; 13 = ">"; 14 = "!=";
 	//15 = IronCurtainCharged; 16 = ChronoSphereCharged; 17 = !IronCurtainCharged; 18 = !ChronoSphereCharged;
+	//(TechnoType, rank Veteran) 19 = "<"; 20 = "<="; 21 = "=="; 22 = ">="; 23 = ">"; 24 = "!=";
+	//(TechnoType, rank Elite) 25 = "<"; 26 = "<="; 27 = "=="; 28 = ">="; 29 = ">"; 30 = "!=";
 	//int compareMode;
 
 	const int PowerGreenSurplus = 100;
@@ -176,6 +178,62 @@ bool AITriggerTypeExt::ReadCustomizableAICondition(AITriggerTypeClass * pAITrigg
 			}
 		}
 	}
+	else if (compareMode >= 19 && compareMode <= 24)
+	{
+		for (int i = 0; i < TechnoClass::Array->Count; i++)
+		{
+			auto pTechno = TechnoClass::Array->GetItem(i);
+			auto pTechnoHouse = pTechno->Owner;
+			if (pTechno->GetTechnoType() == TechnoType
+				&& pTechno->Veterancy.IsVeteran()
+				&& pTechno->IsAlive
+				&& !pTechno->InLimbo
+				&& pTechno->IsOnMap
+				&& !pTechno->Absorbed
+				&& PickValidHouse(pHouse, pTechnoHouse, pickMode))
+			{
+				count++;
+			}
+		}
+		if ((count < Number && compareMode == 19)
+			|| (count <= Number && compareMode == 20)
+			|| (count == Number && compareMode == 21)
+			|| (count >= Number && compareMode == 22)
+			|| (count > Number && compareMode == 23)
+			|| (count != Number && compareMode == 24)
+			)
+			return true;
+		else
+			return false;
+	}
+	else if (compareMode >= 25 && compareMode <= 30)
+	{
+	for (int i = 0; i < TechnoClass::Array->Count; i++)
+	{
+		auto pTechno = TechnoClass::Array->GetItem(i);
+		auto pTechnoHouse = pTechno->Owner;
+		if (pTechno->GetTechnoType() == TechnoType
+			&& pTechno->Veterancy.IsElite()
+			&& pTechno->IsAlive
+			&& !pTechno->InLimbo
+			&& pTechno->IsOnMap
+			&& !pTechno->Absorbed
+			&& PickValidHouse(pHouse, pTechnoHouse, pickMode))
+		{
+			count++;
+		}
+	}
+	if ((count < Number && compareMode == 25)
+		|| (count <= Number && compareMode == 26)
+		|| (count == Number && compareMode == 27)
+		|| (count >= Number && compareMode == 28)
+		|| (count > Number && compareMode == 29)
+		|| (count != Number && compareMode == 30)
+		)
+		return true;
+	else
+		return false;
+	}
 	return false;
 }
 
@@ -257,7 +315,7 @@ void AITriggerTypeExt::CustomizableAICondition(AITriggerTypeClass * pAITriggerTy
 				&& leastOptionalRequirementsCount > -1
 				&& essentialRequirementsCount + leastOptionalRequirementsCount < thisAICondition.Count
 				&& pickMode >= 0 && pickMode <= 11
-				&& compareMode >= 0 && compareMode <= 18
+				&& compareMode >= 0 && compareMode <= 30
 				&& Number >= 0)
 			{
 				//essential requirements judgement

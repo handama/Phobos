@@ -30,6 +30,7 @@ public:
 		std::vector<ScriptClass*> PreviousScriptList;
 		int GenericStatus;
 		DynamicVectorClass<FootClass*> AllPassengers;
+		int AttackTargetRank;
 
 		ExtData(TeamClass* OwnerObject) : Extension<TeamClass>(OwnerObject)
 			, WaitNoTargetAttempts { 0 }
@@ -47,6 +48,7 @@ public:
 			, PreviousScriptList { }
 			, GenericStatus { 0 }
 			, AllPassengers { }
+			, AttackTargetRank { -1 }
 		{ }
 
 		virtual ~ExtData() = default;

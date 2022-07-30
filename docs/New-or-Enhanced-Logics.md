@@ -261,6 +261,18 @@ Available Compare Modes are:
 16         | Chrono Sphere meets the percentage in `AIMinorSuperReadyPercent` |
 17         | Iron Curtain doesn't meet the percentage in `AIMinorSuperReadyPercent` |
 18         | Chrono Sphere doesn't meet the percentage in `AIMinorSuperReadyPercent` |
+19         | (count Veteran TechnoTypes)< |
+20         | (count Veteran TechnoTypes)<= |
+21         | (count Veteran TechnoTypes)== |
+22         | (count Veteran TechnoTypes)>= |
+23         | (count Veteran TechnoTypes)> |
+24         | (count Veteran TechnoTypes)!= |
+25         | (count Elite TechnoTypes)< |
+26         | (count Elite TechnoTypes)<= |
+27         | (count Elite TechnoTypes)== |
+28         | (count Elite TechnoTypes)>= |
+29         | (count Elite TechnoTypes)> |
+30         | (count Elite TechnoTypes)!= |
 
 - When `CompareMode` is between 6-18, `TechnoType` should be `<none>`. When `CompareMode` is between 6-8, 15-18, `Number` should be 0.
 
