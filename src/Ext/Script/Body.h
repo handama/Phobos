@@ -74,6 +74,8 @@ enum class PhobosScripts : unsigned int
 	DistributedLoading2 = 136,
 	RepeatAttackIndividuallyCloserThreat = 137,
 	RepeatAttackTypeIndividuallyCloserThreat = 138,
+	RepeatAttackIndividuallyCloserThreat2 = 139,
+	RepeatAttackTypeIndividuallyCloserThreat2 = 140,
 	//RallyNearbyUnits = 139,
 	//EngineerRepairBrokenBridge = 139,	
 
@@ -232,6 +234,8 @@ public:
 	static void JumpBackToPreviousScript(TeamClass* pTeam);
 	static void Mission_Attack_Individually(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType, int IdxAITargetTypeItem);
 	static void Mission_Attack_List_Individually(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
+	static void Mission_Attack_Individually2(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType, int IdxAITargetTypeItem);
+	static void Mission_Attack_List_Individually2(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
 	static void RallyNearbyUnits(TeamClass* pTeam);
 	//static void EngineerRepairBrokenBridge(TeamClass* pTeam);
 
