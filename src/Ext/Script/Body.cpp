@@ -250,6 +250,9 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 	case PhobosScripts::SetAttackTargetRank:
 		ScriptExt::SetAttackTargetRank(pTeam);
 		break;
+	case PhobosScripts::StopIfHumanOrAI:
+		ScriptExt::StopIfHumanOrAI(pTeam);
+		break;
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
 		if (action > 70 && !IsExtVariableAction(action))
@@ -6574,7 +6577,17 @@ void ScriptExt::SetAttackTargetRank(TeamClass* pTeam)
 	return;
 }
 
+void ScriptExt::StopIfHumanOrAI(TeamClass* pTeam)
+{
+	int argument = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument;
 
+	if (argument == 0 && pTeam->FirstUnit->Owner->ControlledByHuman())
+		pTeam->CurrentScript->ClearMission();
+	else if (argument == 1 && !pTeam->FirstUnit->Owner->ControlledByHuman())
+		pTeam->CurrentScript->ClearMission();
+
+	return;
+}
 
 //void ScriptExt::RallyNearbyUnits(TeamClass* pTeam)
 //{

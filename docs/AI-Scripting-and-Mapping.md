@@ -469,6 +469,16 @@ x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 <
 2         | only pick Elite |
 3         | pick Veteran and Elite |
 
+### `142` Stop Action if Human or AI
+
+- Stop executing this script action if this team is controlled by human or cumputer.
+
+- The possible argument values are:
+| *Argument* | *Description*                       |
+| :------: | :-------------------------------------------: |
+0         | stop when controlled by human |
+1         | stop when controlled by computer  |
+
 
 ### `500 - 523` Edit Variable
 - Operate a variable's value
