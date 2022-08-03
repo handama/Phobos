@@ -3745,6 +3745,8 @@ void ScriptExt::Stop_ForceJump_Countdown(TeamClass *pTeam)
 	if (!pTeamData)
 		return;
 
+	pTeamData->AllPassengers.Clear();
+
 	pTeamData->ForceJump_InitialCountdown = -1;
 	pTeamData->ForceJump_Countdown.Stop();
 	pTeamData->ForceJump_Countdown = -1;
@@ -3825,13 +3827,24 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 				&& pUnit->Passengers.NumPassengers > 0
 				&& pUnit->GetTechnoType()->SizeLimit == maxSizeLimit) //Battle Fortress and IFV are not transports.
 			{
-				AllPassengers.AddItem(pUnit->Passengers.FirstPassenger);
-				for (NextObject i(pUnit->Passengers.FirstPassenger->NextObject); i && abstract_cast<FootClass*>(*i); i++)
+				bool isInAllPassenger = false;
+				for (int i = 0; i < pTeamData->AllPassengers.Count; i++)
 				{
-					auto passenger = static_cast<FootClass*>(*i);
-					AllPassengers.AddItem(passenger);
+					if ((pTeamData->AllPassengers)[i] == pUnit)
+					{
+						isInAllPassenger = true;
+					}
 				}
-				pUnit->QueueMission(Mission::Unload, true);
+				if (!isInAllPassenger)
+				{
+					AllPassengers.AddItem(pUnit->Passengers.FirstPassenger);
+					for (NextObject i(pUnit->Passengers.FirstPassenger->NextObject); i && abstract_cast<FootClass*>(*i); i++)
+					{
+						auto passenger = static_cast<FootClass*>(*i);
+						AllPassengers.AddItem(passenger);
+					}
+					pUnit->QueueMission(Mission::Unload, true);
+				}
 			}
 		}
 	}
@@ -3841,19 +3854,43 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 		{
 			if (!pUnit->GetTechnoType()->OpenTopped && !pUnit->GetTechnoType()->Gunner && pUnit->Passengers.NumPassengers > 0) //Battle Fortress and IFV are not transports.
 			{
-				AllPassengers.AddItem(pUnit->Passengers.FirstPassenger);
-				for (NextObject i(pUnit->Passengers.FirstPassenger->NextObject); i && abstract_cast<FootClass*>(*i); i++)
+				bool isInAllPassenger = false;
+				for (int i = 0; i < pTeamData->AllPassengers.Count; i++)
 				{
-					auto passenger = static_cast<FootClass*>(*i);
-					AllPassengers.AddItem(passenger);
+					if ((pTeamData->AllPassengers)[i] == pUnit)
+					{
+						isInAllPassenger = true;
+					}
 				}
-				pUnit->QueueMission(Mission::Unload, true);
+				if (!isInAllPassenger)
+				{
+					AllPassengers.AddItem(pUnit->Passengers.FirstPassenger);
+					for (NextObject i(pUnit->Passengers.FirstPassenger->NextObject); i && abstract_cast<FootClass*>(*i); i++)
+					{
+						auto passenger = static_cast<FootClass*>(*i);
+						AllPassengers.AddItem(passenger);
+					}
+					pUnit->QueueMission(Mission::Unload, true);
+				}
 			}
 		}
 	}
 
 	if (pTeamData->AllPassengers.Count == 0)
 		pTeamData->AllPassengers = AllPassengers;
+
+	for (int i = 0; i < pTeamData->AllPassengers.Count; i++)
+	{
+		auto pFoot = (pTeamData->AllPassengers)[i];
+
+		// Must be owner
+		if (pFoot
+			&& !pFoot->InLimbo && pFoot->Health > 0
+			&& pFoot->Owner == pTeam->Owner)
+		{
+			pTeam->AddMember(pFoot, true);
+		}
+	}
 
 	//unload in progress
 	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
