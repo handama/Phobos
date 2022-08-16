@@ -78,6 +78,10 @@ enum class PhobosScripts : unsigned int
 	RepeatAttackTypeIndividuallyCloserThreat2 = 140,
 	SetAttackTargetRank = 141,
 	StopIfHumanOrAI = 142,
+	RepeatAttackIndividuallyCloser = 143,
+	RepeatAttackTypeIndividuallyCloser = 144,
+	RepeatAttackIndividuallyCloser2 = 145,
+	RepeatAttackTypeIndividuallyCloser2 = 146,
 	//RallyNearbyUnits = 139,
 	//EngineerRepairBrokenBridge = 139,	
 

@@ -42,7 +42,7 @@ In `aimd.ini`:
 x=73,0
 ```
 
-### `74-81`, `137` , `139`Generic Target Type Attack Action
+### `74-81`, `137` , `139`, `143`, `145` Generic Target Type Attack Action
 
 - These Actions instruct the TeamType to use the TaskForce to approach and attack the target specified by the second parameter which is an index of a generic pre-defined group. Look at the tables below for the possible Actions (first parameter value) and Arguments (the second parameter value).
   - For threat-based attack actions `TargetSpecialThreatCoefficientDefault` and `EnemyHouseThreatBonus` tags from `rulesmd.ini` are accounted.
@@ -66,6 +66,8 @@ x=i,n             ; where 74 <= i <= 81
 |81         | Target Type# | No | Farther | Ends when a team member kill the designated target |
 |137         | Target Type# | Yes | Closer, higher threat | Each team member gets its own target |
 |139         | Target Type# | Yes | Closer, higher threat | Each 2 team member gets their own target |
+|143         | Target Type# | Yes | Closer | Each team member gets its own target |
+|145         | Target Type# | Yes | Closer | Each 2 team member gets their own target |
 
 - The following values are the *Target Type#* which can be used as second parameter of the new attack script actions:
 
@@ -130,7 +132,7 @@ In `aimd.ini`:
 x=83,n
 ```
 
-### `84-91`, `104-105`, `138`, `140` `AITargetTypes` Attack Action
+### `84-91`, `104-105`, `138`, `140`, `144`, `146` `AITargetTypes` Attack Action
 
 - These Actions instruct the TeamType to use the TaskForce to approach and attack the target specified by the second parameter which is an index of a modder-defined group from `AITargetTypess`. Look at the tables below for the possible Actions (first parameter value) and Arguments (the second parameter value).
   - For threat-based attack actions `TargetSpecialThreatCoefficientDefault` and `EnemyHouseThreatBonus` tags from `rulesmd.ini` are accounted.
@@ -156,6 +158,8 @@ x=i,n             ; where 84 <= i <= 91 or 104 <= i <= 105
 |105        | `AITargetTypes` index# | Yes | Farther | Picks 1 random target from the list |
 |138         | `AITargetTypes` index# | Yes | Closer, higher threat | Each team member gets its own target |
 |140         | `AITargetTypes` index# | Yes | Closer, higher threat | Each 2 team member gets their own target |
+|144         | `AITargetTypes` index# | Yes | Closer | Each team member gets its own target |
+|146         | `AITargetTypes` index# | Yes | Closer | Each 2 team member gets their own target |
 
 - The second parameter with a 0-based index for the `AITargetTypes` section specifies the list of possible `VehicleTypes`, `AircraftTypes`, `InfantryTypes` and `BuildingTypes` that can be evaluated. The new `AITargetTypes` section must be declared in `rulesmd.ini` for making this script work:
 

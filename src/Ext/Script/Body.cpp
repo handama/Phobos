@@ -253,6 +253,22 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 	case PhobosScripts::StopIfHumanOrAI:
 		ScriptExt::StopIfHumanOrAI(pTeam);
 		break;
+	case PhobosScripts::RepeatAttackIndividuallyCloser:
+		// Threats that are close have more priority. Kill until no more targets.
+		ScriptExt::Mission_Attack_Individually(pTeam, true, 2, -1, -1);
+		break;
+	case PhobosScripts::RepeatAttackTypeIndividuallyCloser:
+		// Threats specific targets that are close have more priority. Kill until no more targets.
+		ScriptExt::Mission_Attack_List_Individually(pTeam, true, 2, -1);
+		break;
+	case PhobosScripts::RepeatAttackIndividuallyCloser2:
+		// Threats that are close have more priority. Kill until no more targets.
+		ScriptExt::Mission_Attack_Individually2(pTeam, true, 2, -1, -1);
+		break;
+	case PhobosScripts::RepeatAttackTypeIndividuallyCloser2:
+		// Threats specific targets that are close have more priority. Kill until no more targets.
+		ScriptExt::Mission_Attack_List_Individually2(pTeam, true, 2, -1);
+		break;
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
 		if (action > 70 && !IsExtVariableAction(action))
