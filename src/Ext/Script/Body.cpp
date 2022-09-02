@@ -3806,9 +3806,45 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 	if (!pTeamData)
 		return;
 
-	bool stillMoving = false;
-	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+	DynamicVectorClass<FootClass*> transports;
+	int argument = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument;
+	double maxSizeLimit = 0;
+
+	if (argument > 3)
 	{
+		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+		{
+			maxSizeLimit = std::max(maxSizeLimit, pUnit->GetTechnoType()->SizeLimit);
+		}
+		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+		{
+			if (!pUnit->GetTechnoType()->OpenTopped
+				&& !pUnit->GetTechnoType()->Gunner
+				&& pUnit->Passengers.NumPassengers > 0
+				&& pUnit->GetTechnoType()->SizeLimit == maxSizeLimit) //Battle Fortress and IFV are not transports.
+			{
+				transports.AddUnique(pUnit);
+			}
+		}
+	}
+	else
+	{
+		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+		{
+			if (!pUnit->GetTechnoType()->OpenTopped && !pUnit->GetTechnoType()->Gunner && pUnit->Passengers.NumPassengers > 0) //Battle Fortress and IFV are not transports.
+			{
+				transports.AddUnique(pUnit);
+			}
+		}
+	}
+
+	bool stillMoving = false;
+
+	for (int i = 0; i < transports.Count; i++)
+	{
+		auto pUnit = transports[i];
+		auto pScript = pTeam->CurrentScript;
+	
 		if (pUnit->CurrentMission == Mission::Move || (pUnit->Locomotor->Is_Moving() && !pUnit->GetTechnoType()->JumpJet))
 		{
 			pUnit->ForceMission(Mission::Wait);
@@ -3819,17 +3855,22 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 			stillMoving = true;
 		}
 	}
+
+	//no valid transports
+	if (transports.Count == 0)
+	{
+		pTeamData->AllPassengers.Clear();
+		pTeam->StepCompleted = true;
+		return;
+	}
 	if (stillMoving)
 	{
 		pTeam->GuardAreaTimer.Start(45);
 		return;
 	}
-
-	double maxSizeLimit = 0;
-	DynamicVectorClass<FootClass*> transports;
-	DynamicVectorClass<FootClass*> AllPassengers;
-	int argument = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument;
 	
+	DynamicVectorClass<FootClass*> AllPassengers;
+		
 	if (argument > 3)
 	{
 		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
@@ -3917,15 +3958,8 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 	{
 		if (!pUnit->GetTechnoType()->OpenTopped && !pUnit->GetTechnoType()->Gunner && pUnit->GetTechnoType()->Passengers > 0) //Battle Fortress and IFV are not transports.
 		{
-			transports.AddItem(pUnit);
+			transports.AddUnique(pUnit);
 		}
-	}
-
-	//no valid transports
-	if (transports.Count == 0)
-	{
-		pTeam->StepCompleted = true;
-		return;
 	}
 
 	//Save all
