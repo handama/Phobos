@@ -195,7 +195,9 @@ public:
 	static void WaitUntilFullAmmoAction(TeamClass * pTeam);
 	static void Mission_Gather_NearTheLeader(TeamClass *pTeam, int countdown);
 	static void Mission_Attack(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType, int IdxAITargetTypeItem);
-	static TechnoClass* GreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode, HouseClass* onlyTargetThisHouseEnemy, int attackAITargetType, int idxAITargetTypeItem, bool agentMode);
+	static TechnoClass* GreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode, HouseClass* onlyTargetThisHouseEnemy, int attackAITargetType, int idxAITargetTypeItem, bool agentMode, bool individual);
+	static void MultiGreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int number, int method, int calcThreatMode, HouseClass* onlyTargetThisHouseEnemy, int attackAITargetType, int idxAITargetTypeItem, bool agentMode, bool individual);
+
 	static bool EvaluateObjectWithMask(TechnoClass* pTechno, int mask, int attackAITargetType, int idxAITargetTypeItem, TechnoClass *pTeamLeader);
 
 	static void DecreaseCurrentTriggerWeight(TeamClass* pTeam, bool forceJumpLine, double modifier);
@@ -238,10 +240,8 @@ public:
 	static void TransportsReturn(TeamClass* pTeam, FootClass* pTransport);
 	static void UnloadFromTransports(TeamClass* pTeam);
 	static void JumpBackToPreviousScript(TeamClass* pTeam);
-	static void Mission_Attack_Individually(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType, int IdxAITargetTypeItem);
-	static void Mission_Attack_List_Individually(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
-	static void Mission_Attack_Individually2(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType, int IdxAITargetTypeItem);
-	static void Mission_Attack_List_Individually2(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
+	static void Mission_Attack_Individually(TeamClass* pTeam, int numberPerTarget, bool repeatAction, int calcThreatMode, int attackAITargetType, int IdxAITargetTypeItem);
+	static void Mission_Attack_List_Individually(TeamClass* pTeam, int numberPerTarget, bool repeatAction, int calcThreatMode, int attackAITargetType);
 	static void StopIfHumanOrAI(TeamClass* pTeam);
 	static void SetAttackTargetRank(TeamClass* pTeam);
 	//static void EngineerRepairBrokenBridge(TeamClass* pTeam);
