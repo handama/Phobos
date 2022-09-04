@@ -1356,7 +1356,6 @@ void ScriptExt::MultiGreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int 
 			if (!object || !objectType || !pTechnoType)
 				continue;
 
-			auto pTeamData = TeamExt::ExtMap.Find(pTeam);
 			if (pTeamData)
 			{
 				int attackTargetRank = pTeamData->AttackTargetRank;
@@ -4033,7 +4032,6 @@ void ScriptExt::Set_ForceJump_Countdown(TeamClass *pTeam, bool repeatLine = fals
 		pTeamData->ForceJump_RepeatMode = false;
 	}
 
-	auto pScript = pTeam->CurrentScript;
 
 	// This action finished
 	pTeam->StepCompleted = true;
@@ -4056,8 +4054,6 @@ void ScriptExt::Stop_ForceJump_Countdown(TeamClass *pTeam)
 	pTeamData->ForceJump_Countdown.Stop();
 	pTeamData->ForceJump_Countdown = -1;
 	pTeamData->ForceJump_RepeatMode = false;
-
-	auto pScript = pTeam->CurrentScript;
 
 	// This action finished
 	pTeam->StepCompleted = true;
@@ -4132,7 +4128,6 @@ void ScriptExt::UnloadFromTransports(TeamClass* pTeam)
 	for (int i = 0; i < transports.Count; i++)
 	{
 		auto pUnit = transports[i];
-		auto pScript = pTeam->CurrentScript;
 	
 		if (pUnit->CurrentMission == Mission::Move || (pUnit->Locomotor->Is_Moving() && !pUnit->GetTechnoType()->JumpJet))
 		{
@@ -5029,12 +5024,12 @@ void ScriptExt::Mission_Attack_Individually(TeamClass* pTeam, int numberPerTarge
 		for (int i = 0; i < pTeamData->IndividualTargets.Count; i++)
 		{
 			auto pTarget = pTeamData->IndividualTargets[i];
-			if (!pLeaderUnit
-				|| !pLeaderUnit->IsAlive
-				|| pLeaderUnit->Health <= 0
-				|| pLeaderUnit->InLimbo
-				|| !pLeaderUnit->IsOnMap
-				|| pLeaderUnit->Absorbed)
+			if (!pTarget
+				|| !pTarget->IsAlive
+				|| pTarget->Health <= 0
+				|| pTarget->InLimbo
+				|| !pTarget->IsOnMap
+				|| pTarget->Absorbed)
 				pTeamData->IndividualTargets.RemoveItem(i);
 		}
 
@@ -5080,12 +5075,14 @@ void ScriptExt::Mission_Attack_Individually(TeamClass* pTeam, int numberPerTarge
 			if (isSmallLeader)
 			{
 				selectedTarget = GreatestThreat(pLeaderUnit, pTeam, targetMask, calcThreatMode, enemyHouse, attackAITargetType, idxAITargetTypeItem, agentMode, true);
+				if (!selectedTarget)
+					selectedTarget = GreatestThreat(pLeaderUnit, pTeam, targetMask, calcThreatMode, enemyHouse, attackAITargetType, idxAITargetTypeItem, agentMode, false); // if targets is not enough, forbid individual attack
+
 				if (selectedTarget)
 				{
 					pTeamData->IndividualTargets.AddUnique(selectedTarget);
 					pEachTarget = selectedTarget;
-				}
-				
+				}				
 			}
 			else
 			{
@@ -5201,12 +5198,17 @@ void ScriptExt::Mission_Attack_Individually(TeamClass* pTeam, int numberPerTarge
 					return;
 				}
 
-				pUnit->CurrentTargets.Clear();
-				pUnit->SetTarget(nullptr);
-				pUnit->SetFocus(nullptr);
-				pUnit->SetDestination(nullptr, false);
-				pUnit->QueueMission(Mission::Hunt, true);
-				Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Team Number [%s] (UID: %lu) start to hunt (NO targets).\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pLeaderUnit->GetTechnoType()->get_ID(), pLeaderUnit->UniqueID);
+				//pUnit->CurrentTargets.Clear();
+				//pUnit->SetTarget(nullptr);
+				//pUnit->SetFocus(nullptr);
+				//pUnit->SetDestination(nullptr, false);
+				//pUnit->QueueMission(Mission::Hunt, true);
+				//Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Team Number [%s] (UID: %lu) start to hunt (NO targets).\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pLeaderUnit->GetTechnoType()->get_ID(), pLeaderUnit->UniqueID);
+				pTeamData->IdxSelectedObjectFromAIList = -1;
+				pTeamData->IndividualTargets.Clear();
+				pTeam->StepCompleted = true;
+				Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Jump to NEXT line: %d = %d,%d (No target found)\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pScript->CurrentMission + 1, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Action, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Argument);
+				return;
 			}
 		}
 		else
