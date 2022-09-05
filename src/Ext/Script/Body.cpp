@@ -5056,12 +5056,26 @@ void ScriptExt::Mission_Attack_Individually(TeamClass* pTeam, int numberPerTarge
 		}
 
 		pFocus = abstract_cast<TechnoClass*>(pUnit->Target);
+		//if (pFocus)
+		//{
+		//	Debug::Log("    DEBUG: [%s] [%s] (line: %d = %d,%d) Team member [%s] (UID: %lu) 's target is [%s] (UID: %lu) \n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pLeaderUnit->GetTechnoType()->get_ID(), pLeaderUnit->UniqueID, pFocus->GetTechnoType()->get_ID(), pFocus->UniqueID);
+
+		//}
+		//else
+		//{
+		//	Debug::Log("    DEBUG: [%s] [%s] (line: %d = %d,%d) Team member [%s] (UID: %lu) has no target \n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pLeaderUnit->GetTechnoType()->get_ID(), pLeaderUnit->UniqueID);
+
+		//}
 
 		if (!pFocus && !bAircraftsWithoutAmmo)
 		{
 			// This part of the code is used for picking a new target.
 
 			// Favorite Enemy House case. If set, AI will focus against that House
+
+			if (pTeam->Type->OnlyTargetHouseEnemy && pLeaderUnit->Owner->EnemyHouseIndex >= 0)
+				enemyHouse = HouseClass::Array->GetItem(pLeaderUnit->Owner->EnemyHouseIndex);
+
 
 			//if (pTeamData->IndividualTargets.Count > targetIndex)
 			//	selectedTarget = pTeamData->IndividualTargets[targetIndex];//GreatestThreat(pLeaderUnit, pTeam, targetMask, calcThreatMode, enemyHouse, attackAITargetType, idxAITargetTypeItem, agentMode, false);
@@ -5072,12 +5086,20 @@ void ScriptExt::Mission_Attack_Individually(TeamClass* pTeam, int numberPerTarge
 
 			//}
 
+			bool logged = false;
 			if (isSmallLeader)
 			{
 				selectedTarget = GreatestThreat(pLeaderUnit, pTeam, targetMask, calcThreatMode, enemyHouse, attackAITargetType, idxAITargetTypeItem, agentMode, true);
 				if (!selectedTarget)
+				{
 					selectedTarget = GreatestThreat(pLeaderUnit, pTeam, targetMask, calcThreatMode, enemyHouse, attackAITargetType, idxAITargetTypeItem, agentMode, false); // if targets is not enough, forbid individual attack
+					if (selectedTarget)
+					{
+						Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Team member [%s] (UID: %lu) selected [%s] (UID: %lu) as target. Individually attacking is ignored because there are not enough targets.\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pLeaderUnit->GetTechnoType()->get_ID(), pLeaderUnit->UniqueID, selectedTarget->GetTechnoType()->get_ID(), selectedTarget->UniqueID);
+						logged = true;
+					}
 
+				}
 				if (selectedTarget)
 				{
 					pTeamData->IndividualTargets.AddUnique(selectedTarget);
@@ -5091,8 +5113,8 @@ void ScriptExt::Mission_Attack_Individually(TeamClass* pTeam, int numberPerTarge
 
 			if (selectedTarget && selectedTarget->IsAlive && !selectedTarget->InLimbo)
 			{
-				Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Team member [%s] (UID: %lu) selected [%s] (UID: %lu) as target.\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pLeaderUnit->GetTechnoType()->get_ID(), pLeaderUnit->UniqueID, selectedTarget->GetTechnoType()->get_ID(), selectedTarget->UniqueID);
-
+				if (!logged)
+					Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Team member [%s] (UID: %lu) selected [%s] (UID: %lu) as target.\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pLeaderUnit->GetTechnoType()->get_ID(), pLeaderUnit->UniqueID, selectedTarget->GetTechnoType()->get_ID(), selectedTarget->UniqueID);
 
 				pTeam->Focus = selectedTarget;
 				pTeamData->WaitNoTargetAttempts = 0; // Disable Script Waits if there are any because a new target was selected
@@ -5168,6 +5190,10 @@ void ScriptExt::Mission_Attack_Individually(TeamClass* pTeam, int numberPerTarge
 							pUnit->Mission_Attack();
 							pUnit->QueueMission(Mission::Sabotage, true);
 						}
+
+						pUnit->QueueMission(Mission::Attack, true);
+						//pUnit->ObjectClickedAction(Action::Attack, selectedTarget, false);
+						//pUnit->Mission_Attack();
 					}
 					else
 					{
