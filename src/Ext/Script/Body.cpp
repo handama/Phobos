@@ -1437,7 +1437,7 @@ void ScriptExt::MultiGreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int 
 			// Submarines aren't a valid target
 			if (object->CloakState == CloakState::Cloaked
 				&& objectType->Underwater
-				&& (pTechnoType->NavalTargeting == 0 || pTechnoType->NavalTargeting == 6))
+				&& (pTechnoType->NavalTargeting == NavalTargetingType::Underwater_Never || pTechnoType->NavalTargeting == NavalTargetingType::Naval_None))
 			{
 				continue;
 			}

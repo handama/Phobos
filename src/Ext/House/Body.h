@@ -19,6 +19,11 @@ public:
 		std::map<BuildingTypeExt::ExtData*, int> BuildingCounter;
 		CounterClass OwnedLimboBuildingTypes;
 
+		BuildingClass* Factory_BuildingType;
+		BuildingClass* Factory_InfantryType;
+		BuildingClass* Factory_VehicleType;
+		BuildingClass* Factory_NavyType;
+		BuildingClass* Factory_AircraftType;
 
 		ExtData(HouseClass* OwnerObject) : Extension<HouseClass>(OwnerObject)
 			, OwnedLimboBuildingTypes {}

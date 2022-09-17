@@ -2,10 +2,11 @@
 
 #include <BulletClass.h>
 #include <UnitClass.h>
+
+#include <Ext/House/Body.h>
+#include <Ext/WarheadType/Body.h>
 #include <BitFont.h>
 #include <Misc/FlyingStrings.h>
-
-#include <Ext/WarheadType/Body.h>
 
 
 DEFINE_HOOK(0x43FB29, BuildingClass_AI, 0x8)
