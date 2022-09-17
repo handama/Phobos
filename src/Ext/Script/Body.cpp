@@ -859,7 +859,7 @@ void ScriptExt::Mission_Attack(TeamClass *pTeam, bool repeatAction = true, int c
 					if (pUnitType && pUnit != selectedTarget && pUnit->Target != selectedTarget)
 					{
 						pUnit->CurrentTargets.Clear();
-						if (pUnitType->Underwater && pUnitType->LandTargeting == 1
+						if (pUnitType->Underwater && pUnitType->LandTargeting == LandTargetingType::Land_Not_OK
 							&& selectedTarget->GetCell()->LandType != LandType::Water) // Land not OK for the Naval unit
 						{
 							// Naval units like Submarines are unable to target ground targets
@@ -1003,7 +1003,7 @@ void ScriptExt::Mission_Attack(TeamClass *pTeam, bool repeatAction = true, int c
 
 					// Naval units like Submarines are unable to target ground targets except if they have nti-ground weapons. Ignore the attack
 					if (pUnitType->Underwater
-						&& pUnitType->LandTargeting == 1
+						&& pUnitType->LandTargeting == LandTargetingType::Land_Not_OK
 						&& pFocus->GetCell()->LandType != LandType::Water) // Land not OK for the Naval unit
 					{
 						pUnit->CurrentTargets.Clear();
@@ -1209,14 +1209,14 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass *pTechno, TeamClass* pTeam, i
 		// Submarines aren't a valid target
 		if (object->CloakState == CloakState::Cloaked
 			&& objectType->Underwater
-			&& (pTechnoType->NavalTargeting == 0 || pTechnoType->NavalTargeting == 6))
+			&& (pTechnoType->NavalTargeting == NavalTargetingType::Underwater_Never || pTechnoType->NavalTargeting == NavalTargetingType::Naval_None))
 		{
 			continue;
 		}
 
 		// Land not OK for the Naval unit
 		if (!objectType->Naval
-			&& pTechnoType->LandTargeting == 1
+			&& pTechnoType->LandTargeting == LandTargetingType::Land_Not_OK
 			&& object->GetCell()->LandType != LandType::Water)
 		{
 			continue;
@@ -1444,7 +1444,7 @@ void ScriptExt::MultiGreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int 
 
 			// Land not OK for the Naval unit
 			if (!objectType->Naval
-				&& pTechnoType->LandTargeting == 1
+				&& pTechnoType->LandTargeting == LandTargetingType::Land_Not_OK
 				&& object->GetCell()->LandType != LandType::Water)
 			{
 				continue;
@@ -2577,7 +2577,7 @@ void ScriptExt::Mission_Move(TeamClass *pTeam, int calcThreatMode = 0, bool pick
 					{
 						pUnit->CurrentTargets.Clear();
 
-						if (pUnitType->Underwater && pUnitType->LandTargeting == 1 && selectedTarget->GetCell()->LandType != LandType::Water) // Land not OK for the Naval unit
+						if (pUnitType->Underwater && pUnitType->LandTargeting == LandTargetingType::Land_Not_OK && selectedTarget->GetCell()->LandType != LandType::Water) // Land not OK for the Naval unit
 						{
 							// Naval units like Submarines are unable to target ground targets except if they have anti-ground weapons. Ignore the attack
 							pUnit->CurrentTargets.Clear();
@@ -2736,15 +2736,15 @@ TechnoClass* ScriptExt::FindBestObject(TechnoClass* pTechno, TeamClass* pTeam, i
 		// Submarines aren't a valid target
 		if (object->CloakState == CloakState::Cloaked
 			&& objectType->Underwater
-			&& (pTechnoType->NavalTargeting == 0
-				|| pTechnoType->NavalTargeting == 6))
+			&& (pTechnoType->NavalTargeting == NavalTargetingType::Underwater_Never
+				|| pTechnoType->NavalTargeting == NavalTargetingType::Naval_None))
 		{
 			continue;
 		}
 
 		// Land not OK for the Naval unit
 		if (!objectType->Naval
-			&& pTechnoType->LandTargeting == 1
+			&& pTechnoType->LandTargeting == LandTargetingType::Land_Not_OK
 			&& object->GetCell()->LandType != LandType::Water)
 		{
 			continue;
@@ -5127,7 +5127,7 @@ void ScriptExt::Mission_Attack_Individually(TeamClass* pTeam, int numberPerTarge
 					if (pUnitType && pUnit != selectedTarget && pUnit->Target != selectedTarget)
 					{
 						pUnit->CurrentTargets.Clear();
-						if (pUnitType->Underwater && pUnitType->LandTargeting == 1
+						if (pUnitType->Underwater && pUnitType->LandTargeting == LandTargetingType::Land_Not_OK
 							&& selectedTarget->GetCell()->LandType != LandType::Water) // Land not OK for the Naval unit
 						{
 							// Naval units like Submarines are unable to target ground targets
@@ -5277,7 +5277,7 @@ void ScriptExt::Mission_Attack_Individually(TeamClass* pTeam, int numberPerTarge
 
 					// Naval units like Submarines are unable to target ground targets except if they have nti-ground weapons. Ignore the attack
 					if (pUnitType->Underwater
-						&& pUnitType->LandTargeting == 1
+						&& pUnitType->LandTargeting == LandTargetingType::Land_Not_OK
 						&& pFocus->GetCell()->LandType != LandType::Water) // Land not OK for the Naval unit
 					{
 						pUnit->CurrentTargets.Clear();

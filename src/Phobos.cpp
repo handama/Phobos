@@ -9,6 +9,7 @@
 #include <Utilities/GeneralUtils.h>
 #include <Utilities/Debug.h>
 #include <Utilities/Patch.h>
+#include <Utilities/Macro.h>
 
 #include "Misc/BlittersFix.h"
 
@@ -50,6 +51,7 @@ double Phobos::UI::PowerDelta_ConditionYellow = 0.75;
 double Phobos::UI::PowerDelta_ConditionRed = 1.0;
 
 bool Phobos::Config::ToolTipDescriptions = true;
+bool Phobos::Config::ToolTipBlur = false;
 bool Phobos::Config::PrioritySelectionFiltering = true;
 bool Phobos::Config::DevelopmentCommands = true;
 bool Phobos::Config::ArtImageSwap = false;
@@ -108,19 +110,7 @@ void Phobos::CloseConfig(CCINIClass*& pINI)
 	}
 }
 
-// =============================
-// hooks
-
-bool __stdcall DllMain(HANDLE hInstance, DWORD dwReason, LPVOID v)
-{
-	if (dwReason == DLL_PROCESS_ATTACH)
-	{
-		Phobos::hInstance = hInstance;
-	}
-	return true;
-}
-
-DEFINE_HOOK(0x7CD810, ExeRun, 0x9)
+void Phobos::ExeRun()
 {
 	Patch::ApplyStatic();
 
@@ -148,11 +138,55 @@ DEFINE_HOOK(0x7CD810, ExeRun, 0x9)
 		L"Debugger Notice", MB_OK);
 	}
 
+	if (!Console::Create())
+	{
+		MessageBoxW(NULL,
+		L"Failed to allocate the debug console!",
+		L"Debug Console Notice", MB_OK);
+	}
 
 #endif
+}
+
+void Phobos::ExeTerminate()
+{
+	Console::Release();
+}
+
+// =============================
+// hooks
+
+bool __stdcall DllMain(HANDLE hInstance, DWORD dwReason, LPVOID v)
+{
+	if (dwReason == DLL_PROCESS_ATTACH)
+	{
+		Phobos::hInstance = hInstance;
+	}
+	return true;
+}
+
+DEFINE_HOOK(0x7CD810, ExeRun, 0x9)
+{
+	Phobos::ExeRun();
 
 	return 0;
 }
+
+void NAKED _ExeTerminate()
+{
+	// Call WinMain
+	SET_REG32(EAX, 0x6BB9A0);
+	CALL(EAX);
+	PUSH_REG(EAX);
+
+	Phobos::ExeTerminate();
+
+	// Jump back
+	POP_REG(EAX);
+	SET_REG32(EBX, 0x7CD8EF);
+	__asm {jmp ebx};
+}
+DEFINE_JUMP(LJMP, 0x7CD8EA, GET_OFFSET(_ExeTerminate));
 
 DEFINE_HOOK(0x52F639, _YR_CmdLineParse, 0x5)
 {
@@ -166,6 +200,7 @@ DEFINE_HOOK(0x52F639, _YR_CmdLineParse, 0x5)
 DEFINE_HOOK(0x5FACDF, OptionsClass_LoadSettings_LoadPhobosSettings, 0x5)
 {
 	Phobos::Config::ToolTipDescriptions = CCINIClass::INI_RA2MD->ReadBool("Phobos", "ToolTipDescriptions", true);
+	Phobos::Config::ToolTipBlur = CCINIClass::INI_RA2MD->ReadBool("Phobos", "ToolTipBlur", false);
 	Phobos::Config::PrioritySelectionFiltering = CCINIClass::INI_RA2MD->ReadBool("Phobos", "PrioritySelectionFiltering", true);
 	Phobos::Config::EnableBuildingPlacementPreview = CCINIClass::INI_RA2MD->ReadBool("Phobos", "ShowBuildingPlacementPreview", false);
 

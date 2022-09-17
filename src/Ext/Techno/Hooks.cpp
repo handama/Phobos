@@ -2,7 +2,7 @@
 #include <ScenarioClass.h>
 
 #include "Body.h"
-
+#include <Utilities/Macro.h>
 #include <Ext/TechnoType/Body.h>
 #include <Ext/WarheadType/Body.h>
 #include <Ext/WeaponType/Body.h>
@@ -20,8 +20,10 @@ DEFINE_HOOK(0x6F9E50, TechnoClass_AI, 0x5)
 	if (!pExt->TypeExtData || pExt->TypeExtData->OwnerObject() != pType)
 		pExt->TypeExtData = TechnoTypeExt::ExtMap.Find(pType);
 
+	if (pExt->CheckDeathConditions())
+		return 0;
+
 	pExt->ApplyInterceptor();
-	pExt->CheckDeathConditions();
 	pExt->EatPassengers();
 	pExt->UpdateShield();
 	pExt->ApplyPoweredKillSpawns();
@@ -431,6 +433,11 @@ DEFINE_HOOK(0x6B0B9C, SlaveManagerClass_Killed_DecideOwner, 0x6)
 
 	return 0x0;
 }
+
+// Fix slaves cannot always suicide due to armor multiplier or something
+DEFINE_PATCH(0x6B0BF7,
+	0x6A, 0x01  // push 1       // ignoreDefense=false->true
+	);
 
 DEFINE_HOOK(0x70A4FB, TechnoClass_Draw_Pips_SelfHealGain, 0x5)
 {
