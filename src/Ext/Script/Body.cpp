@@ -269,6 +269,11 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 		// Threats specific targets that are close have more priority. Kill until no more targets.
 		ScriptExt::Mission_Attack_List_Individually(pTeam, 2, true, 2, -1);
 		break;
+	case PhobosScripts::CaptureOccupiableBuildings:
+		// Threats specific targets that are close have more priority. Kill until no more targets.
+		ScriptExt::CaptureOccupiableBuildings(pTeam);
+		break;
+		
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
 		if (action > 70 && !IsExtVariableAction(action))
@@ -830,6 +835,7 @@ void ScriptExt::Mission_Attack(TeamClass *pTeam, bool repeatAction = true, int c
 			}
 		}
 	}
+	
 
 	if (!pFocus && !bAircraftsWithoutAmmo)
 	{
@@ -1236,8 +1242,8 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass *pTechno, TeamClass* pTeam, i
 			&& !object->Absorbed
 			&& !object->TemporalTargetingMe
 			&& !object->BeingWarpedOut
-			&& object->Owner != pTechno->Owner
-			&& (!pTechno->Owner->IsAlliedWith(object)
+			&& (object->Owner != pTechno->Owner || (object->Owner == pTechno->Owner && attackAITargetType == -1 && method == 39))
+			&& (!pTechno->Owner->IsAlliedWith(object) || (object->Owner == pTechno->Owner && attackAITargetType == -1 && method == 39)
 				|| (pTechno->Owner->IsAlliedWith(object)
 					&& object->IsMindControlled()
 					&& !pTechno->Owner->IsAlliedWith(object->MindControlledBy))))
@@ -1464,8 +1470,8 @@ void ScriptExt::MultiGreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int 
 				&& !object->Absorbed
 				&& !object->TemporalTargetingMe
 				&& !object->BeingWarpedOut
-				&& object->Owner != pTechno->Owner
-				&& (!pTechno->Owner->IsAlliedWith(object)
+				&& (object->Owner != pTechno->Owner || (object->Owner == pTechno->Owner && attackAITargetType == -1 && method == 39))
+				&& (!pTechno->Owner->IsAlliedWith(object) || (object->Owner == pTechno->Owner && attackAITargetType == -1 && method == 39)
 					|| (pTechno->Owner->IsAlliedWith(object)
 						&& object->IsMindControlled()
 						&& !pTechno->Owner->IsAlliedWith(object->MindControlledBy))))
@@ -2238,23 +2244,38 @@ bool ScriptExt::EvaluateObjectWithMask(TechnoClass *pTechno, int mask, int attac
 
 		// Ground TechnoTypes
 		if ((!pTechno->Owner->IsNeutral()
-			&& (pTechnoType->WhatAmI() == AbstractType::UnitType
+			&& ((pTechnoType->WhatAmI() == AbstractType::UnitType && pTechnoType->MovementZone != MovementZone::Amphibious && pTechnoType->MovementZone != MovementZone::AmphibiousDestroyer)
 				|| (pTechnoType->WhatAmI() == AbstractType::BuildingType
 					&& pTypeBuilding->UndeploysInto
 					&& !pTypeBuilding->BaseNormal)
 				&& !pTechno->IsInAir()
 				&& !pTechnoType->Naval)) ||
-			(!pTechno->Owner->IsNeutral() && !pTechno->IsInAir() && !pTechnoType->Naval
+			(!pTechno->Owner->IsNeutral() && !pTechno->IsInAir() && !pTechnoType->Naval 
 				&& (pTechnoType->WhatAmI() == AbstractType::BuildingType
 					|| (pTypeBuilding
 						&& !(pTypeBuilding->Artillary
 							|| pTypeBuilding->TickTank
 							|| pTypeBuilding->ICBMLauncher
 							|| pTypeBuilding->SensorArray)))) ||
-			(!pTechno->Owner->IsNeutral() && !pTechno->IsInAir() && !pTechnoType->Naval && pTechnoType->WhatAmI() == AbstractType::InfantryType))
+			(!pTechno->Owner->IsNeutral() && !pTechno->IsInAir() && !pTechnoType->Naval && pTechnoType->WhatAmI() == AbstractType::InfantryType && pTechnoType->MovementZone != MovementZone::Amphibious && pTechnoType->MovementZone != MovementZone::AmphibiousDestroyer))
 		{
 			return true;
 		}
+		break;
+
+	case 39:
+		// Occupyable Civilian  Building
+		if (pTechnoType->WhatAmI() == AbstractType::BuildingType)
+		{
+			pBuilding = abstract_cast<BuildingClass*>(pTechno);
+			pTypeBuilding = abstract_cast<BuildingTypeClass*>(pTechnoType);
+
+			if (pBuilding && pTypeBuilding->CanBeOccupied && pBuilding->Occupants.Count == 0 && pBuilding->Owner->IsNeutral() && pTypeBuilding->CanOccupyFire && pTypeBuilding->TechLevel == -1 && pBuilding->GetHealthStatus() != HealthState::Red)
+				return true;
+			if (pBuilding && pTypeBuilding->CanBeOccupied && pBuilding->Occupants.Count < pTypeBuilding->MaxNumberOccupants && pBuilding->Owner == pTeamLeader->Owner && pTypeBuilding->CanOccupyFire)
+				return true;
+		}
+
 		break;
 
 	default:
@@ -2756,7 +2777,8 @@ TechnoClass* ScriptExt::FindBestObject(TechnoClass* pTechno, TeamClass* pTeam, i
 			&& object->IsOnMap
 			&& !object->Absorbed
 			&& ((pickAllies && pTechno->Owner->IsAlliedWith(object))
-				|| (!pickAllies && !pTechno->Owner->IsAlliedWith(object))))
+				|| (!pickAllies && !pTechno->Owner->IsAlliedWith(object))
+				|| (method == 39 && attackAITargetType == -1)))
 		{
 			double value = 0;
 
@@ -4031,7 +4053,9 @@ void ScriptExt::Set_ForceJump_Countdown(TeamClass *pTeam, bool repeatLine = fals
 		pTeamData->ForceJump_Countdown = -1;
 		pTeamData->ForceJump_RepeatMode = false;
 	}
-
+	pTeamData->AllPassengers.Clear();
+	pTeamData->IndividualTargets.Clear();
+	pTeamData->CaptureTarget = nullptr;
 
 	// This action finished
 	pTeam->StepCompleted = true;
@@ -4049,6 +4073,7 @@ void ScriptExt::Stop_ForceJump_Countdown(TeamClass *pTeam)
 
 	pTeamData->AllPassengers.Clear();
 	pTeamData->IndividualTargets.Clear();
+	pTeamData->CaptureTarget = nullptr;
 
 	pTeamData->ForceJump_InitialCountdown = -1;
 	pTeamData->ForceJump_Countdown.Stop();
@@ -5436,6 +5461,109 @@ void ScriptExt::StopIfHumanOrAI(TeamClass* pTeam)
 		pTeam->StepCompleted = true;
 	return;
 }
+
+void ScriptExt::CaptureOccupiableBuildings(TeamClass* pTeam)
+{
+	auto pScript = pTeam->CurrentScript;
+	int scriptArgument = pScript->Type->ScriptActions[pScript->CurrentMission].Argument; 
+	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
+	TechnoClass* pCaptureTarget = nullptr;
+	TechnoClass* selectedTarget = nullptr;
+	FootClass* pLeaderUnit = nullptr;
+	HouseClass* enemyHouse = nullptr;
+
+	if (!pScript)
+		return;
+
+	if (!pTeamData)
+	{
+		pTeam->StepCompleted = true;
+		Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Jump to next line: %d = %d,%d -> (Reason: ExtData found)\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pScript->CurrentMission + 1, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Action, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Argument);
+
+		return;
+	}
+
+	pLeaderUnit = pTeamData->TeamLeader;
+	if (!pLeaderUnit
+		|| !pLeaderUnit->IsAlive
+		|| pLeaderUnit->Health <= 0
+		|| pLeaderUnit->InLimbo
+		|| !pLeaderUnit->IsOnMap
+		|| pLeaderUnit->Absorbed)
+	{
+		pLeaderUnit = FindTheTeamLeader(pTeam);
+		pTeamData->TeamLeader = pLeaderUnit;
+	}
+
+	auto target = pTeamData->CaptureTarget;
+	TechnoTypeClass* targetType = nullptr;
+	if (target)
+		targetType = target->GetTechnoType();
+	if (target
+		&& target->IsAlive
+		&& target->Health > 0
+		&& !target->InLimbo
+		&& target->IsOnMap
+		&& !target->Absorbed
+
+		&& targetType->WhatAmI() == AbstractType::BuildingType
+		&& abstract_cast<BuildingClass*>(target)->Occupants.Count < abstract_cast<BuildingTypeClass*>(targetType)->MaxNumberOccupants
+		&& (target->Owner->IsNeutral() || target->Owner == pTeam->Owner)
+		&& ((targetType->TechLevel == -1 && target->GetHealthStatus() != HealthState::Red) || targetType->TechLevel > 0))
+	{
+		pCaptureTarget = abstract_cast<BuildingClass*>(pTeamData->CaptureTarget);
+	}
+	else
+	{
+		pTeamData->CaptureTarget = nullptr;
+		pCaptureTarget = nullptr;
+	}
+
+	if (pCaptureTarget)
+	{
+		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+		{
+			auto pUnitType = pUnit->GetTechnoType();
+
+			if (pUnitType
+				&& pUnit->IsAlive
+				&& pUnit->Health > 0
+				&& !pUnit->InLimbo)
+			{
+				pUnit->QueueMission(Mission::Capture, false);
+			}
+		}
+	}
+	else
+	{
+		selectedTarget = GreatestThreat(pLeaderUnit, pTeam, 39, 2, enemyHouse, -1, -1, false, false);
+
+		if (selectedTarget)
+		{
+			Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Leader [%s] (UID: %lu) selected [%s] (UID: %lu) to capture.\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pLeaderUnit->GetTechnoType()->get_ID(), pLeaderUnit->UniqueID, selectedTarget->GetTechnoType()->get_ID(), selectedTarget->UniqueID);
+			pTeamData->CaptureTarget = selectedTarget;
+
+			for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+			{
+				pUnit->SetTarget(selectedTarget);
+				pUnit->SetFocus(selectedTarget);
+				pUnit->SetDestination(selectedTarget, false);
+				pUnit->QueueMission(Mission::Capture, true);
+			}
+		}
+		else
+		{
+			// This action finished
+			pTeamData->CaptureTarget = nullptr;
+			pTeam->StepCompleted = true;
+			Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Jump to next line: %d = %d,%d (Leader [%s] (UID: %lu) can't find a new target)\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pScript->CurrentMission + 1, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Action, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Argument, pLeaderUnit->GetTechnoType()->get_ID(), pLeaderUnit->UniqueID);
+
+			return;
+		}
+	}
+}
+
+
 
 //void ScriptExt::RallyNearbyUnits(TeamClass* pTeam)
 //{

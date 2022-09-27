@@ -32,6 +32,7 @@ public:
 		DynamicVectorClass<FootClass*> AllPassengers;
 		int AttackTargetRank;
 		DynamicVectorClass<TechnoClass*> IndividualTargets;
+		TechnoClass* CaptureTarget;
 
 		ExtData(TeamClass* OwnerObject) : Extension<TeamClass>(OwnerObject)
 			, WaitNoTargetAttempts { 0 }
@@ -51,6 +52,7 @@ public:
 			, AllPassengers { }
 			, AttackTargetRank { -1 }
 			, IndividualTargets { }
+			, CaptureTarget { nullptr }
 		{ }
 
 		virtual ~ExtData() = default;

@@ -82,7 +82,7 @@ enum class PhobosScripts : unsigned int
 	RepeatAttackTypeIndividuallyCloser = 144,
 	RepeatAttackIndividuallyCloser2 = 145,
 	RepeatAttackTypeIndividuallyCloser2 = 146,
-	//RallyNearbyUnits = 139,
+	CaptureOccupiableBuildings = 147,
 	//EngineerRepairBrokenBridge = 139,	
 
 	// Variables
@@ -244,6 +244,7 @@ public:
 	static void Mission_Attack_List_Individually(TeamClass* pTeam, int numberPerTarget, bool repeatAction, int calcThreatMode, int attackAITargetType);
 	static void StopIfHumanOrAI(TeamClass* pTeam);
 	static void SetAttackTargetRank(TeamClass* pTeam);
+	static void CaptureOccupiableBuildings(TeamClass* pTeam);
 	//static void EngineerRepairBrokenBridge(TeamClass* pTeam);
 
 	static ExtContainer ExtMap;

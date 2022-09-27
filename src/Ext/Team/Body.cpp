@@ -27,6 +27,7 @@ void TeamExt::ExtData::Serialize(T& Stm)
 		.Process(this->AllPassengers)
 		.Process(this->AttackTargetRank)
 		.Process(this->IndividualTargets)
+		.Process(this->CaptureTarget)
 		;
 }
 
