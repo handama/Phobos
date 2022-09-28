@@ -83,6 +83,7 @@ enum class PhobosScripts : unsigned int
 	RepeatAttackIndividuallyCloser2 = 145,
 	RepeatAttackTypeIndividuallyCloser2 = 146,
 	CaptureOccupiableBuildings = 147,
+	MindControlledUnitsGoToGrinder = 148,
 	//EngineerRepairBrokenBridge = 139,	
 
 	// Variables
@@ -245,6 +246,7 @@ public:
 	static void StopIfHumanOrAI(TeamClass* pTeam);
 	static void SetAttackTargetRank(TeamClass* pTeam);
 	static void CaptureOccupiableBuildings(TeamClass* pTeam);
+	static void MindControlledUnitsGoToGrinder(TeamClass* pTeam);
 	//static void EngineerRepairBrokenBridge(TeamClass* pTeam);
 
 	static ExtContainer ExtMap;

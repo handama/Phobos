@@ -112,6 +112,8 @@ x=i,n             ; where 74 <= i <= 81
 | 37        | Buildings and Vehicles | Any enemy `BuildingTypes` or `VehicleTypes` |
 | 38        | Ground TechnoTypes | Any enemy `TechnoTypes` without `Naval=yes` |
 | 39        | Occupiable Buildings        | Any Occupiable Buildings (Civilian or Battle Bunkers) |
+| 40        | Self Grinders  | Self Building with Grinding=yes |
+| 41        | Spyable Buildings        | Any Buildings with Spyable=yes |
 
 ### `82` Decrease AI Trigger Current Weight
 
@@ -494,6 +496,17 @@ In `aimd.ini`:
 [SOMESCRIPTTYPE]
 x=147,0
 ```
+
+### `148` Manipulate Mind Controlled Units
+
+- Can put all mind controlled units into grinder, or let them attack (or steal if is spy).
+
+- The possible argument values are:
+| *Argument* | *Description*                       |
+| :------: | :-------------------------------------------: |
+0         | put into grinder |
+1         | attack  |
+
 
 ### `500 - 523` Edit Variable
 - Operate a variable's value

@@ -273,6 +273,11 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 		// Threats specific targets that are close have more priority. Kill until no more targets.
 		ScriptExt::CaptureOccupiableBuildings(pTeam);
 		break;
+	case PhobosScripts::MindControlledUnitsGoToGrinder:
+		// Threats specific targets that are close have more priority. Kill until no more targets.
+		ScriptExt::MindControlledUnitsGoToGrinder(pTeam);
+		break;
+		
 		
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
@@ -1242,8 +1247,8 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass *pTechno, TeamClass* pTeam, i
 			&& !object->Absorbed
 			&& !object->TemporalTargetingMe
 			&& !object->BeingWarpedOut
-			&& (object->Owner != pTechno->Owner || (object->Owner == pTechno->Owner && attackAITargetType == -1 && method == 39))
-			&& (!pTechno->Owner->IsAlliedWith(object) || (object->Owner == pTechno->Owner && attackAITargetType == -1 && method == 39)
+			&& (object->Owner != pTechno->Owner || (object->Owner == pTechno->Owner && attackAITargetType == -1 && (method == 39 || method == 40)))
+			&& (!pTechno->Owner->IsAlliedWith(object) || (object->Owner == pTechno->Owner && attackAITargetType == -1 && (method == 39 || method == 40))
 				|| (pTechno->Owner->IsAlliedWith(object)
 					&& object->IsMindControlled()
 					&& !pTechno->Owner->IsAlliedWith(object->MindControlledBy))))
@@ -2274,6 +2279,37 @@ bool ScriptExt::EvaluateObjectWithMask(TechnoClass *pTechno, int mask, int attac
 				return true;
 			if (pBuilding && pTypeBuilding->CanBeOccupied && pBuilding->Occupants.Count < pTypeBuilding->MaxNumberOccupants && pBuilding->Owner == pTeamLeader->Owner && pTypeBuilding->CanOccupyFire)
 				return true;
+		}
+
+		break;
+
+	case 40:
+		// Self Building with Grinding=yes
+		if (pTechnoType->WhatAmI() == AbstractType::BuildingType)
+		{
+			pBuilding = abstract_cast<BuildingClass*>(pTechno);
+			pTypeBuilding = abstract_cast<BuildingTypeClass*>(pTechnoType);
+			if (pBuilding && pTypeBuilding
+				&& pTypeBuilding->Grinding
+				&& pBuilding->Owner == pTeamLeader->Owner)
+			{
+				return true;
+			}
+		}
+
+		break;
+
+	case 41:
+		// Building with Spyable=yes
+		if (pTechnoType->WhatAmI() == AbstractType::BuildingType)
+		{
+			pBuilding = abstract_cast<BuildingClass*>(pTechno);
+			pTypeBuilding = abstract_cast<BuildingTypeClass*>(pTechnoType);
+			if (!pTechno->Owner->IsNeutral()
+			&& pTypeBuilding->Spyable)
+			{
+				return true;
+			}
 		}
 
 		break;
@@ -5563,7 +5599,178 @@ void ScriptExt::CaptureOccupiableBuildings(TeamClass* pTeam)
 	}
 }
 
+void ScriptExt::MindControlledUnitsGoToGrinder(TeamClass* pTeam)
+{
+	auto pScript = pTeam->CurrentScript;
+	int scriptArgument = pScript->Type->ScriptActions[pScript->CurrentMission].Argument;
+	TechnoClass* selectedTarget = nullptr;
+	HouseClass* enemyHouse = nullptr;
 
+	TechnoClass* SpyselectedTarget = nullptr;
+
+	for (int i = 0; i < TechnoClass::Array->Count; i++)
+	{
+		auto pUnit = TechnoClass::Array->GetItem(i);
+		auto pUnitType = pUnit->GetTechnoType();
+		bool isSpy = false;
+
+		if (!pUnit || !pUnitType || !pUnit->IsAlive || pUnit->InLimbo)
+			continue;
+
+		if (pUnit->Owner != pTeam->Owner)
+			continue;
+
+		if (!pUnit->IsMindControlled())
+			continue;
+
+		if (pUnit->BelongsToATeam())
+			continue;
+
+		if (pUnitType->WhatAmI() == AbstractType::InfantryType)
+		{
+			auto pInfantryType = abstract_cast<InfantryTypeClass*>(pUnitType);
+
+			if (pInfantryType && pInfantryType->Infiltrate && pInfantryType->Agent)
+			{
+				isSpy = true;
+			}
+		}
+
+		if (scriptArgument == 0)
+		{
+			if (!selectedTarget)
+			{
+				selectedTarget = GreatestThreat(pUnit, pTeam, 40, 2, enemyHouse, -1, -1, false, false);
+			}
+			if (selectedTarget)
+			{
+				pUnit->SetTarget(selectedTarget);
+				pUnit->SetFocus(selectedTarget);
+				pUnit->SetDestination(selectedTarget, false);
+				pUnit->QueueMission(Mission::Eaten, true);
+				Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Mind Controlled Unit [%s] (UID: %lu) is sent to Grinder.\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pUnit->GetTechnoType()->get_ID(), pUnit->UniqueID);
+			}
+			continue;
+		}
+
+		if (scriptArgument == 1)
+		{
+			if (isSpy && pUnit->GetCurrentMission() == Mission::Enter)
+				continue;
+
+			if (!selectedTarget && !isSpy)
+			{
+				selectedTarget = GreatestThreat(pUnit, pTeam, 1, 2, enemyHouse, -1, -1, false, false);
+			}
+			if (isSpy)
+			{
+				selectedTarget = GreatestThreat(pUnit, pTeam, 4, 2, enemyHouse, -1, -1, false, false);
+			}
+
+			if (selectedTarget)
+			{
+				if (pUnit->IsAlive && !pUnit->InLimbo)
+				{
+					auto pUnitType = pUnit->GetTechnoType();
+					
+					if (pUnitType && pUnit != selectedTarget && pUnit->Target != selectedTarget)
+					{
+						pUnit->CurrentTargets.Clear();
+						if (pUnitType->Underwater && pUnitType->LandTargeting == LandTargetingType::Land_Not_OK
+							&& selectedTarget->GetCell()->LandType != LandType::Water) // Land not OK for the Naval unit
+						{
+							// Naval units like Submarines are unable to target ground targets
+							// except if they have anti-ground weapons. Ignore the attack
+							pUnit->CurrentTargets.Clear();
+							pUnit->SetTarget(nullptr);
+							pUnit->SetFocus(nullptr);
+							pUnit->SetDestination(nullptr, false);
+							pUnit->QueueMission(Mission::Area_Guard, true);
+
+							continue;
+						}
+
+						// Aircraft hack. I hate how this game auto-manages the aircraft missions.
+						if (pUnitType->WhatAmI() == AbstractType::AircraftType
+							&& pUnit->Ammo > 0 && pUnit->GetHeight() <= 0)
+						{
+							pUnit->SetDestination(selectedTarget, false);
+							pUnit->QueueMission(Mission::Attack, true);
+						}
+						if (!isSpy || (isSpy && pUnit->Owner->IsAlliedWith(pUnit->DisguisedAsHouse)))
+							pUnit->SetTarget(selectedTarget);
+
+						if (pUnit->IsEngineer())
+						{
+							pUnit->QueueMission(Mission::Capture, true);
+						}
+						else
+						{
+							// Aircraft hack. I hate how this game auto-manages the aircraft missions.
+							if (pUnitType->WhatAmI() != AbstractType::AircraftType)
+							{
+								pUnit->QueueMission(Mission::Attack, true);
+								pUnit->ObjectClickedAction(Action::Attack, selectedTarget, false);
+
+								if (pUnit->GetCurrentMission() != Mission::Attack)
+									pUnit->Mission_Attack();
+
+								if (pUnit->GetCurrentMission() == Mission::Move && pUnitType->JumpJet)
+									pUnit->Mission_Attack();
+							}
+						}
+
+						// Spy case
+						if (isSpy && pUnit->Owner->IsAlliedWith(pUnit->DisguisedAsHouse))
+						{
+							pUnit->QueueMission(Mission::Attack, true);
+							pUnit->ObjectClickedAction(Action::Attack, selectedTarget, false);
+							pUnit->Mission_Attack();
+						}
+
+						// Tanya / Commando C4 case
+						if ((pUnitType->WhatAmI() == AbstractType::InfantryType && (abstract_cast<InfantryTypeClass*>(pUnitType)->C4 || pUnit->HasAbility(Ability::C4))) && pUnit->GetCurrentMission() != Mission::Sabotage)
+						{
+							pUnit->Mission_Attack();
+							pUnit->QueueMission(Mission::Sabotage, true);
+						}
+					}
+					else
+					{
+						pUnit->QueueMission(Mission::Attack, true);
+						pUnit->ObjectClickedAction(Action::Attack, selectedTarget, false);
+						pUnit->Mission_Attack();
+					}
+
+					if (isSpy)
+					{
+						if (!pUnit->Owner->IsAlliedWith(pUnit->DisguisedAsHouse))
+						{
+							SpyselectedTarget = GreatestThreat(pUnit, pTeam, 41, 2, enemyHouse, -1, -1, true, false);
+							if (SpyselectedTarget)
+							{
+								pUnit->SetTarget(SpyselectedTarget);
+								pUnit->QueueMission(Mission::Enter, true);
+								//if (pUnit->GetCurrentMission() != Mission::Enter)
+								pUnit->Mission_Enter();
+								Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Mind Controlled Spy [%s] (UID: %lu) selected [%s] (UID: %lu) as target.\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pUnit->GetTechnoType()->get_ID(), pUnit->UniqueID, SpyselectedTarget->GetTechnoType()->get_ID(), SpyselectedTarget->UniqueID);
+
+							}
+						}
+
+
+					}
+
+				}
+				Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Mind Controlled Unit [%s] (UID: %lu) selected [%s] (UID: %lu) as target.\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pUnit->GetTechnoType()->get_ID(), pUnit->UniqueID, selectedTarget->GetTechnoType()->get_ID(), selectedTarget->UniqueID);
+			}
+			continue;
+		}
+	}
+
+	pTeam->StepCompleted = true;
+	return;
+}
 
 //void ScriptExt::RallyNearbyUnits(TeamClass* pTeam)
 //{
