@@ -5607,12 +5607,14 @@ void ScriptExt::MindControlledUnitsGoToGrinder(TeamClass* pTeam)
 	HouseClass* enemyHouse = nullptr;
 
 	TechnoClass* SpyselectedTarget = nullptr;
+	TechnoClass* LCRFselectedTarget = nullptr;
 
 	for (int i = 0; i < TechnoClass::Array->Count; i++)
 	{
 		auto pUnit = TechnoClass::Array->GetItem(i);
 		auto pUnitType = pUnit->GetTechnoType();
 		bool isSpy = false;
+		bool isLandingCraft = false;
 
 		if (!pUnit || !pUnitType || !pUnit->IsAlive || pUnit->InLimbo)
 			continue;
@@ -5633,6 +5635,16 @@ void ScriptExt::MindControlledUnitsGoToGrinder(TeamClass* pTeam)
 			if (pInfantryType && pInfantryType->Infiltrate && pInfantryType->Agent)
 			{
 				isSpy = true;
+			}
+		}
+
+		if (pUnitType->WhatAmI() == AbstractType::UnitType)
+		{
+			auto pMUnitType = abstract_cast<UnitTypeClass*>(pUnitType);
+
+			if (pMUnitType && pMUnitType->Category == Category::Transport && pMUnitType->StupidHunt && pMUnitType->Passengers > 0)
+			{
+				isLandingCraft = true;
 			}
 		}
 
@@ -5657,6 +5669,23 @@ void ScriptExt::MindControlledUnitsGoToGrinder(TeamClass* pTeam)
 		{
 			if (isSpy && pUnit->GetCurrentMission() == Mission::Enter)
 				continue;
+
+			if (isLandingCraft)
+			{
+				if (!LCRFselectedTarget)
+				{
+					LCRFselectedTarget = GreatestThreat(pUnit, pTeam, 40, 2, enemyHouse, -1, -1, false, false);
+				}
+				if (LCRFselectedTarget)
+				{
+					pUnit->SetTarget(LCRFselectedTarget);
+					pUnit->SetFocus(LCRFselectedTarget);
+					pUnit->SetDestination(LCRFselectedTarget, false);
+					pUnit->QueueMission(Mission::Eaten, true);
+					Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Mind Controlled Transport [%s] (UID: %lu) is sent to Grinder.\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pUnit->GetTechnoType()->get_ID(), pUnit->UniqueID);
+				}
+				continue;
+			}
 
 			if (!selectedTarget && !isSpy)
 			{
