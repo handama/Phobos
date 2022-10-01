@@ -277,7 +277,10 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 		// Threats specific targets that are close have more priority. Kill until no more targets.
 		ScriptExt::MindControlledUnitsGoToGrinder(pTeam);
 		break;
-		
+	case PhobosScripts::AllyUnitEnterTransport:
+		// Threats specific targets that are close have more priority. Kill until no more targets.
+		ScriptExt::AllyUnitEnterTransport(pTeam);
+		break;
 		
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
@@ -1127,6 +1130,7 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass *pTechno, TeamClass* pTeam, i
 	double bestVal = -1;
 	bool unitWeaponsHaveAA = false;
 	bool unitWeaponsHaveAG = false;
+	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
 
 	// Generic method for targeting
 	for (int i = 0; i < TechnoClass::Array->Count; i++)
@@ -1138,7 +1142,6 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass *pTechno, TeamClass* pTeam, i
 		if (!object || !objectType || !pTechnoType)
 			continue;
 
-		auto pTeamData = TeamExt::ExtMap.Find(pTeam);
 		if (pTeamData)
 		{
 			int attackTargetRank = pTeamData->AttackTargetRank;
@@ -2726,6 +2729,7 @@ TechnoClass* ScriptExt::FindBestObject(TechnoClass* pTechno, TeamClass* pTeam, i
 	TechnoClass *bestObject = nullptr;
 	double bestVal = -1;
 	HouseClass* enemyHouse = nullptr;
+	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
 
 	// Favorite Enemy House case. If set, AI will focus against that House
 	if (!pickAllies && pTechno->BelongsToATeam())
@@ -2753,7 +2757,7 @@ TechnoClass* ScriptExt::FindBestObject(TechnoClass* pTechno, TeamClass* pTeam, i
 		if (!object || !objectType || !pTechnoType)
 			continue;
 
-		auto pTeamData = TeamExt::ExtMap.Find(pTeam);
+
 		if (pTeamData)
 		{
 			int attackTargetRank = pTeamData->AttackTargetRank;
@@ -4090,6 +4094,7 @@ void ScriptExt::Set_ForceJump_Countdown(TeamClass *pTeam, bool repeatLine = fals
 		pTeamData->ForceJump_RepeatMode = false;
 	}
 	pTeamData->AllPassengers.Clear();
+	pTeamData->AllyPassengers.Clear();
 	pTeamData->IndividualTargets.Clear();
 	pTeamData->CaptureTarget = nullptr;
 
@@ -4108,6 +4113,7 @@ void ScriptExt::Stop_ForceJump_Countdown(TeamClass *pTeam)
 		return;
 
 	pTeamData->AllPassengers.Clear();
+	pTeamData->AllyPassengers.Clear();
 	pTeamData->IndividualTargets.Clear();
 	pTeamData->CaptureTarget = nullptr;
 
@@ -5081,18 +5087,29 @@ void ScriptExt::Mission_Attack_Individually(TeamClass* pTeam, int numberPerTarge
 
 	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
 	{
-
-		for (int i = 0; i < pTeamData->IndividualTargets.Count; i++)
+		bool isnotLast = true;
+		while (isnotLast)
 		{
-			auto pTarget = pTeamData->IndividualTargets[i];
-			if (!pTarget
-				|| !pTarget->IsAlive
-				|| pTarget->Health <= 0
-				|| pTarget->InLimbo
-				|| !pTarget->IsOnMap
-				|| pTarget->Absorbed)
-				pTeamData->IndividualTargets.RemoveItem(i);
+			for (int i = pTeamData->IndividualTargets.Count - 1; i >= 0; i--)
+			{
+				if (i <= 0)
+					isnotLast = false;
+				auto pTarget = pTeamData->IndividualTargets[i];
+				if (!pTarget
+					|| !pTarget->IsAlive
+					|| pTarget->Health <= 0
+					|| pTarget->InLimbo
+					|| !pTarget->IsOnMap
+					|| pTarget->Absorbed)
+				{
+					pTeamData->IndividualTargets.RemoveItem(i);
+					break;
+				}
+			}
+			if (pTeamData->IndividualTargets.Count == 0)
+				isnotLast = false;
 		}
+		
 
 		count++;
 
@@ -5800,6 +5817,360 @@ void ScriptExt::MindControlledUnitsGoToGrinder(TeamClass* pTeam)
 	pTeam->StepCompleted = true;
 	return;
 }
+
+void ScriptExt::AllyUnitEnterTransport(TeamClass* pTeam)
+{
+	auto pScript = pTeam->CurrentScript;
+	int scriptArgument = pScript->Type->ScriptActions[pScript->CurrentMission].Argument;
+	TechnoClass* selectedTarget = nullptr;
+	FootClass* pLeaderUnit = nullptr;
+	int number = 0;
+	int totalSize = 0;
+	bool hasTransport = true;
+	bool canLoad = true;
+
+	if (!pTeam)
+		return;
+
+	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
+	if (!pTeamData)
+		return;
+
+	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+	{
+		number++;
+		if (pUnit->GetTechnoType()->Passengers < 1)
+			hasTransport = false;
+	}
+
+	if (number > 1 || !hasTransport)
+	{
+		Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) This line is forcefully skipped (more than one member || no transports).\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument);
+		pTeamData->AllyPassengers.Clear();
+		pTeam->StepCompleted = true;
+		return;
+	}
+
+	// Find the Leader
+	pLeaderUnit = pTeamData->TeamLeader;
+	if (!pLeaderUnit
+		|| !pLeaderUnit->IsAlive
+		|| pLeaderUnit->Health <= 0
+		|| pLeaderUnit->InLimbo
+		|| !pLeaderUnit->IsOnMap
+		|| pLeaderUnit->Absorbed)
+	{
+		pLeaderUnit = FindTheTeamLeader(pTeam);
+		pTeamData->TeamLeader = pLeaderUnit;
+	}
+
+	if (!pLeaderUnit)
+	{
+		// This action finished
+		pTeam->StepCompleted = true;
+		return;
+	}
+
+	bool isnotLast = true;
+	while (isnotLast)
+	{
+		for (int i = pTeamData->AllyPassengers.Count - 1; i >= 0; i--)
+		{
+			if (i <= 0)
+				isnotLast = false;
+			auto pTarget = pTeamData->AllyPassengers[i];
+			if (!pTarget
+				|| !pTarget->IsAlive
+				|| pTarget->Health <= 0
+				|| pTarget->InLimbo
+				|| !pTarget->IsOnMap
+				|| pTarget->Absorbed)
+			{
+				pTeamData->AllyPassengers.RemoveItem(i);
+				break;
+			}
+			else
+				totalSize += (int)pTarget->GetTechnoType()->Size;
+		}
+		if (pTeamData->AllyPassengers.Count == 0)
+			isnotLast = false;
+	}
+
+
+	if (totalSize == pLeaderUnit->GetTechnoType()->Passengers - pLeaderUnit->Passengers.NumPassengers)
+		canLoad = false;
+
+	while (canLoad)
+	{
+		double passengersPip = 0.0;
+
+		if (RulesExt::Global()->AITargetTypesLists.Count > 0
+		&& RulesExt::Global()->AITargetTypesLists.GetItem(scriptArgument).Count > 0)
+		{
+			selectedTarget = FindBestObjectForAllyUnitEnterTransport(pLeaderUnit, pTeam, scriptArgument, 2, true, scriptArgument, -1);
+		}
+		else
+		{
+			pTeamData->AllyPassengers.Clear();
+			pTeam->StepCompleted = true;
+			return;
+		}
+
+		if (!selectedTarget)
+			break;
+
+		auto pFoot = abstract_cast<FootClass*>(selectedTarget);
+		for (int j = 0; j < pTeamData->AllyPassengers.Count; j++)
+		{
+			passengersPip += pTeamData->AllyPassengers[j]->GetTechnoType()->Size;
+		}
+
+		if (passengersPip + selectedTarget->GetTechnoType()->Size > pLeaderUnit->GetTechnoType()->Passengers - pLeaderUnit->Passengers.NumPassengers)
+			break;
+
+		pTeamData->AllyPassengers.AddUnique(pFoot);
+		Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Team Leader [%s] (UID: %lu) asked [%s] (UID: %lu) to load onto it.\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pLeaderUnit->GetTechnoType()->get_ID(), pLeaderUnit->UniqueID, pFoot->GetTechnoType()->get_ID(), pFoot->UniqueID);
+
+
+		if (pFoot->BelongsToATeam())
+			if (pFoot->Team)
+			{
+				pFoot->Team->LiberateMember(pFoot);
+				pFoot->RecruitableA = false;
+				pFoot->RecruitableB = false;
+			}
+		pFoot->CurrentTargets.Clear();
+		pFoot->SetTarget(nullptr);
+		pFoot->SetFocus(nullptr);
+		pFoot->SetDestination(nullptr, false);
+		pFoot->QueueMission(Mission::Area_Guard, true);	
+	}
+
+	for (int i = 0; i < pTeamData->AllyPassengers.Count; i++)
+	{
+		auto pPassenger = pTeamData->AllyPassengers[i];
+
+		if (pPassenger->BelongsToATeam())
+			if (pPassenger->Team)
+			{
+				pPassenger->Team->LiberateMember(pPassenger);
+			}
+
+		if (pPassenger->GetCurrentMission() != Mission::Enter)
+		{
+			pPassenger->QueueMission(Mission::Enter, false);
+			pPassenger->SetTarget(nullptr);
+			pPassenger->SetDestination(pLeaderUnit, true);
+
+			return;
+		}
+	}
+
+
+	// Is loading
+	for (int i = 0; i < pTeamData->AllyPassengers.Count; i++)
+	{
+		auto pPassenger = pTeamData->AllyPassengers[i];
+
+		if (pPassenger->GetCurrentMission() == Mission::Enter)
+			return;
+	}
+
+	pTeamData->AllyPassengers.Clear();
+	pTeam->StepCompleted = true;
+	return;
+}
+
+TechnoClass* ScriptExt::FindBestObjectForAllyUnitEnterTransport(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode = 0, bool pickAllies = false, int attackAITargetType = -1, int idxAITargetTypeItem = -1)
+{
+	TechnoClass* bestObject = nullptr;
+	double bestVal = -1;
+	HouseClass* enemyHouse = nullptr;
+	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
+
+	// Favorite Enemy House case. If set, AI will focus against that House
+	if (!pickAllies && pTechno->BelongsToATeam())
+	{
+		auto pFoot = abstract_cast<FootClass*>(pTechno);
+		if (pFoot)
+		{
+			int enemyHouseIndex = pFoot->Team->FirstUnit->Owner->EnemyHouseIndex;
+
+			if (pFoot->Team->Type->OnlyTargetHouseEnemy
+				&& enemyHouseIndex >= 0)
+			{
+				enemyHouse = HouseClass::Array->GetItem(enemyHouseIndex);
+			}
+		}
+	}
+
+	// Generic method for targeting
+	for (int i = 0; i < TechnoClass::Array->Count; i++)
+	{
+		auto object = TechnoClass::Array->GetItem(i);
+		auto objectType = object->GetTechnoType();
+		auto pTechnoType = pTechno->GetTechnoType();
+
+		if (!object || !objectType || !pTechnoType)
+			continue;
+
+		bool isSameTarget = false;
+		for (int j = 0; j < pTeamData->AllyPassengers.Count; j++)
+		{
+			if (object == pTeamData->AllyPassengers[j])
+				isSameTarget = true;
+		}
+		if (isSameTarget)
+			continue;
+
+
+		if (object->GetTechnoType()->Size > pTechno->GetTechnoType()->SizeLimit)
+
+		if (enemyHouse && enemyHouse != object->Owner)
+			continue;
+
+		if (!object->Owner->IsAlliedWith(pTeam->Owner))
+			continue;
+
+		if (objectType->WhatAmI() != AbstractType::InfantryType && objectType->WhatAmI() != AbstractType::UnitType)
+		{
+			continue;
+		}
+
+		if (object->GetCurrentMission() == Mission::Enter)
+			continue;
+
+		if (object->Owner == pTeam->Owner)
+			continue;
+
+		if (object->Owner->ControlledByHuman())
+			continue;
+
+		if (object->Owner->IsNeutral())
+			continue;
+
+		if (object->IsMindControlled())
+			continue;
+
+		// Don't pick underground units
+		if (object->InWhichLayer() == Layer::Underground)
+			continue;
+
+		// Stealth ground unit check
+		if (object->CloakState == CloakState::Cloaked && !objectType->Naval)
+			continue;
+
+		// Submarines aren't a valid target
+		if (object->CloakState == CloakState::Cloaked
+			&& objectType->Underwater
+			&& (pTechnoType->NavalTargeting == NavalTargetingType::Underwater_Never
+				|| pTechnoType->NavalTargeting == NavalTargetingType::Naval_None))
+		{
+			continue;
+		}
+
+		// Land not OK for the Naval unit
+		if (!objectType->Naval
+			&& pTechnoType->LandTargeting == LandTargetingType::Land_Not_OK
+			&& object->GetCell()->LandType != LandType::Water)
+		{
+			continue;
+		}
+
+		if (object != pTechno
+			&& object->IsAlive
+			&& !object->InLimbo
+			&& object->IsOnMap
+			&& !object->Absorbed
+			&& ((pickAllies && pTechno->Owner->IsAlliedWith(object))
+				|| (!pickAllies && !pTechno->Owner->IsAlliedWith(object))))
+		{
+			double value = 0;
+
+			if (EvaluateObjectWithMask(object, method, attackAITargetType, idxAITargetTypeItem, pTechno))
+			{
+				CellStruct newCell;
+				newCell.X = (short)object->Location.X;
+				newCell.Y = (short)object->Location.Y;
+
+				bool isGoodTarget = false;
+
+				if (calcThreatMode == 0 || calcThreatMode == 1)
+				{
+					// Threat affected by distance
+					double threatMultiplier = 128.0;
+					double objectThreatValue = objectType->ThreatPosed;
+
+					if (objectType->SpecialThreatValue > 0)
+					{
+						double const& TargetSpecialThreatCoefficientDefault = RulesClass::Instance->TargetSpecialThreatCoefficientDefault;
+						objectThreatValue += objectType->SpecialThreatValue * TargetSpecialThreatCoefficientDefault;
+					}
+
+					// Is Defender house targeting Attacker House? if "yes" then more Threat
+					if (pTechno->Owner == HouseClass::Array->GetItem(object->Owner->EnemyHouseIndex))
+					{
+						double const& EnemyHouseThreatBonus = RulesClass::Instance->EnemyHouseThreatBonus;
+						objectThreatValue += EnemyHouseThreatBonus;
+					}
+
+					// Extra threat based on current health. More damaged == More threat (almost destroyed objects gets more priority)
+					objectThreatValue += object->Health * (1 - object->GetHealthPercentage());
+					value = (objectThreatValue * threatMultiplier) / ((pTechno->DistanceFrom(object) / 256.0) + 1.0);
+
+					if (calcThreatMode == 0)
+					{
+						// Is this object very FAR? then LESS THREAT against pTechno.
+						// More CLOSER? MORE THREAT for pTechno.
+						if (value > bestVal || bestVal < 0)
+							isGoodTarget = true;
+					}
+					else
+					{
+						// Is this object very FAR? then MORE THREAT against pTechno.
+						// More CLOSER? LESS THREAT for pTechno.
+						if (value < bestVal || bestVal < 0)
+							isGoodTarget = true;
+					}
+				}
+				else
+				{
+					// Selection affected by distance
+					if (calcThreatMode == 2)
+					{
+						// Is this object very FAR? then LESS THREAT against pTechno.
+						// More CLOSER? MORE THREAT for pTechno.
+						value = pTechno->DistanceFrom(object); // Note: distance is in leptons (*256)
+
+						if (value < bestVal || bestVal < 0)
+							isGoodTarget = true;
+					}
+					else
+					{
+						if (calcThreatMode == 3)
+						{
+							// Is this object very FAR? then MORE THREAT against pTechno.
+							// More CLOSER? LESS THREAT for pTechno.
+							value = pTechno->DistanceFrom(object); // Note: distance is in leptons (*256)
+
+							if (value > bestVal || bestVal < 0)
+								isGoodTarget = true;
+						}
+					}
+				}
+
+				if (isGoodTarget)
+				{
+					bestObject = object;
+					bestVal = value;
+				}
+			}
+		}
+	}
+
+	return bestObject;
+}
+
 
 //void ScriptExt::RallyNearbyUnits(TeamClass* pTeam)
 //{

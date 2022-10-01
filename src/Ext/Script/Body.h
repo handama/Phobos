@@ -84,6 +84,7 @@ enum class PhobosScripts : unsigned int
 	RepeatAttackTypeIndividuallyCloser2 = 146,
 	CaptureOccupiableBuildings = 147,
 	MindControlledUnitsGoToGrinder = 148,
+	AllyUnitEnterTransport=149,
 	//EngineerRepairBrokenBridge = 139,	
 
 	// Variables
@@ -247,6 +248,8 @@ public:
 	static void SetAttackTargetRank(TeamClass* pTeam);
 	static void CaptureOccupiableBuildings(TeamClass* pTeam);
 	static void MindControlledUnitsGoToGrinder(TeamClass* pTeam);
+	static void AllyUnitEnterTransport(TeamClass* pTeam);
+	static TechnoClass* FindBestObjectForAllyUnitEnterTransport(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
 	//static void EngineerRepairBrokenBridge(TeamClass* pTeam);
 
 	static ExtContainer ExtMap;

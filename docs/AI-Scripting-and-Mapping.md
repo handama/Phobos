@@ -507,6 +507,16 @@ x=147,0
 0         | put into grinder |
 1         | attack  |
 
+### `149` Ask Allied Units to Load onto Transports
+
+- This action can ask computer allies to put their units in `AITargetTypess` into transport in this team. The team should only have one unit.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=149,n             ; n is one of AITargetTypess
+```
+
 
 ### `500 - 523` Edit Variable
 - Operate a variable's value
