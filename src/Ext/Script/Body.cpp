@@ -6052,6 +6052,10 @@ TechnoClass* ScriptExt::FindBestObjectForAllyUnitEnterTransport(TechnoClass* pTe
 		if (object->IsMindControlled())
 			continue;
 
+		if (object->CaptureManager)
+			if (object->CaptureManager->IsControllingSomething())
+				continue;
+
 		// Don't pick underground units
 		if (object->InWhichLayer() == Layer::Underground)
 			continue;
