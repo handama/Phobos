@@ -344,8 +344,13 @@ In `aimd.ini`:
 x=116,n           ; n can be negative
 ```
 
-### `117` Rally unit with same group
-- This action will rally all available units share the same group value with this `TeamType`, and recruit them as team member. All rallyed unit will perform all future script action along with this team.
+### `117, 150` Rally unit with same group
+- This action will rally all available units share the same group value with this `TeamType` or its Leader, and recruit them as team member. All rallyed unit will perform all future script action along with this team.
+
+| *Action* | *Argument*    | *Description*                                 |
+| :------: | :-----------: | :-------------------------------------------: |
+117         | MemberType# | units share the same group value with this `TeamType` |
+150         | MemberType# | units share the same group value with its Leader |
 
 - Will use following logic to rally member:
   - Same owner (of course)

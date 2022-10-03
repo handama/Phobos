@@ -210,6 +210,9 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 	case PhobosScripts::RallyUnitWithSameGroup:
 		ScriptExt::RallyUnitInMap(pTeam, argument);
 		break;
+	case PhobosScripts::RallyUnitInMapWithLeader:
+		ScriptExt::RallyUnitInMapWithLeader(pTeam, argument);
+		break;
 	case PhobosScripts::StopForceJumpCountdown:
 		// Stop Timed Jump
 		ScriptExt::Stop_ForceJump_Countdown(pTeam);
@@ -3732,6 +3735,66 @@ void ScriptExt::RallyUnitInMap(TeamClass* pTeam, int nArg)
 			&& TECHNO_IS_ALIVE(pFoot)
 			&& pFoot->Owner == pTeam->Owner
 			&& pFoot->Group == pType->Group
+			&& IsValidRallyTarget(pTeam, pFoot, nArg))
+		{
+			// This will bypass any recruiting restrictions, except group (this action's purpose)
+			if (pType->Recruiter)
+				pTeam->AddMember(pFoot, true);
+			// Only rally unit's parent team set Recruitable = yes and Priority less than this team
+			else if (pFoot->RecruitableB)
+			{
+				if (pFoot->Team)
+				{
+					if (pFoot->Team->Type->Priority < pType->Priority)
+						pTeam->AddMember(pFoot, true);
+				}
+				else
+					pTeam->AddMember(pFoot, true);
+			}
+		}
+	}
+	pTeam->StepCompleted = true;
+}
+
+void ScriptExt::RallyUnitInMapWithLeader(TeamClass* pTeam, int nArg)
+{
+	if (!pTeam)
+		return;
+
+	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
+	if (!pTeamData)
+		return;
+
+	// Find the Leader
+	auto pLeaderUnit = pTeamData->TeamLeader;
+	if (!pLeaderUnit
+		|| !pLeaderUnit->IsAlive
+		|| pLeaderUnit->Health <= 0
+		|| pLeaderUnit->InLimbo
+		|| !pLeaderUnit->IsOnMap
+		|| pLeaderUnit->Absorbed)
+	{
+		pLeaderUnit = FindTheTeamLeader(pTeam);
+		pTeamData->TeamLeader = pLeaderUnit;
+	}
+
+	if (!pLeaderUnit)
+	{
+		// This action finished
+		pTeam->StepCompleted = true;
+		return;
+	}
+
+	auto pType = pTeam->Type;
+	for (int i = 0; i < FootClass::Array->Count; i++)
+	{
+		auto pFoot = (*FootClass::Array)[i];
+
+		// Must be owner and with same group
+		if (pFoot
+			&& TECHNO_IS_ALIVE(pFoot)
+			&& pFoot->Owner == pTeam->Owner
+			&& pFoot->Group == pLeaderUnit->Group
 			&& IsValidRallyTarget(pTeam, pFoot, nArg))
 		{
 			// This will bypass any recruiting restrictions, except group (this action's purpose)

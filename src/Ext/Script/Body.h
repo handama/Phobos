@@ -85,6 +85,8 @@ enum class PhobosScripts : unsigned int
 	CaptureOccupiableBuildings = 147,
 	MindControlledUnitsGoToGrinder = 148,
 	AllyUnitEnterTransport=149,
+	RallyUnitInMapWithLeader = 150,
+
 	//EngineerRepairBrokenBridge = 139,	
 
 	// Variables
@@ -216,6 +218,7 @@ public:
 	static void DistributedLoadOntoTransport2(TeamClass* pTeam, int type);
 	static void FollowFriendlyByGroup(TeamClass* pTeam, int group);
 	static void RallyUnitInMap(TeamClass* pTeam, int nArg);
+	static void RallyUnitInMapWithLeader(TeamClass* pTeam, int nArg);
 
 	static bool IsValidFriendlyTarget(TeamClass* pTeam, int group, TechnoClass* target, bool isSelfNaval, bool isSelfAircraft, bool isFriendly);
 	static bool StopTeamMemberMoving(TeamClass* pTeam);
