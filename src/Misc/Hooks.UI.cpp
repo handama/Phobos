@@ -9,6 +9,7 @@
 #include <Ext/TechnoType/Body.h>
 #include <Ext/SWType/Body.h>
 #include <Utilities/Debug.h>
+#include <PreviewClass.h>
 
 DEFINE_HOOK(0x777C41, UI_ApplyAppIcon, 0x9)
 {
@@ -47,6 +48,29 @@ DEFINE_HOOK(0x641B41, LoadingScreen_SkipPreview, 0x8)
 		return 0;
 	}
 	return 0x641D4E;
+}
+
+DEFINE_HOOK(0x641EE0, PreviewClass_ReadPreview, 0x6)
+{
+	GET(PreviewClass*, pThis, ECX);
+	GET_STACK(const char*, lpMapFile, 0x4);
+
+	CCFileClass file(lpMapFile);
+	if (file.Exists() && file.Open(FileAccessMode::Read))
+	{
+		CCINIClass ini;
+		ini.ReadCCFile(&file, true);
+		ini.CurrentSection = nullptr;
+		ini.CurrentSectionName = nullptr;
+
+		ScenarioClass::Instance->ReadStartPoints(ini);
+
+		R->EAX(pThis->ReadPreviewPack(ini));
+	}
+	else
+		R->EAX(false);
+
+	return 0x64203D;
 }
 
 DEFINE_HOOK(0x4A25E0, CreditsClass_GraphicLogic_HarvesterCounter, 0x7)

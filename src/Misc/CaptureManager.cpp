@@ -123,7 +123,16 @@ bool CaptureManager::CaptureUnit(CaptureManagerClass* pManager, TechnoClass* pTa
 							pAnim->ZAdjust = -1024;
 					}
 				}
-
+				pTarget->SetTarget(nullptr);
+				if (pManager->Owner->IsHumanControlled)
+				{
+					if (auto pTargetFoot = abstract_cast<FootClass*>(pTarget))
+					{
+						pTargetFoot->QueueMission(Mission::Guard, false);
+						pTargetFoot->SetDestination(pTarget->GetCell(), true);
+						pTargetFoot->NextMission();
+					}
+				}
 				return true;
 			}
 

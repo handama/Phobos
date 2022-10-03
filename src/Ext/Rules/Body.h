@@ -30,6 +30,7 @@ public:
 		PhobosFixedString<32u> MissingCameo;
 		DynamicVectorClass<DynamicVectorClass<TechnoTypeClass*>> AITargetTypesLists;
 		DynamicVectorClass<DynamicVectorClass<ScriptTypeClass*>> AIScriptsLists;
+		DynamicVectorClass<DynamicVectorClass<std::string>> AIConditionsLists;
 
 		Valueable<double> JumpjetCrash;
 		Valueable<bool> JumpjetNoWobbles;

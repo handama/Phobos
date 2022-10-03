@@ -18,6 +18,17 @@ void TeamExt::ExtData::Serialize(T& Stm)
 		.Process(this->MoveMissionEndMode)
 		.Process(this->WaitNoTargetCounter)
 		.Process(this->WaitNoTargetTimer)
+		.Process(this->ForceJump_Countdown)
+		.Process(this->ForceJump_InitialCountdown)
+		.Process(this->ForceJump_RepeatMode)
+		.Process(this->TeamLeader)
+		.Process(this->PreviousScriptList)
+		.Process(this->GenericStatus)
+		.Process(this->AllPassengers)
+		.Process(this->AttackTargetRank)
+		.Process(this->IndividualTargets)
+		.Process(this->CaptureTarget)
+		.Process(this->AllyPassengers)
 		;
 }
 

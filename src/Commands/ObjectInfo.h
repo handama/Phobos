@@ -157,7 +157,8 @@ public:
 			append("ID = %s, ", pType->ID);
 			append("Owner = %s (%s), ", pFoot->Owner->get_ID(), pFoot->Owner->PlainName);
 			append("Location = (%d, %d), ", pFoot->GetMapCoords().X, pFoot->GetMapCoords().Y);
-			append("Current Mission = %d (%s)\n", pFoot->CurrentMission, getMissionName((int)pFoot->CurrentMission));
+			append("Mission = %d (%s), ", pFoot->CurrentMission, getMissionName((int)pFoot->CurrentMission));
+			append("Group = %d\n", pFoot->Group);
 
 			if (pFoot->BelongsToATeam())
 			{
