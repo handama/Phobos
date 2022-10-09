@@ -73,6 +73,7 @@ Thickness=4                   ; integer
 SegmentLength=128             ; integer, minimal length of each trail segment
 IgnoreVertical=false          ; boolean, whether the trail won't be drawn on vertical movement
 IsIntense=false               ; boolean, whether the laser is "supported" (AKA prism forwarding)
+CloakVisible=false            ; boolean, whether the laser is visible when the attached unit is cloaked
 
 [SOMEPROJECTILE]              ; BulletType Image
 LaserTrail.Types=SOMETRAIL    ; list of LaserTrailTypes
@@ -487,6 +488,9 @@ Trajectory.Speed=100.0  ; floating point value
 ```
 
 #### Straight trajectory
+
+![Straigh trajectory blasters](_static/images/straight.gif)
+*Straight trajectory used to make blasters in a private mod by @brsajo#9745*
 
 - Self-explanatory, is a straight-shot trajectory.
 

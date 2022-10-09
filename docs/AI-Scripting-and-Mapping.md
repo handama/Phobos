@@ -2,7 +2,7 @@
 
 This page describes all AI scripting and mapping related additions and changes introduced by Phobos.
 
-## Bugfixes and miscellanous
+## Bugfixes and Miscellanous
 
 - Script action `Move to cell` now obeys YR cell calculation now. Using `1000 * Y + X` as its cell value. (was `128 * Y + X` as it's a RA1 leftover)
 - The game now can reads waypoints ranges in [0, 2147483647]. (was [0,701])
@@ -10,161 +10,102 @@ This page describes all AI scripting and mapping related additions and changes i
 - Both Global Variables (`VariableNames` in `rulesmd.ini`) and Local Variables (`VariableNames` in map) are now unlimited.
 - Script action `Deploy` now has vehicles with `DeploysInto` searching for free space to deploy at if failing to do so at initial location, instead of simply getting stuck.
 
-## Script actions
+## Script Actions
 
-### `71` Timed Area Guard
+### `10000-10999` Ingame Actions
 
-- Puts the TaskForce into Area Guard Mode for the given units of time. Unlike the original timed Guard script (`5,n`) that just stays in place doing a basic guard operation the "Area Guard" action has a more active role attacking nearby invaders or defending units that needs protection.
+#### `10000-10049` Attack Actions
 
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=71,n            ; integer, time in ingame seconds
-```
-
-### `72` Load Onto Transports
-
-- If the TaskForce contains unit(s) that can be carried by the transports of the same TaskForce then this action will make the units enter the transports. In Single player missions the next action must be "Wait until fully loaded" (`43,0`) or the script will not continue.
+- These actions instruct the TeamType to use the TaskForce to approach and attack the target specified by the second parameter which is an index of a generic pre-defined group. Look at the tables below for the possible actions (first parameter value) and arguments (the second parameter value).
+- For threat-based attack actions `TargetSpecialThreatCoefficientDefault` and `EnemyHouseThreatBonus` tags from `rulesmd.ini` are accounted.
+- All aircraft that attack other air units will end the script. This behavior is intentional because without it aircraft had some bugs that weren't fixable at the time of developing the feature.
+- `AITargetTypes` actions instruct the TeamType to use the TaskForce to approach and attack the target specified by the second parameter which is an index of a modder-defined group from `AITargetTypess`. Look at the tables below for the possible actions (first parameter value) and arguments (the second parameter value).
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=72,0
+x=i,n             ; For i values check the next table
 ```
 
-### `73` Wait until ammo is full
-
-- If the TaskForce contains unit(s) that use ammo then the the script will not continue until all these units have fully refilled the ammo.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=73,0
-```
-
-### `74-81`, `137` , `139`, `143`, `145` Generic Target Type Attack Action
-
-- These Actions instruct the TeamType to use the TaskForce to approach and attack the target specified by the second parameter which is an index of a generic pre-defined group. Look at the tables below for the possible Actions (first parameter value) and Arguments (the second parameter value).
-  - For threat-based attack actions `TargetSpecialThreatCoefficientDefault` and `EnemyHouseThreatBonus` tags from `rulesmd.ini` are accounted.
-  - All Aircrafts that attack other air units will end the script. This behavior is intentional because without it aircrafts had some bugs that weren't fixable at the time of developing the feature.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=i,n             ; where 74 <= i <= 81
-```
-
-| *Action* | *Argument*   | *Repeats* | *Target Priority* | *Description*                                 |
-| :------: | :----------: | :-------: | :---------------: | :-------------------------------------------: |
-|74         | Target Type# | Yes | Closer, higher threat |  |
-|75         | Target Type# | Yes | Farther, higher threat |  |
-|76         | Target Type# | Yes | Closer |  |
-|77         | Target Type# | Yes | Farther |  |
-|78         | Target Type# | No | Closer, higher threat | Ends when a team member kill the designated target |
-|79         | Target Type# | No | Farther, higher threat | Ends when a team member kill the designated target |
-|80         | Target Type# | No | Closer | Ends when a team member kill the designated target |
-|81         | Target Type# | No | Farther | Ends when a team member kill the designated target |
+| *Action* | *Argument*             | *Repeats* | *Target Priority*      | *Description*                                      |
+| :------: | :--------------------: | :-------: | :--------------------: | :------------------------------------------------: |
+| 10000    | Target Type#           | Yes       | Closer                 |                                                    |
+| 10001    | Target Type#           | No        | Closer                 | Ends when a team member kill the designated target |
+| 10002    | `AITargetTypes` index# | Yes       | Closer                 |                                                    |
+| 10003    | `AITargetTypes` index# | No        | Closer                 | Ends when a team member kill the designated target |
+| 10004    | `AITargetTypes` index# | Yes       | Closer                 | Picks 1 random target from the list                |
+| 10005    | Target Type#           | Yes       | Farther                |                                                    |
+| 10006    | Target Type#           | No        | Farther                | Ends when a team member kill the designated target |
+| 10007    | `AITargetTypes` index# | Yes       | Farther                |                                                    |
+| 10008    | `AITargetTypes` index# | No        | Farther                | Ends when a team member kill the designated target |
+| 10009    | `AITargetTypes` index# | Yes       | Farther                | Picks 1 random target from the list                |
+| 10010    | Target Type#           | Yes       | Closer, higher threat  |                                                    |
+| 10011    | Target Type#           | No        | Closer, higher threat  | Ends when a team member kill the designated target |
+| 10012    | `AITargetTypes` index# | Yes       | Closer, higher threat  |                                                    |
+| 10013    | `AITargetTypes` index# | No        | Closer, higher threat  | Ends when a team member kill the designated target |
+| 10014    | Target Type#           | Yes       | Farther, higher threat |                                                    |
+| 10015    | Target Type#           | No        | Farther, higher threat | Ends when a team member kill the designated target |
+| 10016    | `AITargetTypes` index# | Yes       | Farther, higher threat |                                                    |
+| 10017    | `AITargetTypes` index# | No        | Farther, higher threat | Ends when a team member kill the designated target |
 |137         | Target Type# | Yes | Closer, higher threat | Each team member gets its own target |
 |139         | Target Type# | Yes | Closer, higher threat | Each 2 team member gets their own target |
+|138         | `AITargetTypes` index# | Yes | Closer, higher threat | Each team member gets its own target |
+|140         | `AITargetTypes` index# | Yes | Closer, higher threat | Each 2 team member gets their own target |
 |143         | Target Type# | Yes | Closer | Each team member gets its own target |
 |145         | Target Type# | Yes | Closer | Each 2 team member gets their own target |
+|144         | `AITargetTypes` index# | Yes | Closer | Each team member gets its own target |
+|146         | `AITargetTypes` index# | Yes | Closer | Each 2 team member gets their own target |
+
 
 - The following values are the *Target Type#* which can be used as second parameter of the new attack script actions:
 
-| *Value* | *Target Type*     | *Description*                                 |
-| :-----: | :---------------: | :-------------------------------------------: |
-| 1         | Anything          | Any enemy `VehicleTypes`, `AircraftTypes`, `InfantryTypes` and `BuildingTypes` |
-| 2         | Structures        | Any enemy `BuildingTypes` without `Artillary=yes`, `TickTank=yes`, `ICBMLauncher=yes` or `SensorArray=yes` |
-| 3         | Ore Miners        | Any enemy `VehicleTypes` with `Harvester=yes` or `ResourceGatherer=yes`, `BuildingTypes` with `ResourceGatherer=yes` |
-| 4         | Infantry          | Any enemy `InfantryTypes` |
-| 5         | Vehicles          | Any enemy `VehicleTypes`, `AircraftTypes`, `BuildingTypes` with `Artillary=yes`, `TickTank=yes`, `ICBMLauncher=yes` & `SensorArray=yes` |
-| 6         | Factories         | Any enemy `BuildingTypes` with a Factory= setting |
-| 7         | Base Defenses     | Any enemy `BuildingTypes` with `IsBaseDefense=yes` |
-| 8         | House Threats     | Any object that targets anything of the Team's House or any enemy that is near to the Team Leader |
-| 9         | Power Plants      | Any enemy `BuildingTypes` with positive `Power=` values |
-| 10        | Occupied          | Any `BuildingTypes` with garrisoned infantry |
-| 11        | Tech Buildings    | Any `BuildingTypes` with `Unsellable=yes`, `Capturable=yes`, negative `TechLevel=` values or appears in `[AI]>NeutralTechBuildings=` list |
-| 12        |	Refinery        | Any enemy `BuildingTypes` with `Refinery=yes` or `ResourceGatherer=yes`, `VehicleTypes` with `ResourceGatherer=yes` & `Harvester=no` (i.e. Slave Miner) |
-| 13        | Mind Controller   | Anything `VehicleTypes`, `AircraftTypes`, `InfantryTypes` and `BuildingTypes` with `MindControl=yes` in the weapons Warheads |
-| 14        | Air Units         | Any enemy `AircraftTypes`, flying `VehicleTypes` or `InfantryTypes` |
-| 15        | Naval             | Any enemy `BuildingTypes` and `VehicleTypes` with a `Naval=yes`, any enemy `VehicleTypes`, `AircraftTypes`, `InfantryTypes` in a water cell |
-| 16        | Disruptors        | Any enemy objects with positive `InhibitorRange=` values, positive `RadarJamRadius=` values, `CloakGenerator=yes` or `GapGenerator=yes` |
-| 17        | Ground Vehicles   | Any enemy `VehicleTypes` without `Naval=yes`, landed `AircraftTypes`, Deployed vehicles into `BuildingTypes` |
-| 18        | Economy           | Any enemy `VehicleTypes` with `Harvester=yes` or `ResourceGatherer=yes`, `BuildingTypes` with `Refinery=yes`, `ResourceGatherer=yes` or `OrePurifier=yes` |
-| 19        | Infantry Factory  | Any enemy `BuildingTypes` with `Factory=InfantryType` |
-| 20        | Vehicle Factory   | Any enemy `BuildingTypes` with with `Naval=no` and `Factory=UnitType` |
-| 21        | Aircraft Factory  | Any enemy `BuildingTypes` with `Factory=AircraftType` |
-| 22        | Radar             | Any enemy `BuildingTypes` with `Radar=yes` or `SpySat=yes` |
-| 23        | Tech Lab          | Any enemy `BuildingTypes` in `[AI]>BuildTech=` list |
-| 24        | Naval Factory     | Any enemy `BuildingTypes` with `Naval=yes` and `Factory=UnitType` |
-| 25        | Super Weapon      | Any enemy `BuildingTypes` with `SuperWeapon=`, `SuperWeapon2=` or `SuperWeapons=` |
-| 26        | Construction Yard | Any enemy `BuildingTypes` with `ConstructionYard=yes` and `Factory=BuildingType` |
-| 27        | Neutrals          | Any neutral object (Civilian) |
-| 28        | Generators        | Any enemy `BuildingTypes` with `CloakGenerator=yes` or `GapGenerator=yes` |
-| 29        | Radar Jammer      | Any enemy objects with positive `RadarJamRadius=` values |
-| 30        | Inhibitors        | Any enemy objects with positive `InhibitorRange=` values |
-| 31        | Naval Units       | Any enemy `VehicleTypes` with a `Naval=yes` or any enemy `VehicleTypes`, `AircraftTypes`, `InfantryTypes` in a water cell |
-| 32        | Mobile Units      | Anything `VehicleTypes`, `AircraftTypes` and `InfantryTypes` |
-| 33        | Capturable        | Any `BuildingTypes` with `Capturable=yes` or any `BuildingTypes` with `BridgeRepairHut=yes` and `Repairable=yes` |
-| 34        | Area Threats      | Any enemy object that is inside of the Team Leader's Guard Area |
-| 35        | Vehicle & Naval Factory | Any enemy `BuildingTypes` with `Factory=UnitType` |
-| 36        | Non-defensive Structures | Any enemy `BuildingTypes` with `IsBaseDefense=no` |
+| *Value* | *Target Type*            | *Description*                                 |
+| :-----: | :----------------------: | :-------------------------------------------: |
+| 1       | Anything                 | Any enemy `VehicleTypes`, `AircraftTypes`, `InfantryTypes` and `BuildingTypes` |
+| 2       | Structures               | Any enemy `BuildingTypes` without `Artillary=yes`, `TickTank=yes`, `ICBMLauncher=yes` or `SensorArray=yes` |
+| 3       | Ore Miners               | Any enemy `VehicleTypes` with `Harvester=yes` or `ResourceGatherer=yes`, `BuildingTypes` with `ResourceGatherer=yes` |
+| 4       | Infantry                 | Any enemy `InfantryTypes` |
+| 5       | Vehicles                 | Any enemy `VehicleTypes`, `AircraftTypes`, `BuildingTypes` with `Artillary=yes`, `TickTank=yes`, `ICBMLauncher=yes` & `SensorArray=yes` |
+| 6       | Factories                | Any enemy `BuildingTypes` with a Factory= setting |
+| 7       | Base Defenses            | Any enemy `BuildingTypes` with `IsBaseDefense=yes` |
+| 8       | House Threats            | Any object that targets anything of the Team's House or any enemy that is near to the Team Leader |
+| 9       | Power Plants             | Any enemy `BuildingTypes` with positive `Power=` values |
+| 10      | Occupied                 | Any `BuildingTypes` with garrisoned infantry |
+| 11      | Tech Buildings           | Any `BuildingTypes` with `Unsellable=yes`, `Capturable=yes`, negative `TechLevel=` values or appears in `[AI]>NeutralTechBuildings=` list |
+| 12      |	Refinery                 | Any enemy `BuildingTypes` with `Refinery=yes` or `ResourceGatherer=yes`, `VehicleTypes` with `ResourceGatherer=yes` & `Harvester=no` (i.e. Slave Miner) |
+| 13      | Mind Controller          | Anything `VehicleTypes`, `AircraftTypes`, `InfantryTypes` and `BuildingTypes` with `MindControl=yes` in the weapons Warheads |
+| 14      | Air Units                | Any enemy `AircraftTypes`, flying `VehicleTypes` or `InfantryTypes` |
+| 15      | Naval                    | Any enemy `BuildingTypes` and `VehicleTypes` with a `Naval=yes`, any enemy `VehicleTypes`, `AircraftTypes`, `InfantryTypes` in a water cell |
+| 16      | Disruptors               | Any enemy objects with positive `InhibitorRange=` values, positive `RadarJamRadius=` values, `CloakGenerator=yes` or `GapGenerator=yes` |
+| 17      | Ground Vehicles          | Any enemy `VehicleTypes` without `Naval=yes`, landed `AircraftTypes`, Deployed vehicles into `BuildingTypes` |
+| 18      | Economy                  | Any enemy `VehicleTypes` with `Harvester=yes` or `ResourceGatherer=yes`, `BuildingTypes` with `Refinery=yes`, `ResourceGatherer=yes` or `OrePurifier=yes` |
+| 19      | Infantry Factory         | Any enemy `BuildingTypes` with `Factory=InfantryType` |
+| 20      | Vehicle Factory          | Any enemy `BuildingTypes` with with `Naval=no` and `Factory=UnitType` |
+| 21      | Aircraft Factory         | Any enemy `BuildingTypes` with `Factory=AircraftType` |
+| 22      | Radar                    | Any enemy `BuildingTypes` with `Radar=yes` or `SpySat=yes` |
+| 23      | Tech Lab                 | Any enemy `BuildingTypes` in `[AI]>BuildTech=` list |
+| 24      | Naval Factory            | Any enemy `BuildingTypes` with `Naval=yes` and `Factory=UnitType` |
+| 25      | Super Weapon             | Any enemy `BuildingTypes` with `SuperWeapon=`, `SuperWeapon2=` or `SuperWeapons=` |
+| 26      | Construction Yard        | Any enemy `BuildingTypes` with `ConstructionYard=yes` and `Factory=BuildingType` |
+| 27      | Neutrals                 | Any neutral object (Civilian) |
+| 28      | Generators               | Any enemy `BuildingTypes` with `CloakGenerator=yes` or `GapGenerator=yes` |
+| 29      | Radar Jammer             | Any enemy objects with positive `RadarJamRadius=` values |
+| 30      | Inhibitors               | Any enemy objects with positive `InhibitorRange=` values |
+| 31      | Naval Units              | Any enemy `VehicleTypes` with a `Naval=yes` or any enemy `VehicleTypes`, `AircraftTypes`, `InfantryTypes` in a water cell |
+| 32      | Mobile Units             | Anything `VehicleTypes`, `AircraftTypes` and `InfantryTypes` |
+| 33      | Capturable               | Any `BuildingTypes` with `Capturable=yes` or any `BuildingTypes` with `BridgeRepairHut=yes` and `Repairable=yes` |
+| 34      | Area Threats             | Any enemy object that is inside of the Team Leader's Guard Area |
+| 35      | Vehicle & Naval Factory  | Any enemy `BuildingTypes` with `Factory=UnitType` |
+| 36      | Non-defensive Structures | Any enemy `BuildingTypes` with `IsBaseDefense=no` |
 | 37        | Buildings and Vehicles | Any enemy `BuildingTypes` or `VehicleTypes` |
 | 38        | Ground TechnoTypes | Any enemy `TechnoTypes` without `Naval=yes` |
 | 39        | Occupiable Buildings        | Any Occupiable Buildings (Civilian or Battle Bunkers) |
 | 40        | Self Grinders  | Self Building with Grinding=yes |
 | 41        | Spyable Buildings        | Any Buildings with Spyable=yes |
 
-### `82` Decrease AI Trigger Current Weight
 
-- When executed this decreases the current Weight of the AI Trigger.The current Weight will never surprass the Minimum Weight and Maximum Weight limits of the AI Trigger. Take note that all TeamTypes of the same AI Trigger will update sooner or later the AI Trigger Current Weight. The second parameter is a positive value. Take note that the original game only uses the first of the two Teams for calculating the AI Trigger Current Weight at the end of the Trigger life, this action ignores if the Team is the first or the second of the AI Trigger and the Current Weight is calculated when is executed the action.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=82,n
-```
-
-### `83` Increase AI Trigger Current Weight
-
-- When executed this increases the current Weight of the AI Trigger.The current Weight will never surprass the Minimum Weight and Maximum Weight limits of the AI Trigger. Take note that all TeamTypes of the same AI Trigger will update sooner or later the AI Trigger Current Weight. The second parameter is a positive value. Take note that the original game only uses the first of the two Teams for calculating the AI Trigger Current Weight at the end of the Trigger life, this action ignores if the Team is the first or the second of the AI Trigger and the Current Weight is calculated when is executed the action.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=83,n
-```
-
-### `84-91`, `104-105`, `138`, `140`, `144`, `146` `AITargetTypes` Attack Action
-
-- These Actions instruct the TeamType to use the TaskForce to approach and attack the target specified by the second parameter which is an index of a modder-defined group from `AITargetTypess`. Look at the tables below for the possible Actions (first parameter value) and Arguments (the second parameter value).
-  - For threat-based attack actions `TargetSpecialThreatCoefficientDefault` and `EnemyHouseThreatBonus` tags from `rulesmd.ini` are accounted.
-  - All Aircrafts that attack other air units will end the script. This behavior is intentional because without it aircrafts had some bugs that weren't fixable at the time of developing the feature.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=i,n             ; where 84 <= i <= 91 or 104 <= i <= 105
-```
-
-| *Action* | *Argument*   | *Repeats* | *Target Priority* | *Description*                                 |
-| :------: | :----------: | :-------: | :---------------: | :-------------------------------------------: |
-|84         | `AITargetTypes` index# | Yes | Closer, higher threat |  |
-|85         | `AITargetTypes` index# | Yes | Farther, higher threat |  |
-|86         | `AITargetTypes` index# | Yes | Closer |  |
-|87         | `AITargetTypes` index# | Yes | Farther |  |
-|88         | `AITargetTypes` index# | No | Closer, higher threat | Ends when a team member kill the designated target |
-|89         | `AITargetTypes` index# | No | Farther, higher threat | Ends when a team member kill the designated target |
-|90         | `AITargetTypes` index# | No | Closer | Ends when a team member kill the designated target |
-|91         | `AITargetTypes` index# | No | Farther | Ends when a team member kill the designated target |
-|104        | `AITargetTypes` index# | Yes | Closer | Picks 1 random target from the list |
-|105        | `AITargetTypes` index# | Yes | Farther | Picks 1 random target from the list |
-|138         | `AITargetTypes` index# | Yes | Closer, higher threat | Each team member gets its own target |
-|140         | `AITargetTypes` index# | Yes | Closer, higher threat | Each 2 team member gets their own target |
-|144         | `AITargetTypes` index# | Yes | Closer | Each team member gets its own target |
-|146         | `AITargetTypes` index# | Yes | Closer | Each 2 team member gets their own target |
-
-- The second parameter with a 0-based index for the `AITargetTypes` section specifies the list of possible `VehicleTypes`, `AircraftTypes`, `InfantryTypes` and `BuildingTypes` that can be evaluated. The new `AITargetTypes` section must be declared in `rulesmd.ini` for making this script work:
+- The second parameter with a 0-based index for the `AITargetTypes` section specifies the list of possible `VehicleTypes`, `AircraftTypes`, `InfantryTypes` and `BuildingTypes` that can be evaluated.
+- The *`AITargetTypes` index#* values are obtained in the new `AITargetTypes` section that must be declared in `rulesmd.ini`:
 
 In `rulesmd.ini`:
 ```ini
@@ -174,130 +115,81 @@ In `rulesmd.ini`:
 ; ...
 ```
 
-### `92` Wait If No Target Found
+#### `147` Capture Civilian Buildings    10040
 
-- When executed before a new Attack ScriptType Actions like `74-81` and `84-91` the TeamType will remember that must wait 1 second if no target was selected. The second parameter is a positive value that specifies how much retries the Attack will do when no target was found before new Attack ScriptType Action is discarded & the script execution jumps to the next line. The value `0` means infinite retries.
+- Capture Civilian Buildings.
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]
+x=147,0
+```
+
+#### `10050-10099` Move Team to Techno Location actions
+
+- These actions instructs the TeamType to use the TaskForce to approach the target specified by the second parameter. Look at the tables below for the possible actions (first parameter value).
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=92,n            ; integer n=0
+x=i,n             ; For i values check the next table
 ```
 
-### `93` Team's Trigger Weight Reward
+| *Action* | *Argument*            | *Target Owner* | *Target Priority*      | *Description*                                |
+| :------: | :-------------------: | :------------: | :--------------------: | :------------------------------------------: |
+| 10050    | Target Type#          | Enemy          | Closer, higher threat  |                                              |
+| 10051    | [AITargetType] index# | Enemy          | Closer, higher threat  |                                              |
+| 10052    | [AITargetType] index# | Enemy          | Closer                 | Picks 1 random target from the selected list |
+| 10053    | Target Type#          | Friendly       | Closer                 |                                              |
+| 10054    | [AITargetType] index# | Friendly       | Closer                 |                                              |
+| 10055    | [AITargetType] index# | Friendly       | Closer                 | Picks 1 random target from the selected list |
+| 10056    | Target Type#          | Enemy          | Farther, higher threat |                                              |
+| 10057    | [AITargetType] index# | Enemy          | Farther, higher threat |                                              |
+| 10058    | [AITargetType] index# | Enemy          | Farther                | Picks 1 random target from the selected list |
+| 10059    | Target Type#          | Friendly       | Farther                |                                              |
+| 10060    | [AITargetType] index# | Friendly       | Farther                |                                              |
+| 10061    | [AITargetType] index# | Friendly       | Farther                | Picks 1 random target from the selected list |
 
-- When executed before a new Attack ScriptType Actions like `74-81` and `84-91` the TeamType will remember that must be rewarded increasing the current Weight of the AI Trigger when the TeamType Target was killed by any of the Team members. The current Weight will never surprass the Minimum Weight and Maximum Weight limits of the AI Trigger. The second parameter is a positive value.
+#### `10000-10049` General Purpose
+
+##### `10100` Timed Area Guard
+
+- Puts the TaskForce into Area Guard mode for the given units of time. Unlike the original timed Guard script action (`5,n`) that just stays in place doing a basic guard operation this action has a more active role attacking nearby invaders or defending units that needs protection.
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=93,n            ; integer n=0
+x=10100,n            ; integer, time in ingame seconds
 ```
+##### `10101` Wait Until Ammo is Full
 
-### `94` Pick A Random Script
-
-- When executed this action picks a random Script Type and replaces the current script by the new picked. The second parameter is a 0-based index from the new section `AIScriptsList` explained below.
+- If the TaskForce contains unit(s) that use ammo then the the script will not continue until all these units have fully refilled the ammo.
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=94,n
+x=10101,0
 ```
+##### `10102` Regroup Temporarily Around the Team Leader
 
-The second parameter is a 0-based index for the `AIScriptsList` section that specifies the list of possible `ScriptTypes` that can be evaluated. The new `AIScriptsList` section must be declared in `rulesmd.ini` for making this script work:
-
-In `rulesmd.ini`:
-```ini
-[AIScriptsList]  ; List of ScriptType lists
-0=SOMESCRIPTTYPE,SOMEOTHERSCRIPTTYPE,SAMPLESCRIPTTYPE
-1=ANOTHERSCRIPTTYPE,YETANOTHERSCRIPTTYPE
-; ...
-```
-
-### `95-98`, `106-109` Moving Team to techno location
-
-- These Actions instructs the TeamType to use the TaskForce to approach the target specified by the second parameter. Look at the tables below for the possible Actions (first parameter value).
+- Puts the TaskForce into Area Guard mode for the given amount of time around the Team Leader (this unit remains almost immobile until the action ends). The default radius around the leader is `[General] > CloseEnough` and the units will not leave that area.
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=i,n             ; where 95 <= i <= 98 or 106 <= i <= 109
+x=10102,n
 ```
 
-| *Action* | *Argument*    | Target Owner | *Target Priority* | *Description*                                 |
-| :------: | :-----------: | :----------: | :---------------: | :-------------------------------------------: |
-95         | Target Type# | Enemy | Closer, higher threat |  |
-96         | Target Type# | Enemy | Farther, higher threat |  |
-97         | Target Type# | Friendly | Closer |  |
-98         | Target Type# | Friendly | Farther |  |
-99         | [AITargetType] index# | Enemy | Closer, higher threat |  |
-100        | [AITargetType] index# | Enemy | Farther, higher threat |  |
-101        | [AITargetType] index# | Friendly | Closer |  |
-102        | [AITargetType] index# | Friendly | Farther |  |
-106        | [AITargetType] index# | Enemy | Closer | Picks 1 random target from the selected list |
-107        | [AITargetType] index# | Enemy | Farther | Picks 1 random target from the selected list |
-108        | [AITargetType] index# | Friendly | Closer | Picks 1 random target from the selected list |
-109        | [AITargetType] index# | Friendly | Farther | Picks 1 random target from the selected list |
+##### `10103` Load onto Transports
 
-### `103` Modify Target Distance
-
-- By default Movement actions `95-102` & `106-109` ends when the Team Leader reaches a distance declared in rulesmd.ini called CloseEnough. When this action is  executed before the Movement actions `95-102` overwrites CloseEnough value. This action works only the first time and CloseEnough will be used again the next Movement action.
+- If the TaskForce contains unit(s) that can be carried by the transports of the same TaskForce then this action will make the units enter the transports. In single player missions the next action must be "Wait until fully loaded" (`43,0`) or the script will not continue.
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=103,n
+x=10103,0
 ```
 
-### `110` Set Move Action End Mode
-
-- Sets how the Movement actions ends and jumps to the next line. This action works only the first time and CloseEnough will be used again the next Movement action.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=110,n
-```
-
-- The possible argument values are:
-
-| *Argument* | *Action ends when...*                       |
-| :------: | :-------------------------------------------: |
-0         | Team Leader reaches the minimum distance |
-1         | One unit reaches the minimum distance |
-2         | All team members reached the minimum distance |
-
-### `111` Un-register Team success
-
-- Is just the opposite effect of the script action `49,0`. Like if the Team failed.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=111,0
-```
-
-### `112` Regroup temporarily around the Team Leader
-
-- Puts the TaskForce into Area Guard Mode for the given amount of time around the Team Leader (this unit remains almost immobile until the action ends). The default radius around the Leader is `[General] > CloseEnough` and the units will not leave that area.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=112,n
-```
-
-### `113` Randomly Skip Next Action
-
-- When executed this action picks a random value between 1 and 100. If the value is equal or below the second parameter then the next action will be skipped. If the second parameter is 0 means that the next action will never be skipped and 100 means thay always will be skipped.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=113,n           ; where 0 > n <= 100
-```
-
-### `114` Change team group
+##### `114` Change team group  11500
 - Change all team member's group into a specific value, can be negative.
 - This `TeamType`'s group value will not be changed.
 - The script will continue once the change is done.
@@ -309,7 +201,7 @@ In `aimd.ini`:
 x=114,n           ; n can be negative
 ```
 
-### `115` Distributed loading
+#### `115` Distributed loading  11501
 | type                | desc                                                                     | Low word nArg |
 | ------------------- |:------------------------------------------------------------------------ | ------------- |
 | 0: Stop immediately | Stop all member's previous action immediately                            | None          |
@@ -328,7 +220,51 @@ In `aimd.ini`:
 x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 << 16 + 10)
 ```
 
-### `116` Follow friendly by group
+#### `136` Distributed loading 2  11502
+| type                | desc                                                                     | Low word nArg |
+| ------------------- |:------------------------------------------------------------------------ | ------------- |
+| 0: Stop immediately | Stop all member's previous action immediately                            | None          |
+| 1: Delay timer      | Maintain all member's previous action for nArg seconds, then begin load  | Seconds       |
+| 2: Gather range     | Gather all unit around one team member, range nArg cell, then begin load | Range (cell)  |
+
+- This action will class all team member into passengers and vehicles, and load all passengers into all available vehicles. 
+  - Vehicles: any units in current team which shares a min `SizeLimit`, no matter the `TechType`.
+  - Passengers: all remaining members.
+- Passengers with larger size will load first.
+- The script will continue when no passengers left, or no more room for passengers.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]
+x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 << 16 + 10)
+```
+#### `135` Unload from Transports  11503
+
+- A new unload action similar to x=8,n, but can avoid treating `VehicleTypes` with `OpenTopped=yes` and `Gunner=yes` as transports.
+  - All `InitialPayload` will be regarded as passengers and added to team.
+  - If `TransportsReturnOnUnload` is set to `yes` in this TeamType, and transports are lost, they will return after unloading.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=135,n
+```
+
+- The possible argument values are:
+
+| *Argument* | *Description*                       |
+| :------: | :-------------------------------------------: |
+0         | Keep transports and units. |
+1         | Keep transports and lose units. |
+2         | Lose transports and keep units. |
+3         | Lose transports and units. |
+4         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Keep transports and units. |
+5         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Keep transports and lose units. |
+6         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Lose transports and keep units. |
+7         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Lose transports and units. |
+
+
+#### `116` Follow friendly by group  11504
 - All member will follow a nearest friendly unit with specific group number until the target is destroyed, or group value changed. Then the team will find another nearest available target to follow.
 
 - The behavior varies with this team's member:
@@ -344,7 +280,7 @@ In `aimd.ini`:
 x=116,n           ; n can be negative
 ```
 
-### `117, 150` Rally unit with same group
+#### `117, 150` Rally unit with same group  11505,11506
 - This action will rally all available units share the same group value with this `TeamType` or its Leader, and recruit them as team member. All rallyed unit will perform all future script action along with this team.
 
 | *Action* | *Argument*    | *Description*                                 |
@@ -382,92 +318,50 @@ In `aimd.ini`:
 x=117,n           ; n is MemberType
 ```
 
-### `124` Stop the Timed Jumps
 
-- If the Timed Jumps were activated this action stop the process.
+
+### `12000-12999` Suplementary/Setup Pre-actions
+
+#### `12000` Wait if No Target Found
+
+- When executed before a new Attack ScriptType actions like `Generic Target Type Attack` actions  and `AITargetTypes Attack` actions  the TeamType will remember that must wait 1 second if no target was selected. The second parameter is a positive value that specifies how much retries the Attack will do when no target was found before new Attack ScriptType Action is discarded & the script execution jumps to the next line. The value `0` means infinite retries.
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=124,0
+x=12000,n            ; integer n=0
 ```
 
-### `125` Start a Timed Jump to the next line
+#### `12001` Modify Target Distance
 
-- When the timer ends the current script action ends and start the next one in the script type list.
+- By default `Moving Team to techno location` actions ends when the Team Leader reaches a distance declared in rulesmd.ini called `CloseEnough`. When this action is executed before the actions `Moving Team to techno location` overwrites `CloseEnough` value. This action works only the first time and `CloseEnough` will be used again the next Movement action.
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=125,n           ; integer n=0, in ingame seconds
+x=12001,n
 ```
 
-### `126` Start a Timed Jump to the same line
+#### `12002` Set Move Action End Mode
 
-- When the timer ends the current script action ends and start again the same script action. The timer jump repeats again (infinite loop) until is stopped with action 124 or the team is destroyed.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=126,n           ; integer n=0, in ingame seconds
-```
-
-### `134` Jump Back To Previous Script
-
-- Used in a Random Script picked by action 94. It can jump back to the previous script, and continue in the line after x=94,n.
+- Sets how the Movement actions ends and jumps to the next line. This action works only the first time and `CloseEnough` will be used again the next Movement action.
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=134,0
-```
-
-### `135` Unload from Transports
-
-- A new unload action similar to x=8,n, but can avoid treating `VehicleTypes` with `OpenTopped=yes` and `Gunner=yes` as transports.
-  - All `InitialPayload` will be regarded as passengers and added to team.
-  - If `TransportsReturnOnUnload` is set to `yes` in this TeamType, and transports are lost, they will return after unloading.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]  ; ScriptType
-x=135,n
+x=12002,n
 ```
 
 - The possible argument values are:
 
-| *Argument* | *Description*                       |
-| :------: | :-------------------------------------------: |
-0         | Keep transports and units. |
-1         | Keep transports and lose units. |
-2         | Lose transports and keep units. |
-3         | Lose transports and units. |
-4         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Keep transports and units. |
-5         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Keep transports and lose units. |
-6         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Lose transports and keep units. |
-7         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Lose transports and units. |
+| *Argument* | *Action ends when...*                         |
+| :--------: | :-------------------------------------------: |
+| 0          | Team Leader reaches the minimum distance      |
+| 1          | One unit reaches the minimum distance         |
+| 2          | All team members reached the minimum distance |
 
 
-### `136` Distributed loading 2
-| type                | desc                                                                     | Low word nArg |
-| ------------------- |:------------------------------------------------------------------------ | ------------- |
-| 0: Stop immediately | Stop all member's previous action immediately                            | None          |
-| 1: Delay timer      | Maintain all member's previous action for nArg seconds, then begin load  | Seconds       |
-| 2: Gather range     | Gather all unit around one team member, range nArg cell, then begin load | Range (cell)  |
-
-- This action will class all team member into passengers and vehicles, and load all passengers into all available vehicles. 
-  - Vehicles: any units in current team which shares a min `SizeLimit`, no matter the `TechType`.
-  - Passengers: all remaining members.
-- Passengers with larger size will load first.
-- The script will continue when no passengers left, or no more room for passengers.
-
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]
-x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 << 16 + 10)
-```
-
-### `141` Set Target Rank
+#### `141` Set Target Rank    12500
 
 - After using this script, all `Generic Target Type Attack Action`, `AITargetTypes Attack Action`, and `Moving Team to techno location` will only pick targets with specific ranks.
 
@@ -482,7 +376,7 @@ x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 <
 3         | pick Veteran and Elite |
 
 
-### `142` Stop Action if Human or AI
+#### `142` Stop Action if Human or AI    12501
 
 - Stop executing this script action if this team is controlled by human or cumputer.
 
@@ -492,17 +386,7 @@ x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 <
 0         | stop when controlled by human |
 1         | stop when controlled by computer  |
 
-
-### `147` Capture Civilian Buildings
-
-- Capture Civilian Buildings.
-In `aimd.ini`:
-```ini
-[SOMESCRIPTTYPE]
-x=147,0
-```
-
-### `148` Manipulate Mind Controlled Units
+#### `148` Manipulate Mind Controlled Units    12502
 
 - Can put all mind controlled units into grinder, or let them attack (or steal if is spy).
 
@@ -513,7 +397,7 @@ x=147,0
 1         | attack  |
 
 
-### `149` Ask Allied Units to Load onto Transports
+#### `149` Ask Allied Units to Load onto Transports    12503
 
 - This action can ask computer allies to put their units in `AITargetTypess` into transport in this team. The team should only have one unit.
 
@@ -524,44 +408,166 @@ x=149,n             ; n is one of AITargetTypess
 ```
 
 
-### `500 - 523` Edit Variable
+
+
+### `14000-14999` Utility Actions
+
+#### `14000` Team's Trigger Weight Reward
+
+- When executed before a new Attack ScriptType actions like `Generic Target Type Attack` actions and `AITargetTypes Attack` actions the TeamType will remember that must be rewarded increasing the current weight of the AI Trigger when the TeamType Target was killed by any of the Team members. The current weight will never surprass the minimum weight and maximum weight limits of the AI Trigger. The second parameter is a positive value.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=14000,n         ; integer n=0
+```
+
+#### `14001` Increase AI Trigger Current Weight
+
+- When executed this increases the current weight of the AI Trigger. The current weight will never surprass the minimum weight and maximum weight limits of the AI Trigger. Take note that all TeamTypes of the same AI Trigger will update the AI Trigger Current Weight sooner or later. The second parameter is a positive value. Take note that the original game only uses the first of the two Teams for calculating the AI Trigger Current weight at the end of the Trigger life, this action ignores if the Team is the first or the second of the AI Trigger and the Current weight is calculated when is executed the action.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=14001,n
+```
+
+#### `14002` Decrease AI Trigger Current Weight
+
+- When executed this decreases the current weight of the AI Trigger. Details same as above.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=14002,n
+```
+
+#### `14003` Unregister Team Success
+
+- Is just the opposite effect of the script action `49,0`. Like if the Team failed.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=14003,0
+```
+
+### `16000-16999` Flow Control
+
+#### `16000` Start a Timed Jump to the Same Line
+
+- When the timer ends the current script action ends and start again the same script action. The timer jump repeats again (infinite loop) until is stopped with action `16002` or the team is destroyed.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=16000,n           ; integer n=0, in ingame seconds
+```
+
+#### `16001` Start a Timed Jump to the Next Line
+
+- When the timer ends the current script action ends and start the next one in the script type list.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=16001,n           ; integer n=0, in ingame seconds
+```
+
+#### `16002` Stop the Timed Jumps
+
+- If the Timed Jumps were activated this action stop the process.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=16002,0
+```
+
+#### `16003` Randomly Skip Next Action
+
+- When executed this action picks a random value between 1 and 100. If the value is equal or below the second parameter then the next action will be skipped. If the second parameter is 0 means that the next action will never be skipped and 100 means thay always will be skipped.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=16003,n           ; where 0 > n <= 100
+```
+
+#### `16004` Pick a Random Script
+
+- When executed this action picks a random Script Type and replaces the current script by the new picked one. The second parameter is a 0-based index from the new section `AIScriptsList` explained below.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=16004,n
+```
+
+The second parameter is a 0-based index for the `AIScriptsList` section that specifies the list of possible `ScriptTypes` that can be evaluated. The new `AIScriptsList` section must be declared in `rulesmd.ini` for making this script work:
+
+In `rulesmd.ini`:
+```ini
+[AIScriptsList]  ; List of ScriptType lists
+0=SOMESCRIPTTYPE,SOMEOTHERSCRIPTTYPE,SAMPLESCRIPTTYPE
+1=ANOTHERSCRIPTTYPE,YETANOTHERSCRIPTTYPE
+; ...
+```
+
+#### `134` Jump Back To Previous Script   16500
+
+- Used in a Random Script picked by action 94. It can jump back to the previous script, and continue in the line after x=94,n.
+
+In `aimd.ini`:
+```ini
+[SOMESCRIPTTYPE]  ; ScriptType
+x=134,0
+```
+
+### `18000-18999` Variable Manipulation
+
+#### `18000-18023` Edit Variable
 - Operate a variable's value
-    - The variable's value type is int16 instead of int32 in trigger actions for some reason, which means it ranges from -2^15 to 2^15-1.
-        - Any numbers exceeding this limit will lead to unexpected results!
+- The variable's value type is int16 instead of int32 in trigger actions for some reason, which means it ranges from -2^15 to 2^15-1.
+- Any numbers exceeding this limit will lead to unexpected results!
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=i,n             ; where 500 <= i <= 523, n is made up of two parts, the low 16 bits is being used to store the variable index, the high 16 bits is being used for storing the param value.
+x=i,n             ; where 18000 <= i <= 18023, n is made up of two parts, the low 16 bits is being used to store the variable index, the high 16 bits is being used for storing the param value.
 ```
 
-### `524 - 547` Edit Variable by Local Variable
-- Operate a variable's value by a local variable's value
-    - Similar to 500-523, but the number to operate the value is being read from a local variable
+#### `18024 - 18047` Edit Variable using Local Variable
+- Operate a variable's value using a local variable's value
+- Similar to 18000-18023, but the number to operate the value is being read from a local variable
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=i,n             ; where 524 <= i <= 547, n is made up of two parts, the low 16 bits is being used to store the variable index, the high 16 bits is being used for storing the local variable index.
+x=i,n             ; where 18024 <= i <= 18047, n is made up of two parts, the low 16 bits is being used to store the variable index, the high 16 bits is being used for storing the local variable index.
 ```
 
-### `548 - 571` Edit Variable by Global Variable
-- Operate a variable's value by a global variable's value
-    - Similar to 500-523, but the number to operate the value is being read from a global variable
+#### `18000 - 18071` Edit Variable using Global Variable
+- Operate a variable's value using a global variable's value
+- Similar to 18000-18023, but the number to operate the value is being read from a global variable
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=i,n             ; where 548 <= i <= 571, n is made up of two parts, the low 16 bits is being used to store the variable index, the high 16 bits is being used for storing the global variable index.
+x=i,n             ; where 18048 <= i <= 18071, n is made up of two parts, the low 16 bits is being used to store the variable index, the high 16 bits is being used for storing the global variable index.
 ```
 
-## Trigger actions
+### `19000-19999` Miscellanous/Uncategorized
+
+This category is empty for now.
+
+## Trigger Actions
 
 ### `500` Save Game
 - Save the current game immediately (singleplayer game only).
-    - These vanilla CSF entries will be used: `TXT_SAVING_GAME`, `TXT_GAME_WAS_SAVED` and `TXT_ERROR_SAVING_GAME`.
-    - The save's description will look like `MapDescName - CSFText`.
-        - For example: `Allied Mission 25: Esther's Money - Money Stolen`.
+- These vanilla CSF entries will be used: `TXT_SAVING_GAME`, `TXT_GAME_WAS_SAVED` and `TXT_ERROR_SAVING_GAME`.
+- The save's description will look like `MapDescName - CSFText`.
+- For example: `Allied Mission 25: Esther's Money - Money Stolen`.
 
 In `mycampaign.map`:
 ```ini
@@ -573,8 +579,8 @@ ID=ActionCount,[Action1],500,4,[CSFKey],0,0,0,0,A,[ActionX]
 
 ### `501` Edit Variable
 - Operate a variable's value
-    - The variable's value type is int32, which means it ranges from -2^31 to 2^31-1.
-        - Any numbers exceeding this limit will lead to unexpected results!
+- The variable's value type is int32, which means it ranges from -2^31 to 2^31-1.
+- Any numbers exceeding this limit will lead to unexpected results!
 
 In `mycampaign.map`:
 ```ini
@@ -584,20 +590,20 @@ ID=ActionCount,[Action1],501,0,[VariableIndex],[Operation],[Number],[IsGlobalVar
 ...
 ```
 
-| *Operation*  | *Description*                                 |
-| :------: | :-------------------------------------------: |
-0         | CurrentValue = Number |
-1         | CurrentValue = CurrentValue + Number |
-2         | CurrentValue = CurrentValue - Number |
-3         | CurrentValue = CurrentValue * Number |
-4         | CurrentValue = CurrentValue / Number |
-5         | CurrentValue = CurrentValue % Number |
-6         | CurrentValue = CurrentValue leftshift Number |
-7         | CurrentValue = CurrentValue rightshift Number |
-8         | CurrentValue = ~CurrentValue |
-9         | CurrentValue = CurrentValue xor Number |
-10         | CurrentValue = CurrentValue or Number |
-11         | CurrentValue = CurrentValue and Number |
+| *Operation* | *Description*                                 |
+| :---------: | :-------------------------------------------: |
+| 0           | CurrentValue = Number                         |
+| 1           | CurrentValue = CurrentValue + Number          |
+| 2           | CurrentValue = CurrentValue - Number          |
+| 3           | CurrentValue = CurrentValue * Number          |
+| 4           | CurrentValue = CurrentValue / Number          |
+| 5           | CurrentValue = CurrentValue % Number          |
+| 6           | CurrentValue = CurrentValue leftshift Number  |
+| 7           | CurrentValue = CurrentValue rightshift Number |
+| 8           | CurrentValue = ~CurrentValue                  |
+| 9           | CurrentValue = CurrentValue xor Number        |
+| 10          | CurrentValue = CurrentValue or Number         |
+| 11          | CurrentValue = CurrentValue and Number        |
 
 ### `502` Generate random number
 - Generate a random integer ranged in [Min, Max] and store it in a given variable
@@ -623,7 +629,7 @@ ID=ActionCount,[Action1],503,[VariableIndex],0,[IsGlobalVariable],0,0,0,A,[Actio
 
 ### `504` Binary Operation
 - Operate a variable's value with another variable's value
-    - Similar to 501, but the operation number is read from another variable
+- Similar to 501, but the operation number is read from another variable
 
 In `mycampaign.map`:
 ```ini
@@ -640,13 +646,13 @@ ID=ActionCount,[Action1],504,0,[VariableIndex],[Operation],[VariableForOperation
 - Launch a Super Weapon from [SuperWeaponTypes] list at a specified location.
 - `HouseIndex` can take various values:
 
-| *House Index* | *Description*                                 |
-| :-------: | :-------------------------------------------: |
-| >= 0      | The index of the current House in the map |
-| 4475-4482 | Like in the index range 0-7 |
-| -1        | Pick a random House that isn't Neutral |
-| -2        | Pick the first Neutral House |
-| -3        | Pick a random Human Player |
+| *House Index* | *Description*                             |
+| :-----------: | :---------------------------------------: |
+| >= 0          | The index of the current House in the map |
+| 4475-4482     | Like in the index range 0-7               |
+| -1            | Pick a random House that isn't Neutral    |
+| -2            | Pick the first Neutral House              |
+| -3            | Pick a random Human Player                |
 
 - Coordinates X & Y can take possitive values or -1, in which case these values can take a random value from the visible map area.
 
@@ -683,20 +689,20 @@ ID=EventCount,[Event1],[EVENTID],2,[VariableIndex],[Param],[EventX]
 ...
 ```
 
-| *Event ID*  | *Description*                                 | *Global* |
-| :------: | :-------------------------------------------: | :-------: |
-500         | CurrentValue > Number | No |
-501         | CurrentValue < Number | No |
-502         | CurrentValue = Number | No |
-503         | CurrentValue >= Number | No |
-504         | CurrentValue <= Number | No |
-505         | CurrentValue & Number | No |
-506         | CurrentValue > Number | Yes |
-507         | CurrentValue < Number | Yes |
-508         | CurrentValue = Number | Yes |
-509         | CurrentValue >= Number | Yes |
-510         | CurrentValue <= Number | Yes |
-511         | CurrentValue & Number | Yes |
+| *Event ID* | *Description*          | *Global* |
+| :--------: | :--------------------: | :------: |
+| 500        | CurrentValue > Number  | No       |
+| 501        | CurrentValue < Number  | No       |
+| 502        | CurrentValue = Number  | No       |
+| 503        | CurrentValue >= Number | No       |
+| 504        | CurrentValue <= Number | No       |
+| 505        | CurrentValue & Number  | No       |
+| 506        | CurrentValue > Number  | Yes      |
+| 507        | CurrentValue < Number  | Yes      |
+| 508        | CurrentValue = Number  | Yes      |
+| 509        | CurrentValue >= Number | Yes      |
+| 510        | CurrentValue <= Number | Yes      |
+| 511        | CurrentValue & Number  | Yes      |
 
 ### `512-523` Variable comparation with local variable
 - Compares the variable's value with given local variable value
@@ -709,20 +715,20 @@ ID=EventCount,[Event1],[EVENTID],2,[VariableIndex],[LocalVariableIndex],[EventX]
 ...
 ```
 
-| *Event ID*  | *Description*                                 | *Global* |
-| :------: | :-------------------------------------------: | :-------: |
-512         | CurrentValue > LocalVariableValue | No |
-513         | CurrentValue < LocalVariableValue | No |
-514         | CurrentValue = LocalVariableValue | No |
-515         | CurrentValue >= LocalVariableValue | No |
-516         | CurrentValue <= LocalVariableValue | No |
-517         | CurrentValue & LocalVariableValue | No |
-518         | CurrentValue > LocalVariableValue | Yes |
-519         | CurrentValue < LocalVariableValue | Yes |
-520         | CurrentValue = LocalVariableValue | Yes |
-521         | CurrentValue >= LocalVariableValue | Yes |
-522         | CurrentValue <= LocalVariableValue | Yes |
-523         | CurrentValue & LocalVariableValue | Yes |
+| *Event ID* | *Description*                      | *Global* |
+| :--------: | :--------------------------------: | :------: |
+| 512        | CurrentValue > LocalVariableValue  | No       |
+| 513        | CurrentValue < LocalVariableValue  | No       |
+| 514        | CurrentValue = LocalVariableValue  | No       |
+| 515        | CurrentValue >= LocalVariableValue | No       |
+| 516        | CurrentValue <= LocalVariableValue | No       |
+| 517        | CurrentValue & LocalVariableValue  | No       |
+| 518        | CurrentValue > LocalVariableValue  | Yes      |
+| 519        | CurrentValue < LocalVariableValue  | Yes      |
+| 520        | CurrentValue = LocalVariableValue  | Yes      |
+| 521        | CurrentValue >= LocalVariableValue | Yes      |
+| 522        | CurrentValue <= LocalVariableValue | Yes      |
+| 523        | CurrentValue & LocalVariableValue  | Yes      |
 
 ### `524-535` Variable comparation with global variable
 - Compares the variable's value with given global variable value
@@ -735,20 +741,20 @@ ID=EventCount,[Event1],[EVENTID],2,[VariableIndex],[GlobalVariableIndex],[EventX
 ...
 ```
 
-| *Event ID*  | *Description*                                 | *Global* |
-| :------: | :-------------------------------------------: | :-------: |
-524         | CurrentValue > GlobalVariableValue | No |
-525         | CurrentValue < GlobalVariableValue | No |
-526         | CurrentValue = GlobalVariableValue | No |
-527         | CurrentValue >= GlobalVariableValue | No |
-528         | CurrentValue <= GlobalVariableValue | No |
-529         | CurrentValue & GlobalVariableValue | No |
-530         | CurrentValue > GlobalVariableValue | Yes |
-531         | CurrentValue < GlobalVariableValue | Yes |
-532         | CurrentValue = GlobalVariableValue | Yes |
-533         | CurrentValue >= GlobalVariableValue | Yes |
-534         | CurrentValue <= GlobalVariableValue | Yes |
-535         | CurrentValue & GlobalVariableValue | Yes |
+| *Event ID* | *Description*                       | *Global* |
+| :--------: | :---------------------------------: | :------: |
+| 524        | CurrentValue > GlobalVariableValue  | No       |
+| 525        | CurrentValue < GlobalVariableValue  | No       |
+| 526        | CurrentValue = GlobalVariableValue  | No       |
+| 527        | CurrentValue >= GlobalVariableValue | No       |
+| 528        | CurrentValue <= GlobalVariableValue | No       |
+| 529        | CurrentValue & GlobalVariableValue  | No       |
+| 530        | CurrentValue > GlobalVariableValue  | Yes      |
+| 531        | CurrentValue < GlobalVariableValue  | Yes      |
+| 532        | CurrentValue = GlobalVariableValue  | Yes      |
+| 533        | CurrentValue >= GlobalVariableValue | Yes      |
+| 534        | CurrentValue <= GlobalVariableValue | Yes      |
+| 535        | CurrentValue & GlobalVariableValue  | Yes      |
 
 ### `600` The shield of the attached object is broken
 
@@ -759,3 +765,4 @@ In `mycampaign.map`:
 ID=EventCount,...,600,2,0,0,...
 ...
 ```
+

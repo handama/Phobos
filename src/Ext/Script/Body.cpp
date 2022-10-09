@@ -35,6 +35,7 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 {
 	const int action = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Action;
 	const int argument = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument;
+
 	switch (static_cast<PhobosScripts>(action))
 	{
 	case PhobosScripts::TimedAreaGuard:
@@ -148,6 +149,7 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 	case PhobosScripts::MoveToTypeEnemyFarther:
 		// Move to the farther specific enemy target
 		ScriptExt::Mission_Move_List(pTeam, 3, false, -1);
+		break;
 	case PhobosScripts::MoveToTypeFriendlyCloser:
 		// Move to the closest specific friendly target
 		ScriptExt::Mission_Move_List(pTeam, 2, true, -1);
@@ -1619,6 +1621,7 @@ void ScriptExt::MultiGreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int 
 
 }
 
+// TODO: Too many redundant abstract_cast here
 bool ScriptExt::EvaluateObjectWithMask(TechnoClass *pTechno, int mask, int attackAITargetType = -1, int idxAITargetTypeItem = -1, TechnoClass *pTeamLeader = nullptr)
 {
 	if (!pTechno)
@@ -2615,7 +2618,6 @@ void ScriptExt::Mission_Move(TeamClass *pTeam, int calcThreatMode = 0, bool pick
 	if (!pFocus && !bAircraftsWithoutAmmo)
 	{
 		// This part of the code is used for picking a new target.
-
 		int targetMask = scriptArgument;
 		selectedTarget = FindBestObject(pLeaderUnit, pTeam, targetMask, calcThreatMode, pickAllies, attackAITargetType, idxAITargetTypeItem);
 

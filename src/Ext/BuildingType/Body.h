@@ -23,7 +23,7 @@ public:
 		Nullable<float> PowerPlantEnhancer_Factor;
 
 		DynamicVectorClass<Point2D> OccupierMuzzleFlashes;
-
+		Valueable<bool> Powered_KillSpawns;
 		Valueable<bool> Refinery_UseStorage;
 
 		Valueable<bool> Grinding_AllowAllies;
@@ -36,13 +36,13 @@ public:
 		Valueable<AffectedHouse> Grinding_DisplayRefund_Houses;
 		Valueable<Point2D> Grinding_DisplayRefund_Offset;
 
-		Nullable<bool> PlacementPreview_Show;
-		Nullable<SHPStruct*> PlacementPreview_Shape;
+		Valueable<bool> PlacementPreview;
+		TheaterSpecificSHP PlacementPreview_Shape;
 		Nullable<int> PlacementPreview_ShapeFrame;
 		Valueable<CoordStruct> PlacementPreview_Offset;
 		Valueable<bool> PlacementPreview_Remap;
 		CustomPalette PlacementPreview_Palette;
-		Nullable<int> PlacementPreview_TranslucentLevel;
+		Nullable<TranslucencyLevel> PlacementPreview_Translucency;
 
 		ExtData(BuildingTypeClass* OwnerObject) : Extension<BuildingTypeClass>(OwnerObject)
 			, PowersUp_Owner { AffectedHouse::Owner }
@@ -51,6 +51,7 @@ public:
 			, PowerPlantEnhancer_Amount {}
 			, PowerPlantEnhancer_Factor {}
 			, OccupierMuzzleFlashes()
+			, Powered_KillSpawns { false }
 			, Refinery_UseStorage { false }
 			, Grinding_AllowAllies { false }
 			, Grinding_AllowOwner { true }
@@ -61,13 +62,13 @@ public:
 			, Grinding_DisplayRefund { false }
 			, Grinding_DisplayRefund_Houses { AffectedHouse::All }
 			, Grinding_DisplayRefund_Offset { { 0,0 } }
-			, PlacementPreview_Remap { true }
-			, PlacementPreview_Palette {}
-			, PlacementPreview_Offset { {0,-15,1} }
-			, PlacementPreview_Show {}
+			, PlacementPreview { true }
 			, PlacementPreview_Shape {}
 			, PlacementPreview_ShapeFrame {}
-			, PlacementPreview_TranslucentLevel {}
+			, PlacementPreview_Remap { true }
+			, PlacementPreview_Offset { {0,-15,1} }
+			, PlacementPreview_Palette {}
+			, PlacementPreview_Translucency {}
 		{ }
 
 		virtual ~ExtData() = default;
