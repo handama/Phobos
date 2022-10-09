@@ -29,6 +29,7 @@ void TeamExt::ExtData::Serialize(T& Stm)
 		.Process(this->IndividualTargets)
 		.Process(this->CaptureTarget)
 		.Process(this->AllyPassengers)
+		.Process(this->SelectNeural)
 		;
 }
 

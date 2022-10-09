@@ -86,6 +86,7 @@ enum class PhobosScripts : unsigned int
 	MindControlledUnitsGoToGrinder = 148,
 	AllyUnitEnterTransport = 149,
 	RallyUnitInMapWithLeader = 150,
+	SetPickNeutral = 151,
 	//EngineerRepairBrokenBridge = 139,	
 
 	// Variables
@@ -254,7 +255,7 @@ public:
 	static void MindControlledUnitsGoToGrinder(TeamClass* pTeam);
 	static void AllyUnitEnterTransport(TeamClass* pTeam);
 	static TechnoClass* FindBestObjectForAllyUnitEnterTransport(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
-	//static void EngineerRepairBrokenBridge(TeamClass* pTeam);
+	static void SetPickNeutral(TeamClass* pTeam);
 
 	static ExtContainer ExtMap;
 

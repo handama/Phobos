@@ -284,6 +284,9 @@ void ScriptExt::ProcessAction(TeamClass * pTeam)
 		// Threats specific targets that are close have more priority. Kill until no more targets.
 		ScriptExt::AllyUnitEnterTransport(pTeam);
 		break;
+	case PhobosScripts::SetPickNeutral:
+		ScriptExt::SetPickNeutral(pTeam);
+		break;
 
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
@@ -1180,6 +1183,10 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass * pTechno, TeamClass * pTeam,
 				if (isSameTarget)
 					continue;
 			}
+
+			if (!pTeamData->SelectNeural)
+				if (object->Owner->IsNeutral())
+					continue;
 		}
 
 		// Note: the TEAM LEADER is picked for this task, be careful with leadership values in your mod
@@ -1408,6 +1415,10 @@ void ScriptExt::MultiGreatestThreat(TechnoClass * pTechno, TeamClass * pTeam, in
 					if (isSameTarget)
 						continue;
 				}
+
+				if (!pTeamData->SelectNeural)
+					if (object->Owner->IsNeutral())
+						continue;
 			}
 
 			// Note: the TEAM LEADER is picked for this task, be careful with leadership values in your mod
@@ -2784,6 +2795,10 @@ TechnoClass* ScriptExt::FindBestObject(TechnoClass * pTechno, TeamClass * pTeam,
 				if (object->Veterancy.IsRookie())
 					continue;
 			}
+
+			if (!pTeamData->SelectNeural)
+				if (object->Owner->IsNeutral())
+					continue;
 		}
 
 		if (enemyHouse && enemyHouse != object->Owner)
@@ -5560,6 +5575,23 @@ void ScriptExt::SetAttackTargetRank(TeamClass * pTeam)
 	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
 	if (pTeamData)
 		pTeamData->AttackTargetRank = argument;
+	//This action finished
+	pTeam->StepCompleted = true;
+	return;
+}
+
+void ScriptExt::SetPickNeutral(TeamClass* pTeam)
+{
+	int argument = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument;
+	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
+	if (pTeamData)
+	{
+		if (argument > 0)
+			pTeamData->SelectNeural = true;
+		else
+			pTeamData->SelectNeural = false;
+	}
+		
 	//This action finished
 	pTeam->StepCompleted = true;
 	return;
