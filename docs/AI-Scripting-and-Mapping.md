@@ -47,14 +47,14 @@ x=i,n             ; For i values check the next table
 | 10015    | Target Type#           | No        | Farther, higher threat | Ends when a team member kill the designated target |
 | 10016    | `AITargetTypes` index# | Yes       | Farther, higher threat |                                                    |
 | 10017    | `AITargetTypes` index# | No        | Farther, higher threat | Ends when a team member kill the designated target |
-|137         | Target Type# | Yes | Closer, higher threat | Each team member gets its own target |
-|139         | Target Type# | Yes | Closer, higher threat | Each 2 team member gets their own target |
-|138         | `AITargetTypes` index# | Yes | Closer, higher threat | Each team member gets its own target |
-|140         | `AITargetTypes` index# | Yes | Closer, higher threat | Each 2 team member gets their own target |
-|143         | Target Type# | Yes | Closer | Each team member gets its own target |
-|145         | Target Type# | Yes | Closer | Each 2 team member gets their own target |
-|144         | `AITargetTypes` index# | Yes | Closer | Each team member gets its own target |
-|146         | `AITargetTypes` index# | Yes | Closer | Each 2 team member gets their own target |
+| 10030    | Target Type# | Yes | Closer, higher threat | Each team member gets its own target |
+| 10031    | Target Type# | Yes | Closer, higher threat | Each 2 team member gets their own target |
+| 10032    | `AITargetTypes` index# | Yes | Closer, higher threat | Each team member gets its own target |
+| 10033    | `AITargetTypes` index# | Yes | Closer, higher threat | Each 2 team member gets their own target |
+| 10034    | Target Type# | Yes | Closer | Each team member gets its own target |
+| 10035    | Target Type# | Yes | Closer | Each 2 team member gets their own target |
+| 10036    | `AITargetTypes` index# | Yes | Closer | Each team member gets its own target |
+| 10037    | `AITargetTypes` index# | Yes | Closer | Each 2 team member gets their own target |
 
 
 - The following values are the *Target Type#* which can be used as second parameter of the new attack script actions:
@@ -115,13 +115,13 @@ In `rulesmd.ini`:
 ; ...
 ```
 
-#### `147` Capture Civilian Buildings    10040
+#### `10040` Capture Civilian Buildings    
 
 - Capture Civilian Buildings.
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]
-x=147,0
+x=10040,0
 ```
 
 #### `10050-10099` Move Team to Techno Location actions
@@ -189,7 +189,7 @@ In `aimd.ini`:
 x=10103,0
 ```
 
-##### `114` Change team group  11500
+##### `11500` Change team group  
 - Change all team member's group into a specific value, can be negative.
 - This `TeamType`'s group value will not be changed.
 - The script will continue once the change is done.
@@ -198,10 +198,10 @@ x=10103,0
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]
-x=114,n           ; n can be negative
+x=11500,n           ; n can be negative
 ```
 
-#### `115` Distributed loading  11501
+#### `11501` Distributed loading  
 | type                | desc                                                                     | Low word nArg |
 | ------------------- |:------------------------------------------------------------------------ | ------------- |
 | 0: Stop immediately | Stop all member's previous action immediately                            | None          |
@@ -217,10 +217,10 @@ x=114,n           ; n can be negative
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]
-x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 << 16 + 10)
+x=11501,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 << 16 + 10)
 ```
 
-#### `136` Distributed loading 2  11502
+#### `11502` Distributed loading 2  
 | type                | desc                                                                     | Low word nArg |
 | ------------------- |:------------------------------------------------------------------------ | ------------- |
 | 0: Stop immediately | Stop all member's previous action immediately                            | None          |
@@ -236,9 +236,10 @@ x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 <
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]
-x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 << 16 + 10)
+x=11502,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 << 16 + 10)
 ```
-#### `135` Unload from Transports  11503
+
+#### `11503` Unload from Transports  
 
 - A new unload action similar to x=8,n, but can avoid treating `VehicleTypes` with `OpenTopped=yes` and `Gunner=yes` as transports.
   - All `InitialPayload` will be regarded as passengers and added to team.
@@ -247,7 +248,7 @@ x=115,n           ; n is a mask value. Eg: n=65546 means type 1, 10 seconds (1 <
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=135,n
+x=11503,n
 ```
 
 - The possible argument values are:
@@ -264,7 +265,7 @@ x=135,n
 7         | Only `VehicleTypes` with largest `SizeLimit` will be regarded as transports. Lose transports and units. |
 
 
-#### `116` Follow friendly by group  11504
+#### `11504` Follow friendly by group  
 - All member will follow a nearest friendly unit with specific group number until the target is destroyed, or group value changed. Then the team will find another nearest available target to follow.
 
 - The behavior varies with this team's member:
@@ -277,16 +278,16 @@ x=135,n
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]
-x=116,n           ; n can be negative
+x=11504,n           ; n can be negative
 ```
 
-#### `117, 150` Rally unit with same group  11505,11506
+#### `11505, 11506` Rally unit with same group
 - This action will rally all available units share the same group value with this `TeamType` or its Leader, and recruit them as team member. All rallyed unit will perform all future script action along with this team.
 
 | *Action* | *Argument*    | *Description*                                 |
 | :------: | :-----------: | :-------------------------------------------: |
-117         | MemberType# | units share the same group value with this `TeamType` |
-150         | MemberType# | units share the same group value with its Leader |
+11505         | MemberType# | units share the same group value with this `TeamType` |
+11506         | MemberType# | units share the same group value with its Leader |
 
 - Will use following logic to rally member:
   - Same owner (of course)
@@ -315,7 +316,7 @@ x=116,n           ; n can be negative
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]
-x=117,n           ; n is MemberType
+x=11505,n           ; n is MemberType
 ```
 
 
@@ -361,7 +362,7 @@ x=12002,n
 | 2          | All team members reached the minimum distance |
 
 
-#### `141` Set Target Rank    12500
+#### `12500` Set Target Rank    
 
 - After using this script, all `Generic Target Type Attack Action`, `AITargetTypes Attack Action`, and `Moving Team to techno location` will only pick targets with specific ranks.
 
@@ -376,7 +377,7 @@ x=12002,n
 3         | pick Veteran and Elite |
 
 
-#### `142` Stop Action if Human or AI    12501
+#### `12501` Stop Action if Human or AI    
 
 - Stop executing this script action if this team is controlled by human or cumputer.
 
@@ -386,7 +387,7 @@ x=12002,n
 0         | stop when controlled by human |
 1         | stop when controlled by computer  |
 
-#### `148` Manipulate Mind Controlled Units    12502
+#### `12502` Manipulate Mind Controlled Units    
 
 - Can put all mind controlled units into grinder, or let them attack (or steal if is spy).
 
@@ -397,14 +398,14 @@ x=12002,n
 1         | attack  |
 
 
-#### `149` Ask Allied Units to Load onto Transports    12503
+#### `12503` Ask Allied Units to Load onto Transports    
 
 - This action can ask computer allies to put their units in `AITargetTypess` into transport in this team. The team should only have one unit.
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=149,n             ; n is one of AITargetTypess
+x=12503,n             ; n is one of AITargetTypess
 ```
 
 
@@ -514,14 +515,14 @@ In `rulesmd.ini`:
 ; ...
 ```
 
-#### `134` Jump Back To Previous Script   16500
+#### `16500` Jump Back To Previous Script   
 
 - Used in a Random Script picked by action 94. It can jump back to the previous script, and continue in the line after x=94,n.
 
 In `aimd.ini`:
 ```ini
 [SOMESCRIPTTYPE]  ; ScriptType
-x=134,0
+x=16500,0
 ```
 
 ### `18000-18999` Variable Manipulation

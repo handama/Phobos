@@ -39,6 +39,19 @@ enum class PhobosScripts : unsigned int
 	SingleAttackFartherThreat = 10015,
 	RepeatAttackTypeFartherThreat = 10016,
 	SingleAttackTypeFartherThreat = 10017,
+
+	RepeatAttackIndividuallyCloserThreat = 10030,
+	RepeatAttackTypeIndividuallyCloserThreat = 10031,
+	RepeatAttackIndividuallyCloserThreat2 = 10032,
+	RepeatAttackTypeIndividuallyCloserThreat2 = 10033,
+	RepeatAttackIndividuallyCloser = 10034,
+	RepeatAttackTypeIndividuallyCloser = 10035,
+	RepeatAttackIndividuallyCloser2 = 10036,
+	RepeatAttackTypeIndividuallyCloser2 = 10037,
+
+
+	CaptureOccupiableBuildings = 10040,
+
 	// Sub-range 10050-10099 is for "Move to" actions
 	MoveToEnemyCloser = 10050,
 	MoveToTypeEnemyCloser = 10051,
@@ -58,10 +71,24 @@ enum class PhobosScripts : unsigned int
 	GatherAroundLeader = 10102,
 	LoadIntoTransports = 10103,
 
+	ChangeTeamGroup = 11500,
+	DistributedLoading = 11501,
+	DistributedLoading2 = 11502,
+	UnloadFromTransports = 11503,
+	FollowFriendlyByGroup = 11504,
+	RallyUnitWithSameGroup = 11505,
+	RallyUnitInMapWithLeader = 11506,
+
 	// Range 12000-12999 are suplementary/setup pre-actions
 	WaitIfNoTarget = 12000,
 	ModifyTargetDistance = 12001,
 	SetMoveMissionEndMode = 12002,
+
+	SetAttackTargetRank = 12500,
+	StopIfHumanOrAI = 12501,
+	MindControlledUnitsGoToGrinder = 12502,
+	AllyUnitEnterTransport = 12503,
+	SetPickNeutral = 12504,
 
 	// Range 14000-14999 are utility actions (angernodes manipulation, Team manipulation, etc)
 	TeamWeightReward = 14000,
@@ -75,6 +102,8 @@ enum class PhobosScripts : unsigned int
 	StopForceJumpCountdown = 16002,
 	RandomSkipNextAction = 16003,
 	PickRandomScript = 16004,
+
+	JumpBackToPreviousScript = 16500,
 
 	// Range 18000-18999 are variable actions
 	LocalVariableSet = 18000,
@@ -243,6 +272,7 @@ public:
 	static void AllyUnitEnterTransport(TeamClass* pTeam);
 	static TechnoClass* FindBestObjectForAllyUnitEnterTransport(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
 	//static void EngineerRepairBrokenBridge(TeamClass* pTeam);
+	static void SetPickNeutral(TeamClass* pTeam);
 
 	static ExtContainer ExtMap;
 

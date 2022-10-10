@@ -286,6 +286,10 @@ void ScriptExt::ProcessAction(TeamClass* pTeam)
 		// Threats specific targets that are close have more priority. Kill until no more targets.
 		ScriptExt::AllyUnitEnterTransport(pTeam);
 		break;
+	case PhobosScripts::SetPickNeutral:
+		ScriptExt::SetPickNeutral(pTeam);
+		break;
+
 		
 	default:
 		// Do nothing because or it is a wrong Action number or it is an Ares/YR action...
@@ -1182,6 +1186,9 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass *pTechno, TeamClass* pTeam, i
 				if (isSameTarget)
 					continue;
 			}
+			if (!pTeamData->SelectNeural)
+				if (object->Owner->IsNeutral())
+					continue;
 		}
 
 		// Note: the TEAM LEADER is picked for this task, be careful with leadership values in your mod
@@ -1410,6 +1417,9 @@ void ScriptExt::MultiGreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int 
 					if (isSameTarget)
 						continue;
 				}
+				if (!pTeamData->SelectNeural)
+					if (object->Owner->IsNeutral())
+						continue;
 			}
 
 			// Note: the TEAM LEADER is picked for this task, be careful with leadership values in your mod
@@ -5571,9 +5581,9 @@ void ScriptExt::StopIfHumanOrAI(TeamClass* pTeam)
 {
 	int argument = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument;
 
-	if (argument == 0 && pTeam->FirstUnit->Owner->ControlledByHuman())
+	if (argument == 0 && pTeam->FirstUnit->Owner->IsControlledByHuman())
 		pTeam->CurrentScript->ClearMission();
-	else if (argument == 1 && !pTeam->FirstUnit->Owner->ControlledByHuman())
+	else if (argument == 1 && !pTeam->FirstUnit->Owner->IsControlledByHuman())
 		pTeam->CurrentScript->ClearMission();
 	else
 		pTeam->StepCompleted = true;
@@ -6108,7 +6118,7 @@ TechnoClass* ScriptExt::FindBestObjectForAllyUnitEnterTransport(TechnoClass* pTe
 		if (object->Owner == pTeam->Owner)
 			continue;
 
-		if (object->Owner->ControlledByHuman())
+		if (object->Owner->IsControlledByHuman())
 			continue;
 
 		if (object->Owner->IsNeutral())
@@ -6238,6 +6248,23 @@ TechnoClass* ScriptExt::FindBestObjectForAllyUnitEnterTransport(TechnoClass* pTe
 	}
 
 	return bestObject;
+}
+
+void ScriptExt::SetPickNeutral(TeamClass* pTeam)
+{
+	int argument = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument;
+	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
+	if (pTeamData)
+	{
+		if (argument > 0)
+			pTeamData->SelectNeural = true;
+		else
+			pTeamData->SelectNeural = false;
+	}
+
+	//This action finished
+	pTeam->StepCompleted = true;
+	return;
 }
 
 
