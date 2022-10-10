@@ -124,7 +124,7 @@ bool CaptureManager::CaptureUnit(CaptureManagerClass* pManager, TechnoClass* pTa
 					}
 				}
 				pTarget->SetTarget(nullptr);
-				if (pManager->Owner->IsHumanControlled)
+				if (pManager->Owner->Owner->ControlledByHuman())
 				{
 					if (auto pTargetFoot = abstract_cast<FootClass*>(pTarget))
 					{
