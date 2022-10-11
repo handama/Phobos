@@ -4374,6 +4374,14 @@ void ScriptExt::UnloadFromTransports(TeamClass * pTeam)
 			&& !pFoot->InLimbo && pFoot->Health > 0
 			&& pFoot->Owner == pTeam->Owner)
 		{
+			if (pFoot->BelongsToATeam())
+			{
+				if (pFoot->Team)
+				{
+					if (pFoot->Team != pTeam)
+						pFoot->Team->LiberateMember(pFoot);
+				}
+			}
 			pTeam->AddMember(pFoot, true);
 		}
 	}
@@ -5613,7 +5621,6 @@ void ScriptExt::StopIfHumanOrAI(TeamClass * pTeam)
 void ScriptExt::CaptureOccupiableBuildings(TeamClass * pTeam)
 {
 	auto pScript = pTeam->CurrentScript;
-	int scriptArgument = pScript->Type->ScriptActions[pScript->CurrentMission].Argument;
 	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
 	TechnoClass* pCaptureTarget = nullptr;
 	TechnoClass* selectedTarget = nullptr;
@@ -5812,8 +5819,6 @@ void ScriptExt::MindControlledUnitsGoToGrinder(TeamClass * pTeam)
 			{
 				if (pUnit->IsAlive && !pUnit->InLimbo)
 				{
-					auto pUnitType = pUnit->GetTechnoType();
-
 					if (pUnitType && pUnit != selectedTarget && pUnit->Target != selectedTarget)
 					{
 						pUnit->CurrentTargets.Clear();
