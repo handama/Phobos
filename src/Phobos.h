@@ -58,6 +58,7 @@ public:
 
 		static const wchar_t* CostLabel;
 		static const wchar_t* PowerLabel;
+		static const wchar_t* PowerBlackoutLabel;
 		static const wchar_t* TimeLabel;
 		static const wchar_t* HarvesterLabel;
 	};
@@ -70,7 +71,6 @@ public:
 		static bool PrioritySelectionFiltering;
 		static bool DevelopmentCommands;
 		static bool ArtImageSwap;
-		static bool AllowParallelAIQueues;
 		static bool ShowPlacementPreview;
 	};
 };

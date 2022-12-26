@@ -110,7 +110,6 @@ DEFINE_HOOK(0x48A5B3, WarheadTypeClass_AnimList_CritAnim, 0x6)
 	return 0;
 }
 
-
 DEFINE_HOOK(0x4896EC, Explosion_Damage_DamageSelf, 0x6)
 {
 	enum { SkipCheck = 0x489702 };

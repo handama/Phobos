@@ -97,7 +97,6 @@ bool TechnoExt::ExtData::CheckDeathConditions()
 	// Death if countdown ends
 	if (pTypeExt->AutoDeath_AfterDelay > 0)
 	{
-		//using Expired() may be confusing
 		if (!this->AutoDeathTimer.HasStarted())
 		{
 			this->AutoDeathTimer.Start(pTypeExt->AutoDeath_AfterDelay);
@@ -223,6 +222,23 @@ void TechnoExt::ExtData::UpdateShield()
 		pShieldData->AI();
 }
 
+void TechnoExt::ExtData::UpdateOnTunnelEnter()
+{
+	if (!this->IsInTunnel)
+	{
+		if (const auto pShieldData = this->Shield.get())
+			pShieldData->SetAnimationVisibility(false);
+
+		for (auto& pLaserTrail : this->LaserTrails)
+		{
+			pLaserTrail->Visible = false;
+			pLaserTrail->LastLocation = { };
+		}
+
+		this->IsInTunnel = true;
+	}
+}
+
 void TechnoExt::ExtData::ApplySpawnLimitRange()
 {
 	auto const pThis = this->OwnerObject();
@@ -255,6 +271,40 @@ void TechnoExt::ExtData::ApplySpawnLimitRange()
 	}
 }
 
+void TechnoExt::ExtData::UpdateTypeData(TechnoTypeClass* currentType)
+{
+	auto const pThis = this->OwnerObject();
+
+	if (this->LaserTrails.size())
+		this->LaserTrails.clear();
+
+	this->TypeExtData = TechnoTypeExt::ExtMap.Find(currentType);
+
+	// Recreate Laser Trails
+	for (auto const& entry : this->TypeExtData->LaserTrailData)
+	{
+		if (auto const pLaserType = LaserTrailTypeClass::Array[entry.idxType].get())
+		{
+			this->LaserTrails.push_back(std::make_unique<LaserTrailClass>(
+				pLaserType, pThis->Owner, entry.FLH, entry.IsOnTurret));
+		}
+	}
+
+	// Reset Shield
+	// This part should have been done by UpdateShield
+
+	// Reset AutoDeath Timer
+	if (this->AutoDeathTimer.HasStarted())
+		this->AutoDeathTimer.Stop();
+
+	// Reset PassengerDeletion Timer - TODO : unchecked
+	if (this->PassengerDeletionTimer.IsTicking() && this->TypeExtData->PassengerDeletion_Rate <= 0)
+	{
+		this->PassengerDeletionCountDown = -1;
+		this->PassengerDeletionTimer.Stop();
+	}
+}
+
 bool TechnoExt::IsActive(TechnoClass* pThis)
 {
 	return
@@ -267,6 +317,7 @@ bool TechnoExt::IsActive(TechnoClass* pThis)
 		!pThis->InLimbo;
 }
 
+// FS-21 FIX THIS
 void TechnoExt::ObjectKilledBy(TechnoClass* pVictim, TechnoClass* pKiller)
 {
 	if (auto pVictimTechno = static_cast<TechnoClass*>(pVictim))
@@ -552,7 +603,7 @@ void TechnoExt::KillSelf(TechnoClass* pThis, AutoDeathBehavior deathOption)
 	}
 
 	default: //must be AutoDeathBehavior::Kill
-		pThis->ReceiveDamage(&pThis->Health, 0, RulesClass::Instance->C4Warhead, nullptr, true, false, pThis->Owner);
+		pThis->ReceiveDamage(&pThis->Health, 0, RulesClass::Instance->C4Warhead, nullptr, true, false, nullptr);
 		// Due to Ares, ignoreDefense=true will prevent passenger/crew/hijacker from escaping
 		return;
 	}
@@ -861,6 +912,67 @@ void TechnoExt::DisplayDamageNumberString(TechnoClass* pThis, int damage, bool i
 	pExt->DamageNumberOffset = pExt->DamageNumberOffset + width;
 }
 
+CoordStruct TechnoExt::PassengerKickOutLocation(TechnoClass* pThis, FootClass* pPassenger, int maxAttempts = 1)
+{
+	if (!pThis || !pPassenger)
+		return CoordStruct::Empty;
+
+	if (maxAttempts < 1)
+		maxAttempts = 1;
+
+	CellClass* pCell;
+	CellStruct placeCoords = CellStruct::Empty;
+	auto pTypePassenger = pPassenger->GetTechnoType();
+	CoordStruct finalLocation = CoordStruct::Empty;
+	short extraDistanceX = 1;
+	short extraDistanceY = 1;
+	SpeedType speedType = pTypePassenger->SpeedType;
+	MovementZone movementZone = pTypePassenger->MovementZone;
+
+	if (pTypePassenger->WhatAmI() == AbstractType::AircraftType)
+	{
+		speedType = SpeedType::Track;
+		movementZone = MovementZone::Normal;
+	}
+
+	do
+	{
+		placeCoords = pThis->GetCell()->MapCoords - CellStruct { (short)(extraDistanceX / 2), (short)(extraDistanceY / 2) };
+		placeCoords = MapClass::Instance->NearByLocation(placeCoords, speedType, -1, movementZone, false, extraDistanceX, extraDistanceY, true, false, false, false, CellStruct::Empty, false, false);
+
+		pCell = MapClass::Instance->GetCellAt(placeCoords);
+		extraDistanceX += 1;
+		extraDistanceY += 1;
+	}
+	while (extraDistanceX < maxAttempts && (pThis->IsCellOccupied(pCell, -1, -1, nullptr, false) != Move::OK) && pCell->MapCoords != CellStruct::Empty);
+
+	if (pCell = MapClass::Instance->TryGetCellAt(placeCoords))
+		finalLocation = pCell->GetCoordsWithBridge();
+
+	return finalLocation;
+}
+
+WeaponTypeClass* TechnoExt::GetDeployFireWeapon(TechnoClass* pThis, int& weaponIndex)
+{
+	weaponIndex = pThis->GetTechnoType()->DeployFireWeapon;
+
+	if (weaponIndex < 0)
+		return nullptr;
+
+	auto pWeapon = pThis->GetWeapon(weaponIndex)->WeaponType;
+
+	if (!pWeapon)
+	{
+		weaponIndex = 0;
+		pWeapon = pThis->GetWeapon(weaponIndex)->WeaponType;
+
+		if (!pWeapon)
+			weaponIndex = -1;
+	}
+
+	return pWeapon;
+}
+
 // =============================
 // load / save
 
@@ -880,6 +992,8 @@ void TechnoExt::ExtData::Serialize(T& Stm)
 		.Process(this->MindControlRingAnimType)
 		.Process(this->OriginalPassengerOwner)
 		.Process(this->CurrentLaserWeaponIndex)
+		.Process(this->IsInTunnel)
+		.Process(this->DeployFireTimer)
 		;
 }
 

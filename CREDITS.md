@@ -160,6 +160,8 @@ This page lists all the individual contributions to the project by their author.
   - Warhead detonation on all objects on map
   - Animated TerrainTypes extension
   - Exploding unit passenger killing customization
+  - Railgun particle target coordinate fix
+  - Building target coordinate offset fix
 - **Morton (MortonPL)**:
   - `XDrawOffset`
   - Shield passthrough & absorption
@@ -179,12 +181,16 @@ This page lists all the individual contributions to the project by their author.
       - Turret direction in idle state fix
       - Sensor fix
    - Object Self-destruction logic
+      - Misc vanilla suicidal behavior fix
+   - Post-type-conversion update
    - Building EVA_StructureSold and SellSound dehardcode
    - Slaves' house customization when owner is killed
    - Misc CN doc fix, code refactor
+   - Power delta counter : blackout indication mark
    - Harvester counter
    - Warhead superweapon launch logic
    - "Shield is broken" trigger event
+   - RadialIndicator observer visibility
    - Forbidding parallel AI queues by type
 - **NetsuNegi** - Forbidding parallel AI queues by type
 - **Apollo** - Translucent SHP drawing patches
