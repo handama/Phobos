@@ -39,7 +39,7 @@ This page describes all ingame logics that are fixed or improved in Phobos witho
 - `InfiniteMindControl` with `Damage=1` can now control more than 1 unit.
 - Aircraft with `Fighter` set to false or those using strafing pattern (weapon projectile `ROT` is below 2) now take weapon's `Burst` into accord for all shots instead of just the first one.
 - `EMEffect` used for random AnimList pick is now replaced by a new tag `AnimList.PickRandom` with no side effect. (EMEffect=yes on AA inviso projectile deals no damage to units in movement)
-- Vehicles using `DeployFire` will now explicitly use weapon specified by `DeployFireWeapon` (unless the weapon does not exist, in which case it will fall back to `Primary` weapon) for firing the deploy weapon and respect `FireOnce` setting on weapon and any stop commands issued during firing. If `FireOnce` is set to true the unit won't accept further deploy commands until the weapon's `ROF` amount of frames have passed.
+- Vehicles using `DeployFire` will now use `DeployFireWeapon` for firing the deploy weapon if explicitly set, if not it behaves like previously (`Primary` if can fire, `Secondary` if not) and respect `FireOnce` setting on weapon and any stop commands issued during firing. If `FireOnce` is set to true the unit won't accept further deploy commands for number of frames that is equal to whichever is smaller between weapon `ROF` and `[Unload]` -> `Rate` times 900.
 - Infantry with `DeployFireWeapon=-1` can now fire both weapons (decided by its target), regardless of deployed or not.
 
 ![image](_static/images/remember-target-after-deploying-01.gif)
@@ -420,6 +420,17 @@ MinimapColor=  ; integer - Red,Green,Blue
 
 ## Vehicles
 
+### Destroy animations
+
+- `DestroyAnim` has been extended to work with VehicleTypes, with option to pick random animation if `DestroyAnim.Random` is set to true. These animations store owner and facing information for use with [CreateUnit logic](New-or-Enhanced-Logics.md#anim-to-unit).
+
+In `rulesmd.ini`:
+```ini
+[SOMEVEHICLE]                          ; VehicleType
+DestroyAnim=                           ; list of animations
+DestroyAnim.Random=true                ; boolean
+```
+
 ### IsSimpleDeployer vehicle deploy animation / direction customization
 
 - `DeployingAnim.AllowAnyDirection` if set, disables any direction constraints for deployers with `DeployingAnim` set. Only works for ground units.
@@ -535,7 +546,7 @@ Bolt.Disable2=false    ; boolean
 Bolt.Disable3=false    ; boolean
 ```
 
-### RadialIndicator visibility
+## RadialIndicator visibility
 
 In vanilla game, a structure's radial indicator can be drawn only when it belongs to the player. Now it can also be visible to observer.
 On top of that, you can specify its visibility from other houses.

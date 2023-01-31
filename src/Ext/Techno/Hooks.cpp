@@ -68,18 +68,25 @@ DEFINE_HOOK(0x7363B5, UnitClass_AI_Tunnel, 0x6)
 {
 	GET(UnitClass*, pThis, ESI);
 
-	auto pExt = TechnoExt::ExtMap.Find(pThis);
+	auto const pExt = TechnoExt::ExtMap.Find(pThis);
 	pExt->UpdateOnTunnelEnter();
 
 	return 0;
 }
 
-DEFINE_HOOK(0x6F42F7, TechnoClass_Init_NewEntities, 0x2)
+DEFINE_HOOK(0x6F42F7, TechnoClass_Init, 0x2)
 {
 	GET(TechnoClass*, pThis, ESI);
 
-	TechnoExt::InitializeShield(pThis);
-	TechnoExt::InitializeLaserTrails(pThis);
+	auto const pExt = TechnoExt::ExtMap.Find(pThis);
+
+	if (!pExt->TypeExtData)
+		pExt->TypeExtData = TechnoTypeExt::ExtMap.Find(pThis->GetTechnoType());
+
+	if (pExt->TypeExtData)
+		pExt->CurrentShieldType = pExt->TypeExtData->ShieldType;
+
+	pExt->InitializeLaserTrails();
 
 	return 0;
 }
@@ -440,7 +447,7 @@ DEFINE_HOOK(0x6B0B9C, SlaveManagerClass_Killed_DecideOwner, 0x6)
 // Fix slaves cannot always suicide due to armor multiplier or something
 DEFINE_PATCH(0x6B0BF7,
 	0x6A, 0x01  // push 1       // ignoreDefense=false->true
-	);
+);
 
 DEFINE_HOOK(0x70A4FB, TechnoClass_Draw_Pips_SelfHealGain, 0x5)
 {
@@ -483,12 +490,12 @@ DEFINE_HOOK(0x7012C2, TechnoClass_WeaponRange, 0x8)
 
 				if (openTWeaponIndex != -1)
 					tWeaponIndex = openTWeaponIndex;
-				else if (pPassenger->GetTechnoType()->TurretCount > 0)
-					tWeaponIndex = pPassenger->CurrentWeaponNumber;
+				else
+					tWeaponIndex = pPassenger->SelectWeapon(pThis->Target);
 
 				WeaponTypeClass* pTWeapon = pPassenger->GetWeapon(tWeaponIndex)->WeaponType;
 
-				if (pTWeapon)
+				if (pTWeapon && pTWeapon->FireInTransport)
 				{
 					if (pTWeapon->Range < smallestRange)
 						smallestRange = pTWeapon->Range;
