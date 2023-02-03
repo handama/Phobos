@@ -30,7 +30,7 @@ void TechnoExt::ExtData::ApplyInterceptor()
 	{
 		BulletClass* pTargetBullet = nullptr;
 
-		for (auto const& pBullet : *BulletClass::Array)
+		for (auto const& [pBullet,pBulletExt] : BulletExt::ExtMap)
 		{
 			const auto& guardRange = pTypeExt->Interceptor_GuardRange.Get(pThis);
 			const auto& minguardRange = pTypeExt->Interceptor_MinimumGuardRange.Get(pThis);
@@ -40,7 +40,6 @@ void TechnoExt::ExtData::ApplyInterceptor()
 			if (distance > guardRange || distance < minguardRange)
 				continue;
 
-			auto pBulletExt = BulletExt::ExtMap.Find(pBullet);
 			auto pBulletTypeExt = pBulletExt->TypeExtData;
 
 			if (!pBulletTypeExt || !pBulletTypeExt->Interceptable)
@@ -74,6 +73,7 @@ void TechnoExt::ExtData::ApplyInterceptor()
 	}
 }
 
+// TODO : Wrap into a new entity
 bool TechnoExt::ExtData::CheckDeathConditions()
 {
 	auto const pTypeExt = this->TypeExtData;
@@ -106,7 +106,50 @@ bool TechnoExt::ExtData::CheckDeathConditions()
 			TechnoExt::KillSelf(pThis, howToDie);
 			return true;
 		}
+
 	}
+
+	auto existTechnoTypes = [pThis](const ValueableVector<TechnoTypeClass*>& vTypes, AffectedHouse affectedHouse, bool any)
+	{
+		auto existSingleType = [pThis, affectedHouse](const TechnoTypeClass* pType)
+		{
+			for (HouseClass* pHouse : *HouseClass::Array)
+			{
+				if (EnumFunctions::CanTargetHouse(affectedHouse, pThis->Owner, pHouse)
+					&& pHouse->CountOwnedAndPresent(pType) > 0)
+					return true;
+			}
+
+			return false;
+		};
+
+		return any
+			? std::any_of(vTypes.begin(), vTypes.end(), existSingleType)
+			: std::all_of(vTypes.begin(), vTypes.end(), existSingleType);
+	};
+
+	// death if listed technos don't exist
+	if (!pTypeExt->AutoDeath_TechnosDontExist.empty())
+	{
+		if (!existTechnoTypes(pTypeExt->AutoDeath_TechnosDontExist, pTypeExt->AutoDeath_TechnosDontExist_Houses, !pTypeExt->AutoDeath_TechnosDontExist_Any))
+		{
+			TechnoExt::KillSelf(pThis, howToDie);
+
+			return true;
+		}
+	}
+
+	// death if listed technos exist
+	if (!pTypeExt->AutoDeath_TechnosExist.empty())
+	{
+		if (existTechnoTypes(pTypeExt->AutoDeath_TechnosExist, pTypeExt->AutoDeath_TechnosExist_Houses, pTypeExt->AutoDeath_TechnosExist_Any))
+		{
+			TechnoExt::KillSelf(pThis, howToDie);
+
+			return true;
+		}
+	}
+
 	return false;
 }
 
@@ -305,6 +348,28 @@ void TechnoExt::ExtData::UpdateTypeData(TechnoTypeClass* currentType)
 	}
 }
 
+void TechnoExt::ExtData::UpdateLaserTrails()
+{
+	auto const pThis = this->OwnerObject();
+
+	// LaserTrails update routine is in TechnoClass::AI hook because TechnoClass::Draw
+	// doesn't run when the object is off-screen which leads to visual bugs - Kerbiter
+	for (auto const& trail : this->LaserTrails)
+	{
+		if (pThis->CloakState == CloakState::Cloaked && !trail->Type->CloakVisible)
+			continue;
+
+		if (!this->IsInTunnel)
+			trail->Visible = true;
+
+		CoordStruct trailLoc = TechnoExt::GetFLHAbsoluteCoords(pThis, trail->FLH, trail->IsOnTurret);
+		if (pThis->CloakState == CloakState::Uncloaking && !trail->Type->CloakVisible)
+			trail->LastLocation = trailLoc;
+		else
+			trail->Update(trailLoc);
+	}
+}
+
 void TechnoExt::ExtData::InitializeLaserTrails()
 {
 	if (this->LaserTrails.size())
@@ -335,7 +400,7 @@ bool TechnoExt::IsActive(TechnoClass* pThis)
 		!pThis->InLimbo;
 }
 
-// FS-21 FIX THIS
+// TODO: FS-21 FIX THIS
 void TechnoExt::ObjectKilledBy(TechnoClass* pVictim, TechnoClass* pKiller)
 {
 	if (auto pVictimTechno = static_cast<TechnoClass*>(pVictim))
@@ -498,7 +563,7 @@ CoordStruct TechnoExt::GetBurstFLH(TechnoClass* pThis, int weaponIndex, bool& FL
 			pickedFLHs = pExt->CrouchedWeaponBurstFLHs;
 	}
 
-	if (pickedFLHs[weaponIndex].Count > pThis->CurrentBurstIndex)
+	if ((int)pickedFLHs[weaponIndex].size() > pThis->CurrentBurstIndex)
 	{
 		FLHFound = true;
 		FLH = pickedFLHs[weaponIndex][pThis->CurrentBurstIndex];
@@ -515,25 +580,25 @@ CoordStruct TechnoExt::GetSimpleFLH(InfantryClass* pThis, int weaponIndex, bool&
 	if (!pThis || weaponIndex < 0)
 		return FLH;
 
-	if (auto pTechnoType = TechnoTypeExt::ExtMap.Find(pThis->GetTechnoType()))
+	if (auto pTypeExt = TechnoTypeExt::ExtMap.Find(pThis->GetTechnoType()))
 	{
 		Nullable<CoordStruct> pickedFLH;
 
 		if (pThis->IsDeployed())
 		{
 			if (weaponIndex == 0)
-				pickedFLH = pTechnoType->DeployedPrimaryFireFLH;
+				pickedFLH = pTypeExt->DeployedPrimaryFireFLH;
 			else if (weaponIndex == 1)
-				pickedFLH = pTechnoType->DeployedSecondaryFireFLH;
+				pickedFLH = pTypeExt->DeployedSecondaryFireFLH;
 		}
 		else
 		{
 			if (pThis->Crawling)
 			{
 				if (weaponIndex == 0)
-					pickedFLH = pTechnoType->PronePrimaryFireFLH;
+					pickedFLH = pTypeExt->PronePrimaryFireFLH;
 				else if (weaponIndex == 1)
-					pickedFLH = pTechnoType->ProneSecondaryFireFLH;
+					pickedFLH = pTypeExt->ProneSecondaryFireFLH;
 			}
 		}
 
@@ -569,7 +634,7 @@ void TechnoExt::KillSelf(TechnoClass* pThis, AutoDeathBehavior deathOption)
 	case AutoDeathBehavior::Vanish:
 	{
 		pThis->KillPassengers(pThis);
-		pThis->vt_entry_3A0(); // Stun? what is this?
+		pThis->vt_entry_3A0();
 		pThis->Limbo();
 		pThis->RegisterKill(pThis->Owner);
 		pThis->UnInit();
@@ -581,7 +646,7 @@ void TechnoExt::KillSelf(TechnoClass* pThis, AutoDeathBehavior deathOption)
 	{
 		if (auto pBld = abstract_cast<BuildingClass*>(pThis))
 		{
-			if (pBld->Type->LoadBuildup())
+			if (pBld->HasBuildUp)
 			{
 				pBld->Sell(true);
 
@@ -936,7 +1001,8 @@ CoordStruct TechnoExt::PassengerKickOutLocation(TechnoClass* pThis, FootClass* p
 	}
 	while (extraDistanceX < maxAttempts && (pThis->IsCellOccupied(pCell, -1, -1, nullptr, false) != Move::OK) && pCell->MapCoords != CellStruct::Empty);
 
-	if (pCell = MapClass::Instance->TryGetCellAt(placeCoords))
+	pCell = MapClass::Instance->TryGetCellAt(placeCoords);
+	if (pCell)
 		finalLocation = pCell->GetCoordsWithBridge();
 
 	return finalLocation;

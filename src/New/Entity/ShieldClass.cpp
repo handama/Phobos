@@ -35,8 +35,8 @@ ShieldClass::ShieldClass(TechnoClass* pTechno, bool isAttached) : Techno { pTech
 	, Respawn_Rate_Warhead { -1 }
 {
 	this->UpdateType();
-	SetHP(this->Type->InitialStrength.Get(this->Type->Strength));
-	strcpy_s(this->TechnoID, this->Techno->get_ID());
+	this->SetHP(this->Type->InitialStrength.Get(this->Type->Strength));
+	this->TechnoID = this->Techno->GetTechnoType();
 	ShieldClass::Array.emplace_back(this);
 }
 
@@ -118,7 +118,7 @@ void ShieldClass::SyncShieldToAnother(TechnoClass* pFrom, TechnoClass* pTo)
 	{
 		pToExt->CurrentShieldType = pFromExt->CurrentShieldType;
 		pToExt->Shield = std::make_unique<ShieldClass>(pTo);
-		strcpy_s(pToExt->Shield->TechnoID, pFromExt->Shield->TechnoID);
+		pToExt->Shield->TechnoID = pFromExt->Shield->TechnoID;
 		pToExt->Shield->Available = pFromExt->Shield->Available;
 		pToExt->Shield->HP = pFromExt->Shield->HP;
 	}
@@ -158,9 +158,9 @@ int ShieldClass::ReceiveDamage(args_ReceiveDamage* args)
 	if (pWHExt->CanTargetHouse(args->SourceHouse, this->Techno) && !args->WH->Temporal)
 	{
 		if (*args->Damage > 0)
-			nDamage = MapClass::GetTotalDamage(*args->Damage, args->WH, this->Type->Armor.Get(), args->DistanceToEpicenter);
+			nDamage = MapClass::GetTotalDamage(*args->Damage, args->WH, this->GetArmorType(), args->DistanceToEpicenter);
 		else
-			nDamage = -MapClass::GetTotalDamage(-*args->Damage, args->WH, this->Type->Armor.Get(), args->DistanceToEpicenter);
+			nDamage = -MapClass::GetTotalDamage(-*args->Damage, args->WH, this->GetArmorType(), args->DistanceToEpicenter);
 
 		bool affectsShield = pWHExt->Shield_AffectTypes.size() <= 0 || pWHExt->Shield_AffectTypes.Contains(this->Type);
 		double absorbPercent = affectsShield ? pWHExt->Shield_AbsorbPercent.Get(this->Type->AbsorbPercent) : this->Type->AbsorbPercent;
@@ -188,7 +188,7 @@ int ShieldClass::ReceiveDamage(args_ReceiveDamage* args)
 		if (residueDamage >= 0)
 		{
 			residueDamage = int((double)(residueDamage) /
-				GeneralUtils::GetWarheadVersusArmor(args->WH, this->Type->Armor.Get())); //only absord percentage damage
+				GeneralUtils::GetWarheadVersusArmor(args->WH, this->GetArmorType())); //only absord percentage damage
 
 			this->BreakShield(pWHExt->Shield_BreakAnim.Get(nullptr), pWHExt->Shield_BreakWeapon.Get(nullptr));
 
@@ -271,7 +271,7 @@ bool ShieldClass::CanBeTargeted(WeaponTypeClass* pWeapon)
 	if (CanBePenetrated(pWeapon->Warhead) || !this->HP)
 		return true;
 
-	return GeneralUtils::GetWarheadVersusArmor(pWeapon->Warhead, this->Type->Armor.Get()) != 0.0;
+	return GeneralUtils::GetWarheadVersusArmor(pWeapon->Warhead, this->GetArmorType()) != 0.0;
 }
 
 bool ShieldClass::CanBePenetrated(WarheadTypeClass* pWarhead)
@@ -465,9 +465,9 @@ void ShieldClass::TemporalCheck()
 // Is used for DeploysInto/UndeploysInto and DeploysInto/UndeploysInto
 bool ShieldClass::ConvertCheck()
 {
-	const auto newID = this->Techno->get_ID();
+	const auto newID = this->Techno->GetTechnoType();
 
-	if (strcmp(this->TechnoID, newID) == 0)
+	if (this->TechnoID == newID)
 		return false;
 
 	const auto pTechnoExt = TechnoExt::ExtMap.Find(this->Techno);
@@ -522,7 +522,7 @@ bool ShieldClass::ConvertCheck()
 		}
 	}
 
-	strcpy_s(this->TechnoID, newID);
+	this->TechnoID = newID;
 
 	return false;
 }
@@ -876,6 +876,14 @@ void ShieldClass::SetHP(int amount)
 ShieldTypeClass* ShieldClass::GetType()
 {
 	return this->Type;
+}
+
+ArmorType ShieldClass::GetArmorType()
+{
+	if (this->Techno && this->Type->InheritArmorFromTechno)
+		return this->Techno->GetTechnoType()->Armor;
+
+	return this->Type->Armor.Get();
 }
 
 int ShieldClass::GetFramesSinceLastBroken()

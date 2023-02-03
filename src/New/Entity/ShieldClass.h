@@ -36,6 +36,7 @@ public:
 	bool IsAvailable();
 	bool IsBrokenAndNonRespawning();
 	ShieldTypeClass* GetType();
+	ArmorType GetArmorType();
 	int GetFramesSinceLastBroken();
 	void SetAnimationVisibility(bool visible);
 
@@ -76,7 +77,7 @@ private:
 
 	/// Properties ///
 	TechnoClass* Techno;
-	char TechnoID[0x18];
+	TechnoTypeClass* TechnoID;
 	int HP;
 	AnimClass* IdleAnim;
 	bool Cloak;

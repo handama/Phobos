@@ -12,22 +12,46 @@ void BuildingExt::ExtData::DisplayGrinderRefund()
 {
 	if (this->AccumulatedGrindingRefund && Unsorted::CurrentFrame % 15 == 0)
 	{
-		int refundAmount = this->AccumulatedGrindingRefund;
-		bool isPositive = refundAmount > 0;
-		auto color = isPositive ? ColorStruct { 0, 255, 0 } : ColorStruct { 255, 0, 0 };
-		auto coords = this->OwnerObject()->GetRenderCoords();
-		int width = 0, height = 0;
-		wchar_t moneyStr[0x20];
-		swprintf_s(moneyStr, L"%ls%ls%d", isPositive ? L"+" : L"-", Phobos::UI::CostLabel, std::abs(refundAmount));
-		BitFont::Instance->GetTextDimension(moneyStr, &width, &height, 120);
-		Point2D pixelOffset = Point2D::Empty;
-		pixelOffset += this->TypeExtData->Grinding_DisplayRefund_Offset;
-		pixelOffset.X -= width / 2;
-
-		FlyingStrings::Add(moneyStr, coords, color, pixelOffset);
+		FlyingStrings::AddMoneyString(this->AccumulatedGrindingRefund, this->OwnerObject()->Owner,
+			this->TypeExtData->Grinding_DisplayRefund_Houses, this->OwnerObject()->GetRenderCoords(), this->TypeExtData->Grinding_DisplayRefund_Offset);
 
 		this->AccumulatedGrindingRefund = 0;
 	}
+}
+
+bool BuildingExt::ExtData::HasSuperWeapon(const int index, const bool withUpgrades) const
+{
+	const auto pThis = this->OwnerObject();
+	const auto pExt = BuildingTypeExt::ExtMap.Find(pThis->Type);
+
+	const auto count = pExt->GetSuperWeaponCount();
+	for (auto i = 0; i < count; ++i)
+	{
+		const auto idxSW = pExt->GetSuperWeaponIndex(i, pThis->Owner);
+
+		if (idxSW == index)
+			return true;
+	}
+
+	if (withUpgrades)
+	{
+		for (auto const& pUpgrade : pThis->Upgrades)
+		{
+			if (const auto pUpgradeExt = BuildingTypeExt::ExtMap.Find(pUpgrade))
+			{
+				const auto countUpgrade = pUpgradeExt->GetSuperWeaponCount();
+				for (auto i = 0; i < countUpgrade; ++i)
+				{
+					const auto idxSW = pUpgradeExt->GetSuperWeaponIndex(i, pThis->Owner);
+
+					if (idxSW == index)
+						return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 void BuildingExt::StoreTiberium(BuildingClass* pThis, float amount, int idxTiberiumType, int idxStorageTiberiumType)
@@ -66,7 +90,7 @@ void BuildingExt::UpdatePrimaryFactoryAI(BuildingClass* pThis)
 
 	AircraftTypeClass* pAircraft = AircraftTypeClass::Array->GetItem(pOwner->ProducingAircraftTypeIndex);
 	FactoryClass* currFactory = pOwner->GetFactoryProducing(pAircraft);
-	DynamicVectorClass<BuildingClass*> airFactoryBuilding;
+	std::vector<BuildingClass*> airFactoryBuilding;
 	BuildingClass* newBuilding = nullptr;
 
 	// Update what is the current air factory for future comparisons
@@ -92,7 +116,7 @@ void BuildingExt::UpdatePrimaryFactoryAI(BuildingClass* pThis)
 			if (!currFactory && pBuilding->Factory)
 				currFactory = pBuilding->Factory;
 
-			airFactoryBuilding.AddItem(pBuilding);
+			airFactoryBuilding.emplace_back(pBuilding);
 		}
 	}
 
@@ -221,11 +245,8 @@ bool BuildingExt::DoGrindingExtras(BuildingClass* pBuilding, TechnoClass* pTechn
 	{
 		const auto pTypeExt = pExt->TypeExtData;
 
-		if (refund && pTypeExt->Grinding_DisplayRefund && (pTypeExt->Grinding_DisplayRefund_Houses == AffectedHouse::All ||
-			EnumFunctions::CanTargetHouse(pTypeExt->Grinding_DisplayRefund_Houses, pBuilding->Owner, HouseClass::CurrentPlayer)))
-		{
+		if (pTypeExt->Grinding_DisplayRefund)
 			pExt->AccumulatedGrindingRefund += refund;
-		}
 
 		if (pTypeExt->Grinding_Weapon.isset()
 			&& Unsorted::CurrentFrame >= pExt->GrindingWeapon_LastFiredFrame + pTypeExt->Grinding_Weapon.Get()->ROF)
@@ -266,6 +287,45 @@ void BuildingExt::ExtData::ApplyPoweredKillSpawns()
 	}
 }
 
+bool BuildingExt::HandleInfiltrate(BuildingClass* pBuilding, HouseClass* pInfiltratorHouse)
+{
+	BuildingTypeExt::ExtData* pTypeExt = BuildingTypeExt::ExtMap.Find(pBuilding->Type);
+
+	if (!pTypeExt->SpyEffect_Custom)
+		return false;
+
+	auto pVictimHouse = pBuilding->Owner;
+	if (pInfiltratorHouse != pVictimHouse)
+	{
+		// I assume you were not launching for real, Morton
+
+		auto launchTheSWHere = [pBuilding](SuperClass* const pSuper, HouseClass* const pHouse)
+		{
+			int oldstart = pSuper->RechargeTimer.StartTime;
+			int oldleft = pSuper->RechargeTimer.TimeLeft;
+			pSuper->SetReadiness(true);
+			pSuper->Launch(CellClass::Coord2Cell(pBuilding->Location), pHouse->IsCurrentPlayer());
+			pSuper->Reset();
+			pSuper->RechargeTimer.StartTime = oldstart;
+			pSuper->RechargeTimer.TimeLeft = oldleft;
+		};
+
+		if (pTypeExt->SpyEffect_VictimSuperWeapon.isset())
+		{
+			if (const auto pSuper = pVictimHouse->Supers.GetItem(pTypeExt->SpyEffect_VictimSuperWeapon.Get()))
+				launchTheSWHere(pSuper, pVictimHouse);
+		}
+
+		if (pTypeExt->SpyEffect_InfiltratorSuperWeapon.isset())
+		{
+			if (const auto pSuper = pInfiltratorHouse->Supers.GetItem(pTypeExt->SpyEffect_InfiltratorSuperWeapon.Get()))
+				launchTheSWHere(pSuper, pInfiltratorHouse);
+		}
+	}
+
+	return true;
+}
+
 // =============================
 // load / save
 
@@ -275,6 +335,7 @@ void BuildingExt::ExtData::Serialize(T& Stm)
 	Stm
 		.Process(this->TypeExtData)
 		.Process(this->DeployedTechno)
+		.Process(this->IsCreatedFromMapFile)
 		.Process(this->LimboID)
 		.Process(this->GrindingWeapon_LastFiredFrame)
 		.Process(this->CurrentAirFactory)

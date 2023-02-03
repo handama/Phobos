@@ -6,6 +6,7 @@
 #include <Utilities/Container.h>
 #include <Utilities/Constructs.h>
 #include <Utilities/Template.h>
+#include <Utilities/Enum.h>
 #include <Utilities/TemplateDef.h>
 #include <Utilities/Debug.h>
 
@@ -24,10 +25,10 @@ public:
 	class ExtData final : public Extension<RulesClass>
 	{
 	public:
-		DynamicVectorClass<DynamicVectorClass<TechnoTypeClass*>> AITargetTypesLists;
-		DynamicVectorClass<DynamicVectorClass<ScriptTypeClass*>> AIScriptsLists;
 		DynamicVectorClass<DynamicVectorClass<std::string>> AIConditionsLists;
-		DynamicVectorClass<TechnoTypeClass*> HarvesterTypes;
+		std::vector<std::vector<TechnoTypeClass*>> AITargetTypesLists;
+		std::vector<std::vector<ScriptTypeClass*>> AIScriptsLists;
+		ValueableVector<TechnoTypeClass*> HarvesterTypes;
 
 		Valueable<int> Storage_TiberiumIndex;
 		Nullable<int> InfantryGainSelfHealCap;
@@ -64,6 +65,10 @@ public:
 		Valueable<bool> ForbidParallelAIQueues_Vehicle;
 
 		Valueable<bool> IronCurtain_KeptOnDeploy;
+		Valueable<IronCurtainEffect> IronCurtain_EffectOnOrganics;
+		Nullable<WarheadTypeClass*> IronCurtain_KillOrganicsWarhead;
+
+		Valueable<PartialVector2D<int>> ROF_RandomDelay;
 		Valueable<ColorStruct> ToolTip_Background_Color;
 		Valueable<int> ToolTip_Background_Opacity;
 		Valueable<float> ToolTip_Background_BlurSize;
@@ -103,6 +108,9 @@ public:
 			, ForbidParallelAIQueues_Navy { false }
 			, ForbidParallelAIQueues_Vehicle { false }
 			, IronCurtain_KeptOnDeploy { true }
+			, IronCurtain_EffectOnOrganics { IronCurtainEffect::Kill }
+			, IronCurtain_KillOrganicsWarhead { }
+			, ROF_RandomDelay { { 0 ,2  } }
 			, ToolTip_Background_Color { { 0, 0, 0 } }
 			, ToolTip_Background_Opacity { 100 }
 			, ToolTip_Background_BlurSize { 0.0f }
@@ -158,6 +166,4 @@ public:
 	static bool LoadGlobals(PhobosStreamReader& Stm);
 	static bool SaveGlobals(PhobosStreamWriter& Stm);
 
-	static bool DetailsCurrentlyEnabled();
-	static bool DetailsCurrentlyEnabled(int minDetailLevel);
 };

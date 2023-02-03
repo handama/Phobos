@@ -2,7 +2,7 @@
 #include <ScenarioClass.h>
 #include <GameStrings.h>
 #include "Body.h"
-#include <Utilities/Macro.h>
+
 #include <Ext/TechnoType/Body.h>
 #include <Ext/WarheadType/Body.h>
 #include <Ext/WeaponType/Body.h>
@@ -22,6 +22,8 @@ DEFINE_HOOK(0x6F9E50, TechnoClass_AI, 0x5)
 	if (!pExt->TypeExtData || pExt->TypeExtData->OwnerObject() != pType)
 		pExt->UpdateTypeData(pType);
 
+	pExt->IsInTunnel = false; // TechnoClass::AI is only called when not in tunnel.
+
 	if (pExt->CheckDeathConditions())
 		return 0;
 
@@ -29,27 +31,9 @@ DEFINE_HOOK(0x6F9E50, TechnoClass_AI, 0x5)
 	pExt->EatPassengers();
 	pExt->UpdateShield();
 	pExt->ApplySpawnLimitRange();
-
-	pExt->IsInTunnel = false; // TechnoClass::AI is only called when not in tunnel.
+	pExt->UpdateLaserTrails();
 
 	TechnoExt::ApplyMindControlRangeLimit(pThis);
-
-	// LaserTrails update routine is in TechnoClass::AI hook because TechnoClass::Draw
-	// doesn't run when the object is off-screen which leads to visual bugs - Kerbiter
-	for (auto const& trail : pExt->LaserTrails)
-	{
-		if (pThis->CloakState == CloakState::Cloaked && !trail->Type->CloakVisible)
-			continue;
-
-		if (!pExt->IsInTunnel)
-			trail->Visible = true;
-
-		CoordStruct trailLoc = TechnoExt::GetFLHAbsoluteCoords(pThis, trail->FLH, trail->IsOnTurret);
-		if (pThis->CloakState == CloakState::Uncloaking && !trail->Type->CloakVisible)
-			trail->LastLocation = trailLoc;
-		else
-			trail->Update(trailLoc);
-	}
 
 	return 0;
 }
@@ -108,18 +92,15 @@ DEFINE_HOOK_AGAIN(0x442C7B, TechnoClass_Init_InitialStrength, 0x6) // BuildingCl
 DEFINE_HOOK(0x414057, TechnoClass_Init_InitialStrength, 0x6)       // AircraftClass_Init
 {
 	GET(TechnoClass*, pThis, ESI);
-
+	auto pTypeExt = TechnoTypeExt::ExtMap.Find(pThis->GetTechnoType());
 	if (R->Origin() != 0x517D69)
 	{
-		if (auto pTypeExt = TechnoTypeExt::ExtMap.Find(pThis->GetTechnoType()))
-		{
-			if (R->Origin() != 0x442C7B)
-				R->EAX(pTypeExt->InitialStrength.Get(R->EAX<int>()));
-			else
-				R->ECX(pTypeExt->InitialStrength.Get(R->ECX<int>()));
-		}
+		if (R->Origin() != 0x442C7B)
+			R->EAX(pTypeExt->InitialStrength.Get(R->EAX<int>()));
+		else
+			R->ECX(pTypeExt->InitialStrength.Get(R->ECX<int>()));
 	}
-	else if (auto pTypeExt = TechnoTypeExt::ExtMap.Find(pThis->GetTechnoType()))
+	else
 	{
 		auto strength = pTypeExt->InitialStrength.Get(R->EDX<int>());
 		pThis->Health = strength;
@@ -132,17 +113,13 @@ DEFINE_HOOK(0x414057, TechnoClass_Init_InitialStrength, 0x6)       // AircraftCl
 DEFINE_HOOK(0x443C81, BuildingClass_ExitObject_InitialClonedHealth, 0x7)
 {
 	GET(BuildingClass*, pBuilding, ESI);
-
 	if (auto const pInf = abstract_cast<InfantryClass*>(R->EDI<FootClass*>()))
 	{
 		if (pBuilding && pBuilding->Type->Cloning)
 		{
 			if (auto pTypeExt = BuildingTypeExt::ExtMap.Find(pBuilding->Type))
 			{
-				Vector2D<double> range = pTypeExt->InitialStrength_Cloning.Get();
-				int min = static_cast<int>(range.X * 100);
-				int max = static_cast<int>(range.Y * 100);
-				double percentage = range.X >= range.Y ? range.X : (ScenarioClass::Instance->Random.RandomRanged(min, max) / 100.0);
+				double percentage = GeneralUtils::GetRangedRandomOrSingleValue(pTypeExt->InitialStrength_Cloning);
 				int strength = Math::clamp(static_cast<int>(pInf->Type->Strength * percentage), 1, pInf->Type->Strength);
 
 				pInf->Health = strength;
@@ -154,13 +131,25 @@ DEFINE_HOOK(0x443C81, BuildingClass_ExitObject_InitialClonedHealth, 0x7)
 	return 0;
 }
 
+DEFINE_HOOK(0x6FD0B5, TechnoClass_RearmDelay_RandomDelay, 0x6)
+{
+	GET(WeaponTypeClass*, pWeapon, EDI);
+
+	const auto pWeaponExt = WeaponTypeExt::ExtMap.Find(pWeapon);
+	auto range = pWeaponExt->ROF_RandomDelay.Get(RulesExt::Global()->ROF_RandomDelay);
+
+	R->EAX(GeneralUtils::GetRangedRandomOrSingleValue(range));
+	return 0;
+}
+
 // Issue #271: Separate burst delay for weapon type
 // Author: Starkku
-DEFINE_HOOK(0x6FD05E, TechnoClass_Rearm_Delay_BurstDelays, 0x7)
+DEFINE_HOOK(0x6FD05E, TechnoClass_RearmDelay_BurstDelays, 0x7)
 {
 	GET(TechnoClass*, pThis, ESI);
 	GET(WeaponTypeClass*, pWeapon, EDI);
-	auto pWeaponExt = WeaponTypeExt::ExtMap.Find(pWeapon);
+
+	const auto pWeaponExt = WeaponTypeExt::ExtMap.Find(pWeapon);
 	int burstDelay = -1;
 
 	if (pWeaponExt->Burst_Delays.size() > (unsigned)pThis->CurrentBurstIndex)
@@ -345,13 +334,12 @@ DEFINE_HOOK(0x71067B, TechnoClass_EnterTransport_LaserTrails, 0x7)
 	return 0;
 }
 
-DEFINE_HOOK(0x5F4F4E, ObjectClass_Unlimbo_LaserTrails, 0x7)
+// I don't think buildings should have laser-trails
+DEFINE_HOOK(0x4D7221, FootClass_Unlimbo_LaserTrails, 0x6)
 {
-	GET(TechnoClass*, pTechno, ECX);
+	GET(FootClass*, pTechno, ESI);
 
-	auto pTechnoExt = TechnoExt::ExtMap.Find(pTechno);
-
-	if (pTechnoExt)
+	if (auto pTechnoExt = TechnoExt::ExtMap.Find(pTechno))
 	{
 		for (auto& pLaserTrail : pTechnoExt->LaserTrails)
 		{
@@ -625,3 +613,72 @@ DEFINE_HOOK(0x70265F, TechnoClass_ReceiveDamage_Explodes, 0x6)
 
 	return 0;
 }
+
+DEFINE_HOOK(0x703A09, TechnoClass_VisualCharacter_CloakVisibility, 0x7)
+{
+	enum { UseShadowyVisual = 0x703A5A, CheckMutualAlliance = 0x703A16 };
+
+	// Allow observers to always see cloaked objects.
+	// Skip IsCampaign check (confirmed being useless from Mental Omega mappers)
+	if (HouseClass::IsCurrentPlayerObserver())
+		return UseShadowyVisual;
+
+	return CheckMutualAlliance;
+}
+
+DEFINE_HOOK(0x45455B, BuildingClass_VisualCharacter_CloakVisibility, 0x5)
+{
+	enum { UseShadowyVisual = 0x45452D, CheckMutualAlliance = 0x454564 };
+
+	if (HouseClass::IsCurrentPlayerObserver())
+		return UseShadowyVisual;
+
+	return CheckMutualAlliance;
+}
+
+DEFINE_HOOK(0x4DEAEE, FootClass_IronCurtain_Organics, 0x6)
+{
+	GET(FootClass*, pThis, ESI);
+	GET(TechnoTypeClass*, pType, EAX);
+	GET_STACK(HouseClass*, pSource, STACK_OFFSET(0x10, 0x8));
+
+	enum { MakeInvunlnerable = 0x4DEB38, SkipGameCode = 0x4DEBA2 };
+
+	if (!pType->Organic && pThis->WhatAmI() != AbstractType::Infantry)
+		return MakeInvunlnerable;
+
+	auto pTypeExt = TechnoTypeExt::ExtMap.Find(pType);
+	IronCurtainEffect icEffect = pTypeExt->IronCurtain_Effect.Get(RulesExt::Global()->IronCurtain_EffectOnOrganics);
+
+	switch (icEffect)
+	{
+	case IronCurtainEffect::Ignore:
+	{
+		R->EAX(DamageState::Unaffected);
+	}break;
+	case IronCurtainEffect::Invulnerable:
+	{
+		return MakeInvunlnerable;
+	}break;
+	default:
+	{
+		R->EAX
+		(
+			pThis->ReceiveDamage
+			(
+				&pThis->Health,
+				0,
+				pTypeExt->IronCurtain_KillWarhead.Get(RulesExt::Global()->IronCurtain_KillOrganicsWarhead.Get(RulesClass::Instance->C4Warhead)),
+				nullptr,
+				true,
+				false,
+				pSource
+			)
+		);
+	}break;
+	}
+
+	return SkipGameCode;
+}
+
+DEFINE_JUMP(VTABLE, 0x7EB1AC, 0x4DEAE0); // Redirect InfantryClass::IronCurtain to FootClass::IronCurtain

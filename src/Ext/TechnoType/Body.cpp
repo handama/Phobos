@@ -19,9 +19,11 @@ void TechnoTypeExt::ExtData::Initialize()
 
 void TechnoTypeExt::ExtData::ApplyTurretOffset(Matrix3D* mtx, double factor)
 {
-	float x = static_cast<float>(this->TurretOffset.GetEx()->X * factor);
-	float y = static_cast<float>(this->TurretOffset.GetEx()->Y * factor);
-	float z = static_cast<float>(this->TurretOffset.GetEx()->Z * factor);
+	// Does not verify if the offset actually has all values parsed as it makes no difference, it will be 0 for the unparsed ones either way.
+	auto offset = this->TurretOffset.GetEx();
+	float x = static_cast<float>(offset->X * factor);
+	float y = static_cast<float>(offset->Y * factor);
+	float z = static_cast<float>(offset->Z * factor);
 
 	mtx->Translate(x, y, z);
 }
@@ -53,12 +55,12 @@ bool TechnoTypeExt::HasSelectionGroupID(ObjectTypeClass* pType, const char* pID)
 	return (_strcmpi(id, pID) == 0);
 }
 
-void TechnoTypeExt::GetBurstFLHs(TechnoTypeClass* pThis, INI_EX &exArtINI, const char* pArtSection,
-	std::vector<DynamicVectorClass<CoordStruct>>& nFLH, std::vector<DynamicVectorClass<CoordStruct>>& nEFlh, const char* pPrefixTag)
+void TechnoTypeExt::ExtData::ParseBurstFLHs(INI_EX &exArtINI, const char* pArtSection,
+	std::vector<std::vector<CoordStruct>>& nFLH, std::vector<std::vector<CoordStruct>>& nEFlh, const char* pPrefixTag)
 {
 	char tempBuffer[32];
 	char tempBufferFLH[48];
-
+	auto pThis = this->OwnerObject();
 	bool parseMultiWeapons = pThis->TurretCount > 0 && pThis->WeaponCount > 0;
 	auto weaponCount = parseMultiWeapons ? pThis->WeaponCount : 2;
 	nFLH.resize(weaponCount);
@@ -85,8 +87,8 @@ void TechnoTypeExt::GetBurstFLHs(TechnoTypeClass* pThis, INI_EX &exArtINI, const
 			else if (!FLH.isset() && !eliteFLH.isset())
 				break;
 
-			nFLH[i].AddItem(FLH.Get());
-			nEFlh[i].AddItem(eliteFLH.Get());
+			nFLH[i].push_back(FLH.Get());
+			nEFlh[i].push_back(eliteFLH.Get());
 		}
 	}
 };
@@ -138,7 +140,15 @@ void TechnoTypeExt::ExtData::LoadFromINIFile(CCINIClass* const pINI)
 	this->AutoDeath_Behavior.Read(exINI, pSection, "AutoDeath.Behavior");
 	this->AutoDeath_OnAmmoDepletion.Read(exINI, pSection, "AutoDeath.OnAmmoDepletion");
 	this->AutoDeath_AfterDelay.Read(exINI, pSection, "AutoDeath.AfterDelay");
+	this->AutoDeath_TechnosDontExist.Read(exINI, pSection, "AutoDeath.TechnosDontExist");
+	this->AutoDeath_TechnosDontExist_Any.Read(exINI, pSection, "AutoDeath.TechnosDontExist.Any");
+	this->AutoDeath_TechnosDontExist_Houses.Read(exINI, pSection, "AutoDeath.TechnosDontExist.Houses");
+	this->AutoDeath_TechnosExist.Read(exINI, pSection, "AutoDeath.TechnosExist");
+	this->AutoDeath_TechnosExist_Any.Read(exINI, pSection, "AutoDeath.TechnosExist.Any");
+	this->AutoDeath_TechnosExist_Houses.Read(exINI, pSection, "AutoDeath.TechnosExist.Houses");
+
 	this->Slaved_OwnerWhenMasterKilled.Read(exINI, pSection, "Slaved.OwnerWhenMasterKilled");
+	this->SlavesFreeSound.Read(exINI, pSection, "SlavesFreeSound");
 	this->SellSound.Read(exINI, pSection, "SellSound");
 	this->EVA_Sold.Read(exINI, pSection, "EVA.Sold");
 
@@ -188,6 +198,7 @@ void TechnoTypeExt::ExtData::LoadFromINIFile(CCINIClass* const pINI)
 
 	this->JumpjetAllowLayerDeviation.Read(exINI, pSection, "JumpjetAllowLayerDeviation");
 	this->JumpjetTurnToTarget.Read(exINI, pSection, "JumpjetTurnToTarget");
+	this->JumpjetRotateOnCrash.Read(exINI, pSection, "JumpjetRotateOnCrash");
 	this->DeployingAnim_AllowAnyDirection.Read(exINI, pSection, "DeployingAnim.AllowAnyDirection");
 	this->DeployingAnim_KeepUnitVisible.Read(exINI, pSection, "DeployingAnim.KeepUnitVisible");
 	this->DeployingAnim_ReverseForUndeploy.Read(exINI, pSection, "DeployingAnim.ReverseForUndeploy");
@@ -195,6 +206,8 @@ void TechnoTypeExt::ExtData::LoadFromINIFile(CCINIClass* const pINI)
 
 	this->EnemyUIName.Read(exINI, pSection, "EnemyUIName");
 	this->ForceWeapon_Naval_Decloaked.Read(exINI, pSection, "ForceWeapon.Naval.Decloaked");
+	this->ForceWeapon_Cloaked.Read(exINI, pSection, "ForceWeapon.Cloaked");
+	this->ForceWeapon_Disguised.Read(exINI, pSection, "ForceWeapon.Disguised");
 	this->Ammo_Shared.Read(exINI, pSection, "Ammo.Shared");
 	this->Ammo_Shared_Group.Read(exINI, pSection, "Ammo.Shared.Group");
 	this->SelfHealGainType.Read(exINI, pSection, "SelfHealGainType");
@@ -202,6 +215,8 @@ void TechnoTypeExt::ExtData::LoadFromINIFile(CCINIClass* const pINI)
 	this->Passengers_SyncOwner_RevertOnExit.Read(exINI, pSection, "Passengers.SyncOwner.RevertOnExit");
 
 	this->IronCurtain_KeptOnDeploy.Read(exINI, pSection, "IronCurtain.KeptOnDeploy");
+	this->IronCurtain_Effect.Read(exINI, pSection, "IronCurtain.Effect");
+	this->IronCurtain_KillWarhead.Read(exINI, pSection, "IronCurtain.KillWarhead");
 
 	this->Explodes_KillPassengers.Read(exINI, pSection, "Explodes.KillPassengers");
 	this->DeployFireWeapon.Read(exINI, pSection, "DeployFireWeapon");
@@ -247,9 +262,9 @@ void TechnoTypeExt::ExtData::LoadFromINIFile(CCINIClass* const pINI)
 		this->LaserTrailData.push_back({ ValueableIdx<LaserTrailTypeClass>(trail), flh, isOnTurret });
 	}
 
-	TechnoTypeExt::GetBurstFLHs(pThis, exArtINI, pArtSection, WeaponBurstFLHs, EliteWeaponBurstFLHs, "");
-	TechnoTypeExt::GetBurstFLHs(pThis, exArtINI, pArtSection, DeployedWeaponBurstFLHs, EliteDeployedWeaponBurstFLHs, "Deployed");
-	TechnoTypeExt::GetBurstFLHs(pThis, exArtINI, pArtSection, CrouchedWeaponBurstFLHs, EliteCrouchedWeaponBurstFLHs, "Prone");
+	this->ParseBurstFLHs(exArtINI, pArtSection, this->WeaponBurstFLHs, this->EliteWeaponBurstFLHs, "");
+	this->ParseBurstFLHs(exArtINI, pArtSection, this->DeployedWeaponBurstFLHs, this->EliteDeployedWeaponBurstFLHs, "Deployed");
+	this->ParseBurstFLHs(exArtINI, pArtSection, this->CrouchedWeaponBurstFLHs, this->EliteCrouchedWeaponBurstFLHs, "Prone");
 
 	this->EnemyUIName.Read(exINI, pSection, "EnemyUIName");
 
@@ -271,6 +286,7 @@ void TechnoTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->UIDescription)
 		.Process(this->LowSelectionPriority)
 		.Process(this->MindControlRangeLimit)
+
 		.Process(this->Interceptor)
 		.Process(this->Interceptor_CanTargetHouses)
 		.Process(this->Interceptor_GuardRange)
@@ -281,6 +297,7 @@ void TechnoTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->Interceptor_WeaponReplaceProjectile)
 		.Process(this->Interceptor_WeaponCumulativeDamage)
 		.Process(this->Interceptor_KeepIntact)
+
 		.Process(this->GroupAs)
 		.Process(this->RadarJamRadius)
 		.Process(this->InhibitorRange)
@@ -295,13 +312,23 @@ void TechnoTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->CameoPriority)
 		.Process(this->NoManualMove)
 		.Process(this->InitialStrength)
+
 		.Process(this->AutoDeath_Behavior)
 		.Process(this->AutoDeath_OnAmmoDepletion)
 		.Process(this->AutoDeath_AfterDelay)
+		.Process(this->AutoDeath_TechnosDontExist)
+		.Process(this->AutoDeath_TechnosDontExist_Any)
+		.Process(this->AutoDeath_TechnosDontExist_Houses)
+		.Process(this->AutoDeath_TechnosExist)
+		.Process(this->AutoDeath_TechnosExist_Any)
+		.Process(this->AutoDeath_TechnosExist_Houses)
+
 		.Process(this->Slaved_OwnerWhenMasterKilled)
+		.Process(this->SlavesFreeSound)
 		.Process(this->SellSound)
 		.Process(this->EVA_Sold)
 		.Process(this->ShieldType)
+
 		.Process(this->WarpOut)
 		.Process(this->WarpIn)
 		.Process(this->WarpAway)
@@ -314,6 +341,7 @@ void TechnoTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->WarpInMinRangeWeapon)
 		.Process(this->WarpOutWeapon)
 		.Process(this->WarpInWeapon_UseDistanceAsDamage)
+
 		.Process(this->OreGathering_Anims)
 		.Process(this->OreGathering_Tiberiums)
 		.Process(this->OreGathering_FramesPerDir)
@@ -323,17 +351,20 @@ void TechnoTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->DefaultDisguise)
 		.Process(this->WeaponBurstFLHs)
 		.Process(this->EliteWeaponBurstFLHs)
+
 		.Process(this->PassengerDeletion_Soylent)
 		.Process(this->PassengerDeletion_SoylentFriendlies)
 		.Process(this->PassengerDeletion_Rate)
 		.Process(this->PassengerDeletion_ReportSound)
 		.Process(this->PassengerDeletion_Rate_SizeMultiply)
 		.Process(this->PassengerDeletion_Anim)
+
 		.Process(this->OpenTopped_RangeBonus)
 		.Process(this->OpenTopped_DamageMultiplier)
 		.Process(this->OpenTopped_WarpDistance)
 		.Process(this->OpenTopped_IgnoreRangefinding)
 		.Process(this->OpenTopped_AllowFiringIfDeactivated)
+
 		.Process(this->AutoFire)
 		.Process(this->AutoFire_TargetSelf)
 		.Process(this->NoSecondaryWeaponFallback)
@@ -341,17 +372,24 @@ void TechnoTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->NoAmmoAmount)
 		.Process(this->JumpjetAllowLayerDeviation)
 		.Process(this->JumpjetTurnToTarget)
+		.Process(this->JumpjetRotateOnCrash)
+
 		.Process(this->DeployingAnim_AllowAnyDirection)
 		.Process(this->DeployingAnim_KeepUnitVisible)
 		.Process(this->DeployingAnim_ReverseForUndeploy)
 		.Process(this->DeployingAnim_UseUnitDrawer)
+
 		.Process(this->EnemyUIName)
 		.Process(this->ForceWeapon_Naval_Decloaked)
+		.Process(this->ForceWeapon_Cloaked)
+		.Process(this->ForceWeapon_Disguised)
 		.Process(this->Ammo_Shared)
 		.Process(this->Ammo_Shared_Group)
 		.Process(this->SelfHealGainType)
 		.Process(this->Passengers_SyncOwner)
 		.Process(this->Passengers_SyncOwner_RevertOnExit)
+		.Process(this->Explodes_KillPassengers)
+
 		.Process(this->PronePrimaryFireFLH)
 		.Process(this->ProneSecondaryFireFLH)
 		.Process(this->DeployedPrimaryFireFLH)
@@ -360,7 +398,11 @@ void TechnoTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->EliteCrouchedWeaponBurstFLHs)
 		.Process(this->DeployedWeaponBurstFLHs)
 		.Process(this->EliteDeployedWeaponBurstFLHs)
+
 		.Process(this->IronCurtain_KeptOnDeploy)
+		.Process(this->IronCurtain_Effect)
+		.Process(this->IronCurtain_KillWarhead)
+
 		.Process(this->Explodes_KillPassengers)
 		.Process(this->DeployFireWeapon)
 		;
@@ -464,9 +506,8 @@ DEFINE_HOOK(0x679CAF, RulesClass_LoadAfterTypeData_CompleteInitialization, 0x5)
 {
 	//GET(CCINIClass*, pINI, ESI);
 
-	for (auto const& pType : *BuildingTypeClass::Array)
+	for (auto const& [pType,pExt] : BuildingTypeExt::ExtMap)
 	{
-		auto const pExt = BuildingTypeExt::ExtMap.Find(pType);
 		pExt->CompleteInitialization();
 	}
 

@@ -54,31 +54,18 @@ void WarheadTypeExt::ExtData::Detonate(TechnoClass* pOwner, HouseClass* pHouse, 
 		{
 			pHouse->TransactMoney(this->TransactMoney);
 
-			if (this->TransactMoney_Display &&
-				(this->TransactMoney_Display_Houses == AffectedHouse::All ||
-					EnumFunctions::CanTargetHouse(this->TransactMoney_Display_Houses, pHouse, HouseClass::CurrentPlayer)))
+			if (this->TransactMoney_Display)
 			{
-				bool isPositive = this->TransactMoney > 0;
-				auto color = isPositive ? ColorStruct { 0, 255, 0 } : ColorStruct { 255, 0, 0 };
-				wchar_t moneyStr[0x20];
-				swprintf_s(moneyStr, L"%ls%ls%d", isPositive ? L"+" : L"-", Phobos::UI::CostLabel, std::abs(this->TransactMoney));
-				auto displayCoord = this->TransactMoney_Display_AtFirer ? (pOwner ? pOwner->Location : coords) : coords;
-
-				int width = 0, height = 0;
-				BitFont::Instance->GetTextDimension(moneyStr, &width, &height, 120);
-				Point2D pixelOffset = Point2D::Empty;
-				pixelOffset += this->TransactMoney_Display_Offset;
-				pixelOffset.X -= (width / 2);
-
-				FlyingStrings::Add(moneyStr, displayCoord, color, pixelOffset);
+				auto displayCoords = this->TransactMoney_Display_AtFirer ? (pOwner ? pOwner->Location : coords) : coords;
+				FlyingStrings::AddMoneyString(this->TransactMoney, pHouse, this->TransactMoney_Display_Houses, displayCoords, this->TransactMoney_Display_Offset);
 			}
 		}
 
-		for (const auto pSWType : this->LaunchSW)
+		for (const int swIdx : this->LaunchSW)
 		{
-			if (const auto pSuper = pHouse->Supers.GetItem(SuperWeaponTypeClass::Array->FindItemIndex(pSWType)))
+			if (const auto pSuper = pHouse->Supers.GetItem(swIdx))
 			{
-				const auto pSWExt = SWTypeExt::ExtMap.Find(pSWType);
+				const auto pSWExt = SWTypeExt::ExtMap.Find(pSuper->Type);
 				const auto cell = CellClass::Coord2Cell(coords);
 				if (!this->LaunchSW_RealLaunch || (pSuper->Granted && pSuper->IsCharged && !pSuper->IsOnHold && pHouse->CanTransactMoney(pSWExt->Money_Amount)))
 				{
@@ -259,14 +246,21 @@ void WarheadTypeExt::ExtData::ApplyCrit(HouseClass* pHouse, TechnoClass* pTarget
 	if (this->Crit_Chance < dice)
 		return;
 
-	if (auto pTypeExt = TechnoTypeExt::ExtMap.Find(pTarget->GetTechnoType()))
+	if (auto pExt = TechnoExt::ExtMap.Find(pTarget))
 	{
-		if (pTypeExt->ImmuneToCrit)
+		if (pExt->TypeExtData->ImmuneToCrit)
+			return;
+
+		auto pSld = pExt->Shield.get();
+		if (pSld && pSld->IsActive() && pSld->GetType()->ImmuneToCrit)
 			return;
 
 		if (pTarget->GetHealthPercentage() > this->Crit_AffectBelowPercent)
 			return;
 	}
+
+	if (pHouse && !EnumFunctions::CanTargetHouse(this->Crit_AffectsHouses, pHouse, pTarget->Owner))
+		return;
 
 	if (!EnumFunctions::IsCellEligible(pTarget->GetCell(), this->Crit_Affects))
 		return;
@@ -313,9 +307,8 @@ void WarheadTypeExt::ExtData::InterceptBullets(TechnoClass* pOwner, WeaponTypeCl
 	}
 	else
 	{
-		for (auto const& pBullet : *BulletClass::Array)
+		for (auto const& [pBullet,pExt] : BulletExt::ExtMap)
 		{
-			auto const pExt = BulletExt::ExtMap.Find(pBullet);
 			auto const pTypeExt = pExt->TypeExtData;
 
 			// Cells don't know about bullets that may or may not be located on them so it has to be this way.

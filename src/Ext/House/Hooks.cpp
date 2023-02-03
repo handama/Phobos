@@ -1,5 +1,4 @@
 #include "Body.h"
-
 #include "../Techno/Body.h"
 #include "../Building/Body.h"
 #include <unordered_map>

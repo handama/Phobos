@@ -5,7 +5,7 @@
 #include <Helpers/Macro.h>
 #include <Utilities/Container.h>
 #include <Utilities/TemplateDef.h>
-
+#include <Utilities/Macro.h>
 #include <New/Entity/ShieldClass.h>
 #include <New/Entity/LaserTrailClass.h>
 
@@ -65,6 +65,7 @@ public:
 		void UpdateOnTunnelEnter();
 		void ApplySpawnLimitRange();
 		void UpdateTypeData(TechnoTypeClass* currentType);
+		void UpdateLaserTrails();
 		void InitializeLaserTrails();
 
 		virtual ~ExtData() = default;
