@@ -26,7 +26,6 @@ public:
 		BuildingClass* Factory_AircraftType;
 
 		ExtData(HouseClass* OwnerObject) : Extension<HouseClass>(OwnerObject)
-			, OwnedLimboBuildingTypes {}
 			, BuildingCounter {}
 			, OwnedLimboDeliveredBuildings {}
 		{ }
