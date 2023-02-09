@@ -5559,8 +5559,8 @@ void ScriptExt::Mission_Attack_List_Individually(TeamClass* pTeam, int numberPer
 	if (attackAITargetType < 0)
 		attackAITargetType = pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument;
 
-	if (RulesExt::Global()->AITargetTypesLists.Count > 0
-		&& RulesExt::Global()->AITargetTypesLists.GetItem(attackAITargetType).Count > 0)
+	if (RulesExt::Global()->AITargetTypesLists.size() > 0
+		&& RulesExt::Global()->AITargetTypesLists[attackAITargetType].size() > 0)
 	{
 		ScriptExt::Mission_Attack_Individually(pTeam, numberPerTarget, repeatAction, calcThreatMode, attackAITargetType, -1);
 	}
@@ -5982,8 +5982,8 @@ void ScriptExt::AllyUnitEnterTransport(TeamClass* pTeam)
 	{
 		double passengersPip = 0.0;
 
-		if (RulesExt::Global()->AITargetTypesLists.Count > 0
-		&& RulesExt::Global()->AITargetTypesLists.GetItem(scriptArgument).Count > 0)
+		if (RulesExt::Global()->AITargetTypesLists.size() > 0
+		&& RulesExt::Global()->AITargetTypesLists[scriptArgument].size() > 0)
 		{
 			selectedTarget = FindBestObjectForAllyUnitEnterTransport(pLeaderUnit, pTeam, scriptArgument, 2, true, scriptArgument, -1);
 		}
