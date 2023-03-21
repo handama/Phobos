@@ -224,10 +224,7 @@ public:
 	static void TeamWeightReward(TeamClass *pTeam, double award);
 	static void PickRandomScript(TeamClass * pTeam, int idxScriptsList);
 	static void MultiGreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int number, int method, int calcThreatMode, HouseClass* onlyTargetThisHouseEnemy, int attackAITargetType, int idxAITargetTypeItem, bool agentMode, bool individual);
-
-	static void Mission_Move(TeamClass* pTeam, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
-	static TechnoClass* FindBestObject(TechnoClass *pTechno, TeamClass* pTeam, int method, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
-	static void UnregisterGreatSuccess(TeamClass * pTeam);
+	static TechnoClass* GreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode, HouseClass* onlyTargetThisHouseEnemy, int attackAITargetType, int idxAITargetTypeItem, bool agentMode, bool individual);
 
 	static void TeamMemberSetGroup(TeamClass* pTeam, int group);
 	static void DistributedLoadOntoTransport(TeamClass* pTeam, int type);
@@ -240,10 +237,6 @@ public:
 	static bool StopTeamMemberMoving(TeamClass* pTeam);
 	static bool IsValidRallyTarget(TeamClass* pTeam, FootClass* pFoot, int nType);
 
-	static void Mission_Attack_List(TeamClass *pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
-	static void Mission_Attack_List1Random(TeamClass *pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
-	static void Mission_Move_List(TeamClass *pTeam, int calcThreatMode, bool pickAllies, int attackAITargetType);
-	static void Mission_Move_List1Random(TeamClass *pTeam, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
 	static void UnregisterGreatSuccess(TeamClass * pTeam);
 	static void SetCloseEnoughDistance(TeamClass *pTeam, double distance);
 	static void SetMoveMissionEndMode(TeamClass* pTeam, int mode);
@@ -276,7 +269,6 @@ public:
 	static void SetPickNeutral(TeamClass* pTeam);
 	// Mission.Attack.cpp
 	static void Mission_Attack(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType, int IdxAITargetTypeItem);
-	static TechnoClass* GreatestThreat(TechnoClass* pTechno, int method, int calcThreatMode, HouseClass* onlyTargetThisHouseEnemy, int attackAITargetType, int idxAITargetTypeItem, bool agentMode);
 	static bool EvaluateObjectWithMask(TechnoClass* pTechno, int mask, int attackAITargetType, int idxAITargetTypeItem, TechnoClass* pTeamLeader);
 	static void Mission_Attack_List(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);
 	static void Mission_Attack_List1Random(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType);

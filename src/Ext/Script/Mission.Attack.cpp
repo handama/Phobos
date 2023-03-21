@@ -193,7 +193,7 @@ void ScriptExt::Mission_Attack(TeamClass* pTeam, bool repeatAction = true, int c
 			enemyHouse = HouseClass::Array->GetItem(pLeaderUnit->Owner->EnemyHouseIndex);
 
 		int targetMask = scriptArgument;
-		selectedTarget = GreatestThreat(pLeaderUnit, targetMask, calcThreatMode, enemyHouse, attackAITargetType, idxAITargetTypeItem, agentMode);
+		selectedTarget = GreatestThreat(pLeaderUnit, pTeam, targetMask, calcThreatMode, enemyHouse, attackAITargetType, idxAITargetTypeItem, agentMode, true);
 
 		if (selectedTarget)
 		{
@@ -398,17 +398,13 @@ void ScriptExt::Mission_Attack(TeamClass* pTeam, bool repeatAction = true, int c
 	}
 }
 
-TechnoClass* ScriptExt::GreatestThreat(TechnoClass* pTechno, int method, int calcThreatMode = 0, HouseClass* onlyTargetThisHouseEnemy = nullptr, int attackAITargetType = -1, int idxAITargetTypeItem = -1, bool agentMode = false)
+TechnoClass* ScriptExt::GreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode = 0, HouseClass* onlyTargetThisHouseEnemy = nullptr, int attackAITargetType = -1, int idxAITargetTypeItem = -1, bool agentMode = false, bool individual = false)
 {
 	TechnoClass* bestObject = nullptr;
 	double bestVal = -1;
 	bool unitWeaponsHaveAA = false;
 	bool unitWeaponsHaveAG = false;
-
-	if (!pTechno)
-		return nullptr;
-
-	auto const pTypeExt = TechnoTypeExt::ExtMap.Find(pTechno->GetTechnoType());
+	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
 
 	// Generic method for targeting
 	for (int i = 0; i < TechnoClass::Array->Count; i++)
@@ -417,8 +413,48 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass* pTechno, int method, int cal
 		auto objectType = object->GetTechnoType();
 		auto pTechnoType = pTechno->GetTechnoType();
 
-		if (!object)
+		if (!object || !objectType || !pTechnoType)
 			continue;
+
+		if (pTeamData)
+		{
+			int attackTargetRank = pTeamData->AttackTargetRank;
+			if (attackTargetRank == 0)
+			{
+				if (!object->Veterancy.IsRookie())
+					continue;
+			}
+			else if (attackTargetRank == 1)
+			{
+				if (!object->Veterancy.IsVeteran())
+					continue;
+			}
+			else if (attackTargetRank == 2)
+			{
+				if (!object->Veterancy.IsElite())
+					continue;
+			}
+			else if (attackTargetRank == 3)
+			{
+				if (object->Veterancy.IsRookie())
+					continue;
+			}
+
+			if (individual)
+			{
+				bool isSameTarget = false;
+				for (int j = 0; j < pTeamData->IndividualTargets.Count; j++)
+				{
+					if (object == pTeamData->IndividualTargets[j])
+						isSameTarget = true;
+				}
+				if (isSameTarget)
+					continue;
+			}
+			if (!pTeamData->SelectNeural)
+				if (object->Owner->IsNeutral())
+					continue;
+		}
 
 		// Note: the TEAM LEADER is picked for this task, be careful with leadership values in your mod
 		int weaponIndex = pTechno->SelectWeapon(object);
@@ -433,7 +469,12 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass* pTechno, int method, int cal
 		int weaponDamage = 0;
 
 		if (weaponType)
-			weaponDamage = MapClass::GetTotalDamage(pTechno->CombatDamage(weaponIndex), weaponType->Warhead, objectType->Armor, 0);
+		{
+			if (weaponType->AmbientDamage > 0)
+				weaponDamage = MapClass::GetTotalDamage(weaponType->AmbientDamage, weaponType->Warhead, objectType->Armor, 0) + MapClass::GetTotalDamage(weaponType->Damage, weaponType->Warhead, objectType->Armor, 0);
+			else
+				weaponDamage = MapClass::GetTotalDamage(weaponType->Damage, weaponType->Warhead, objectType->Armor, 0);
+		}
 
 		// If the target can't be damaged then isn't a valid target
 		if (weaponType && weaponDamage <= 0 && !agentMode)
@@ -459,16 +500,15 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass* pTechno, int method, int cal
 		// Submarines aren't a valid target
 		if (object->CloakState == CloakState::Cloaked
 			&& objectType->Underwater
-			&& (pTechnoType->NavalTargeting == NavalTargetingType::Underwater_Never
-				|| pTechnoType->NavalTargeting == NavalTargetingType::Naval_None))
+			&& (pTechnoType->NavalTargeting == NavalTargetingType::Underwater_Never || pTechnoType->NavalTargeting == NavalTargetingType::Naval_None))
 		{
 			continue;
 		}
 
 		// Land not OK for the Naval unit
-		if (objectType->Naval
+		if (!objectType->Naval
 			&& pTechnoType->LandTargeting == LandTargetingType::Land_Not_OK
-			&& (object->GetCell()->LandType != LandType::Water))
+			&& object->GetCell()->LandType != LandType::Water)
 		{
 			continue;
 		}
@@ -477,17 +517,21 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass* pTechno, int method, int cal
 		if (onlyTargetThisHouseEnemy && object->Owner != onlyTargetThisHouseEnemy)
 			continue;
 
-		// Check map zone
-		if (!TechnoExt::AllowedTargetByZone(pTechno, object, pTypeExt->TargetZoneScanType, weaponType))
-			continue;
-
 		if (object != pTechno
-			&& IsUnitAvailable(object, true, true)
+			&& object->IsAlive
+			&& object->Health > 0
+			&& !object->InLimbo
 			&& !objectType->Immune
+			&& !object->Transporter
+			&& object->IsOnMap
+			&& !object->Absorbed
 			&& !object->TemporalTargetingMe
 			&& !object->BeingWarpedOut
-			&& object->Owner != pTechno->Owner
-			&& (!pTechno->Owner->IsAlliedWith(object) || IsUnitMindControlledFriendly(pTechno->Owner, object)))
+			&& (object->Owner != pTechno->Owner || (object->Owner == pTechno->Owner && attackAITargetType == -1 && (method == 39 || method == 40)))
+			&& (!pTechno->Owner->IsAlliedWith(object) || (object->Owner == pTechno->Owner && attackAITargetType == -1 && (method == 39 || method == 40))
+				|| (pTechno->Owner->IsAlliedWith(object)
+					&& object->IsMindControlled()
+					&& !pTechno->Owner->IsAlliedWith(object->MindControlledBy))))
 		{
 			double value = 0;
 
@@ -498,7 +542,6 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass* pTechno, int method, int cal
 				newCell.Y = (short)object->Location.Y;
 
 				bool isGoodTarget = false;
-
 				if (calcThreatMode == 0 || calcThreatMode == 1)
 				{
 					// Threat affected by distance
@@ -575,6 +618,7 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass* pTechno, int method, int cal
 	return bestObject;
 }
 
+
 bool ScriptExt::EvaluateObjectWithMask(TechnoClass* pTechno, int mask, int attackAITargetType = -1, int idxAITargetTypeItem = -1, TechnoClass* pTeamLeader = nullptr)
 {
 	if (!pTechno)
@@ -583,6 +627,7 @@ bool ScriptExt::EvaluateObjectWithMask(TechnoClass* pTechno, int mask, int attac
 	TechnoTypeClass* pTechnoType = pTechno->GetTechnoType();
 	TechnoTypeExt::ExtData* pTypeTechnoExt = nullptr;
 	BuildingTypeClass* pTypeBuilding = pTechno->WhatAmI() == AbstractType::Building ? static_cast<BuildingTypeClass*>(pTechnoType) : nullptr;
+	BuildingClass* pBuilding = nullptr;
 	BuildingTypeExt::ExtData* pBuildingTypeExt = nullptr;
 	UnitTypeClass* pTypeUnit = pTechno->WhatAmI() == AbstractType::Unit ? static_cast<UnitTypeClass*>(pTechnoType) : nullptr;
 	WeaponTypeClass* pWeaponPrimary = nullptr;
@@ -1101,6 +1146,89 @@ bool ScriptExt::EvaluateObjectWithMask(TechnoClass* pTechno, int mask, int attac
 			&& !buildingIsConsideredVehicle)
 		{
 			return true;
+		}
+
+		break;
+
+			case 37:
+		// Buildings and Vehicles
+		pTypeBuilding = abstract_cast<BuildingTypeClass*>(pTechnoType);
+
+		if (!pTechno->Owner->IsNeutral()
+			&& (pTechnoType->WhatAmI() == AbstractType::UnitType
+				|| pTechnoType->WhatAmI() == AbstractType::BuildingType))
+		{
+			return true;
+		}
+
+		break;
+
+	case 38:
+		pTypeBuilding = abstract_cast<BuildingTypeClass*>(pTechnoType);
+
+		// Ground TechnoTypes
+		if ((!pTechno->Owner->IsNeutral()
+			&& ((pTechnoType->WhatAmI() == AbstractType::UnitType && pTechnoType->MovementZone != MovementZone::Amphibious && pTechnoType->MovementZone != MovementZone::AmphibiousDestroyer)
+				|| (pTechnoType->WhatAmI() == AbstractType::BuildingType
+					&& pTypeBuilding->UndeploysInto
+					&& !pTypeBuilding->BaseNormal)
+				&& !pTechno->IsInAir()
+				&& !pTechnoType->Naval)) ||
+			(!pTechno->Owner->IsNeutral() && !pTechno->IsInAir() && !pTechnoType->Naval 
+				&& (pTechnoType->WhatAmI() == AbstractType::BuildingType
+					|| (pTypeBuilding
+						&& !(pTypeBuilding->Artillary
+							|| pTypeBuilding->TickTank
+							|| pTypeBuilding->ICBMLauncher
+							|| pTypeBuilding->SensorArray)))) ||
+			(!pTechno->Owner->IsNeutral() && !pTechno->IsInAir() && !pTechnoType->Naval && pTechnoType->WhatAmI() == AbstractType::InfantryType && pTechnoType->MovementZone != MovementZone::Amphibious && pTechnoType->MovementZone != MovementZone::AmphibiousDestroyer))
+		{
+			return true;
+		}
+		break;
+
+	case 39:
+		// Occupyable Civilian  Building
+		if (pTechnoType->WhatAmI() == AbstractType::BuildingType)
+		{
+			pBuilding = abstract_cast<BuildingClass*>(pTechno);
+			pTypeBuilding = abstract_cast<BuildingTypeClass*>(pTechnoType);
+
+			if (pBuilding && pTypeBuilding->CanBeOccupied && pBuilding->Occupants.Count == 0 && pBuilding->Owner->IsNeutral() && pTypeBuilding->CanOccupyFire && pTypeBuilding->TechLevel == -1 && pBuilding->GetHealthStatus() != HealthState::Red)
+				return true;
+			if (pBuilding && pTypeBuilding->CanBeOccupied && pBuilding->Occupants.Count < pTypeBuilding->MaxNumberOccupants && pBuilding->Owner == pTeamLeader->Owner && pTypeBuilding->CanOccupyFire)
+				return true;
+		}
+
+		break;
+
+	case 40:
+		// Self Building with Grinding=yes
+		if (pTechnoType->WhatAmI() == AbstractType::BuildingType)
+		{
+			pBuilding = abstract_cast<BuildingClass*>(pTechno);
+			pTypeBuilding = abstract_cast<BuildingTypeClass*>(pTechnoType);
+			if (pBuilding && pTypeBuilding
+				&& pTypeBuilding->Grinding
+				&& pBuilding->Owner == pTeamLeader->Owner)
+			{
+				return true;
+			}
+		}
+
+		break;
+
+	case 41:
+		// Building with Spyable=yes
+		if (pTechnoType->WhatAmI() == AbstractType::BuildingType)
+		{
+			pBuilding = abstract_cast<BuildingClass*>(pTechno);
+			pTypeBuilding = abstract_cast<BuildingTypeClass*>(pTechnoType);
+			if (!pTechno->Owner->IsNeutral()
+			&& pTypeBuilding->Spyable)
+			{
+				return true;
+			}
 		}
 
 		break;

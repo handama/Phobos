@@ -1050,7 +1050,8 @@ void ScriptExt::DistributedLoadOntoTransport(TeamClass* pTeam, int nArg)
 			}
 			else
 			{
-				pUnit->MoveTo(&pCell->GetCoords());
+				CoordStruct coords = pCell->GetCoords();
+				pUnit->MoveTo(&coords);
 				canProceed = false;
 			}
 		}
@@ -1110,7 +1111,8 @@ void ScriptExt::DistributedLoadOntoTransport(TeamClass* pTeam, int nArg)
 		auto pCell = pFoot->GetCell();
 		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
 		{
-			pUnit->MoveTo(&pCell->GetCoords());
+			CoordStruct coords = pCell->GetCoords();
+			pUnit->MoveTo(&coords);
 		}
 		pTeam->GuardAreaTimer.Start(5);
 		pExt->GenericStatus = R_WAIT_POS;
@@ -1829,6 +1831,8 @@ void ScriptExt::Set_ForceJump_Countdown(TeamClass* pTeam, bool repeatLine = fals
 	pTeamData->IndividualTargets.Clear();
 	pTeamData->CaptureTarget = nullptr;
 
+	auto pScript = pTeam->CurrentScript;
+
 	// This action finished
 	pTeam->StepCompleted = true;
 	ScriptExt::Log("AI Scripts - SetForceJumpCountdown: [%s] [%s](line: %d = %d,%d) Set Timed Jump -> (Countdown: %d, repeat action: %d)\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, count, repeatLine);
@@ -1853,6 +1857,8 @@ void ScriptExt::Stop_ForceJump_Countdown(TeamClass* pTeam)
 	pTeamData->ForceJump_Countdown.Stop();
 	pTeamData->ForceJump_Countdown = -1;
 	pTeamData->ForceJump_RepeatMode = false;
+
+	auto pScript = pTeam->CurrentScript;
 
 	// This action finished
 	pTeam->StepCompleted = true;
@@ -2280,7 +2286,8 @@ void ScriptExt::DistributedLoadOntoTransport2(TeamClass* pTeam, int nArg)
 			}
 			else
 			{
-				pUnit->MoveTo(&pCell->GetCoords());
+				CoordStruct coords = pCell->GetCoords();
+				pUnit->MoveTo(&coords);
 				canProceed = false;
 			}
 		}
@@ -2340,7 +2347,8 @@ void ScriptExt::DistributedLoadOntoTransport2(TeamClass* pTeam, int nArg)
 		auto pCell = pFoot->GetCell();
 		for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
 		{
-			pUnit->MoveTo(&pCell->GetCoords());
+			CoordStruct coords = pCell->GetCoords();
+			pUnit->MoveTo(&coords);
 		}
 		pTeam->GuardAreaTimer.Start(5);
 		pExt->GenericStatus = R_WAIT_POS;
@@ -3275,7 +3283,7 @@ void ScriptExt::StopIfHumanOrAI(TeamClass* pTeam)
 void ScriptExt::CaptureOccupiableBuildings(TeamClass* pTeam)
 {
 	auto pScript = pTeam->CurrentScript;
-	int scriptArgument = pScript->Type->ScriptActions[pScript->CurrentMission].Argument; 
+	//int scriptArgument = pScript->Type->ScriptActions[pScript->CurrentMission].Argument; 
 	auto pTeamData = TeamExt::ExtMap.Find(pTeam);
 	TechnoClass* pCaptureTarget = nullptr;
 	TechnoClass* selectedTarget = nullptr;
@@ -3474,7 +3482,7 @@ void ScriptExt::MindControlledUnitsGoToGrinder(TeamClass* pTeam)
 			{
 				if (pUnit->IsAlive && !pUnit->InLimbo)
 				{
-					auto pUnitType = pUnit->GetTechnoType();
+					//auto pUnitType = pUnit->GetTechnoType();
 					
 					if (pUnitType && pUnit != selectedTarget && pUnit->Target != selectedTarget)
 					{
