@@ -7,6 +7,8 @@
 
 #include <New/Type/ShieldTypeClass.h>
 #include <New/Type/LaserTrailTypeClass.h>
+#include <New/Type/Affiliated/InterceptorTypeClass.h>
+#include <New/Type/Affiliated/PassengerDeletionTypeClass.h>
 
 class Matrix3D;
 
@@ -26,19 +28,13 @@ public:
 		Nullable<int> InhibitorRange;
 		Nullable<int> DesignatorRange;
 		Valueable<Leptons> MindControlRangeLimit;
-		Valueable<bool> Interceptor;
-		Valueable<AffectedHouse> Interceptor_CanTargetHouses;
-		Promotable<Leptons> Interceptor_GuardRange;
-		Promotable<Leptons> Interceptor_MinimumGuardRange;
-		Valueable<int> Interceptor_Weapon;
-		Nullable<bool> Interceptor_DeleteOnIntercept;
-		Nullable<WeaponTypeClass*> Interceptor_WeaponOverride;
-		Valueable<bool> Interceptor_WeaponReplaceProjectile;
-		Valueable<bool> Interceptor_WeaponCumulativeDamage;
-		Valueable<bool> Interceptor_KeepIntact;
+
+		std::unique_ptr<InterceptorTypeClass> InterceptorType;
+
 		Valueable<PartialVector3D<int>> TurretOffset;
-		Valueable<bool> Spawn_LimitedRange;
-		Valueable<int> Spawn_LimitedExtraRange;
+		Valueable<bool> Spawner_LimitRange;
+		Valueable<int> Spawner_ExtraLimitRange;
+		Nullable<int> Spawner_DelayFrames;
 		Nullable<bool> Harvester_Counted;
 		Valueable<bool> Promote_IncludeSpawns;
 		Valueable<bool> ImmuneToCrit;
@@ -46,29 +42,27 @@ public:
 		Valueable<int> CameoPriority;
 		Valueable<bool> NoManualMove;
 		Nullable<int> InitialStrength;
-		Valueable<bool> PassengerDeletion_Soylent;
-		Valueable<bool> PassengerDeletion_SoylentFriendlies;
-		Valueable<int> PassengerDeletion_Rate;
-		NullableIdx<VocClass> PassengerDeletion_ReportSound;
-		Valueable<bool> PassengerDeletion_Rate_SizeMultiply;
-		Nullable<AnimTypeClass*> PassengerDeletion_Anim;
 
-		Valueable<bool> AutoDeath_OnAmmoDepletion;
-		Valueable<bool> AutoDeath_TechnosDontExist_Any;
-		Valueable<bool> AutoDeath_TechnosExist_Any;
-		Valueable<int> AutoDeath_AfterDelay;
+		Valueable<ShieldTypeClass*> ShieldType;
+		std::unique_ptr<PassengerDeletionTypeClass> PassengerDeletionType;
+
 		Nullable<AutoDeathBehavior> AutoDeath_Behavior;
+		Nullable<AnimTypeClass*> AutoDeath_VanishAnimation;
+		Valueable<bool> AutoDeath_OnAmmoDepletion;
+		Valueable<int> AutoDeath_AfterDelay;
 		ValueableVector<TechnoTypeClass*> AutoDeath_TechnosDontExist;
+		Valueable<bool> AutoDeath_TechnosDontExist_Any;
+		Valueable<bool> AutoDeath_TechnosDontExist_AllowLimboed;
 		Valueable<AffectedHouse> AutoDeath_TechnosDontExist_Houses;
 		ValueableVector<TechnoTypeClass*> AutoDeath_TechnosExist;
+		Valueable<bool> AutoDeath_TechnosExist_Any;
+		Valueable<bool> AutoDeath_TechnosExist_AllowLimboed;
 		Valueable<AffectedHouse> AutoDeath_TechnosExist_Houses;
 
 		Valueable<SlaveChangeOwnerType> Slaved_OwnerWhenMasterKilled;
 		NullableIdx<VocClass> SlavesFreeSound;
 		NullableIdx<VocClass> SellSound;
 		NullableIdx<VoxClass> EVA_Sold;
-
-		Valueable<ShieldTypeClass*> ShieldType;
 
 		Nullable<AnimTypeClass*> WarpOut;
 		Nullable<AnimTypeClass*> WarpIn;
@@ -90,6 +84,7 @@ public:
 
 		std::vector<std::vector<CoordStruct>> WeaponBurstFLHs;
 		std::vector<std::vector<CoordStruct>> EliteWeaponBurstFLHs;
+		std::vector<CoordStruct> AlternateFLHs;
 
 		Valueable<bool> DestroyAnim_Random;
 		Valueable<bool> NotHuman_RandomDeathSequence;
@@ -101,17 +96,17 @@ public:
 		Nullable<int> OpenTopped_WarpDistance;
 		Valueable<bool> OpenTopped_IgnoreRangefinding;
 		Valueable<bool> OpenTopped_AllowFiringIfDeactivated;
+		Valueable<bool> OpenTopped_ShareTransportTarget;
 
 		Valueable<bool> AutoFire;
 		Valueable<bool> AutoFire_TargetSelf;
 
 		Valueable<bool> NoSecondaryWeaponFallback;
+		Valueable<bool> NoSecondaryWeaponFallback_AllowAA;
 
 		Valueable<int> NoAmmoWeapon;
 		Valueable<int> NoAmmoAmount;
 
-		Nullable<bool> JumpjetAllowLayerDeviation;
-		Nullable<bool> JumpjetTurnToTarget;
 		Valueable<bool> JumpjetRotateOnCrash;
 
 		Valueable<bool> DeployingAnim_AllowAnyDirection;
@@ -136,6 +131,7 @@ public:
 		Nullable<WarheadTypeClass*> IronCurtain_KillWarhead;
 		Valueable<bool> Explodes_KillPassengers;
 		Nullable<int> DeployFireWeapon;
+		Valueable<TargetZoneScanType> TargetZoneScanType;
 
 		struct LaserTrailDataEntry
 		{
@@ -172,20 +168,12 @@ public:
 			, DesignatorRange { }
 			, MindControlRangeLimit {}
 
-			, Interceptor { false }
-			, Interceptor_CanTargetHouses { AffectedHouse::Enemies }
-			, Interceptor_GuardRange {}
-			, Interceptor_MinimumGuardRange {}
-			, Interceptor_Weapon { 0 }
-			, Interceptor_DeleteOnIntercept {}
-			, Interceptor_WeaponOverride {}
-			, Interceptor_WeaponReplaceProjectile { false }
-			, Interceptor_WeaponCumulativeDamage { false }
-			, Interceptor_KeepIntact { false }
+			, InterceptorType { nullptr }
 
 			, TurretOffset { { 0, 0, 0 } }
-			, Spawn_LimitedRange { false }
-			, Spawn_LimitedExtraRange { 0 }
+			, Spawner_LimitRange { false }
+			, Spawner_ExtraLimitRange { 0 }
+			, Spawner_DelayFrames {}
 			, Harvester_Counted {}
 			, Promote_IncludeSpawns { false }
 			, ImmuneToCrit { false }
@@ -194,6 +182,7 @@ public:
 			, NoManualMove { false }
 			, InitialStrength {}
 			, ShieldType {}
+			, PassengerDeletionType { nullptr}
 
 			, WarpOut {}
 			, WarpIn {}
@@ -215,13 +204,6 @@ public:
 			, DestroyAnim_Random { true }
 			, NotHuman_RandomDeathSequence { false }
 
-			, PassengerDeletion_Soylent { false }
-			, PassengerDeletion_SoylentFriendlies { false }
-			, PassengerDeletion_Rate { 0 }
-			, PassengerDeletion_ReportSound {}
-			, PassengerDeletion_Rate_SizeMultiply { true }
-			, PassengerDeletion_Anim {}
-
 			, DefaultDisguise {}
 
 			, OpenTopped_RangeBonus {}
@@ -229,14 +211,14 @@ public:
 			, OpenTopped_WarpDistance {}
 			, OpenTopped_IgnoreRangefinding { false }
 			, OpenTopped_AllowFiringIfDeactivated { true }
+			, OpenTopped_ShareTransportTarget { true }
 
 			, AutoFire { false }
 			, AutoFire_TargetSelf { false }
 			, NoSecondaryWeaponFallback { false }
+			, NoSecondaryWeaponFallback_AllowAA { false }
 			, NoAmmoWeapon { -1 }
 			, NoAmmoAmount { 0 }
-			, JumpjetAllowLayerDeviation {}
-			, JumpjetTurnToTarget {}
 			, JumpjetRotateOnCrash { true }
 
 			, DeployingAnim_AllowAnyDirection { false }
@@ -245,13 +227,16 @@ public:
 			, DeployingAnim_UseUnitDrawer { true }
 
 			, AutoDeath_Behavior { }
+			, AutoDeath_VanishAnimation {}
 			, AutoDeath_OnAmmoDepletion { false }
 			, AutoDeath_AfterDelay { 0 }
 			, AutoDeath_TechnosDontExist {}
 			, AutoDeath_TechnosDontExist_Any { false }
+			, AutoDeath_TechnosDontExist_AllowLimboed { false }
 			, AutoDeath_TechnosDontExist_Houses { AffectedHouse::Owner }
 			, AutoDeath_TechnosExist {}
 			, AutoDeath_TechnosExist_Any { true }
+			, AutoDeath_TechnosExist_AllowLimboed { true }
 			, AutoDeath_TechnosExist_Houses { AffectedHouse::Owner }
 
 			, Slaved_OwnerWhenMasterKilled { SlaveChangeOwnerType::Killer }
@@ -274,9 +259,9 @@ public:
 			, IronCurtain_KeptOnDeploy {}
 			, IronCurtain_Effect {}
 			, IronCurtain_KillWarhead {}
-
 			, Explodes_KillPassengers { true }
 			, DeployFireWeapon {}
+			, TargetZoneScanType { TargetZoneScanType::Same }
 		{ }
 
 		virtual ~ExtData() = default;

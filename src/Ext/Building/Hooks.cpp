@@ -24,8 +24,9 @@ DEFINE_HOOK(0x43FE69, BuildingClass_AI, 0xA)
 	if (!pExt->TypeExtData || pExt->TypeExtData->OwnerObject() != pType)
 		pExt->TypeExtData = BuildingTypeExt::ExtMap.Find(pType);
 	*/
+	if (RulesExt::Global()->DisplayIncome_AllowAI || pThis->Owner->IsControlledByHuman())
+		pExt->DisplayIncomeString();
 
-	pExt->DisplayGrinderRefund();
 	pExt->ApplyPoweredKillSpawns();
 
 	return 0;
@@ -89,11 +90,8 @@ DEFINE_HOOK(0x4401BB, Factory_AI_PickWithFreeDocks, 0x6)
 		if (pBuilding->Factory
 			&& !BuildingExt::HasFreeDocks(pBuilding))
 		{
-			auto BuildingExt = BuildingExt::ExtMap.Find(pBuilding);
-			if (!BuildingExt)
-				return 0;
-
-			BuildingExt::UpdatePrimaryFactoryAI(pBuilding);
+			if (auto pBldExt = BuildingExt::ExtMap.Find(pBuilding))
+				pBldExt->UpdatePrimaryFactoryAI();
 		}
 	}
 

@@ -53,10 +53,29 @@ DEFINE_HOOK(0x4DBF23, FootClass_ChangeOwner_IAmNowHuman, 0x6)
 		return 0;
 	}
 
-	pThis->vt_entry_1F4(Mission::Guard, nullptr, nullptr); // I don't even know what this is, just clear the target and destination for me
+	pThis->Override_Mission(Mission::Guard, nullptr, nullptr); // I don't even know what this is
 	pThis->ShouldLoseTargetNow = TRUE;
 	pThis->QueueMission(pThis->GetTechnoType()->DefaultToGuardArea ? Mission::Area_Guard : Mission::Guard, true);
 
 	return 0;
 }
 
+DEFINE_HOOK(0x519F71, InfantryClass_UpdatePosition_BeforeBuildingChangeHouse, 0x6)
+{
+	GET(BuildingClass*, pBld, EDI);
+
+	if (auto pBy = pBld->MindControlledBy)
+		CaptureManagerExt::FreeUnit(pBy->CaptureManager, pBld);
+
+	if (std::exchange(pBld->MindControlledByAUnit, false))
+	{
+		if (auto& pAnim = pBld->MindControlRingAnim)
+		{
+			pAnim->SetOwnerObject(nullptr);
+			pAnim->UnInit();
+			pAnim = nullptr;
+		}
+	}
+
+	return 0;
+}

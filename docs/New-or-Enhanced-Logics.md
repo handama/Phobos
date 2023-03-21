@@ -336,6 +336,17 @@ CreateUnit.SpawnAnim=                  ; Animation
 Due to technical constraints, infantry death animations including Ares' `InfDeathAnim` cannot have `CreateUnit.Owner` correctly applied to them. You can use Ares' `MakeInfantryOwner` as a workaround instead, which should function for this use-case even without `MakeInfantry` set.
 ```
 
+### Attached particle system
+
+- It is now possible to attach a particle system to an animation. Only particle systems with `BehavesLike=Smoke` are supported. This works similarly to the identically named key on `VoxelAnims`.
+  - On animations with `Next`, the particle system will be deleted when the next animation starts playing and new one created in its stead if the `Next` animation defines a different particle system.
+
+In `artmd.ini`:
+```ini
+[SOMEANIM]       ; AnimationType
+AttachedSystem=  ; ParticleSystem
+```
+
 ## Buildings
 
 ### Extended building upgrades
@@ -373,16 +384,16 @@ PowerPlantEnhancer.Factor=1.0      ; floating point value
 
 ### Spy Effects
 
-- Additional espionage bonuses can be toggled with `SpyEffects.Custom`.
-  - `SpyEffects.VictimSuperWeapon` instantly launches a Super Weapon for the owner of the infiltrated building at building's coordinates.
-  - `SpyEffects.InfiltratorSuperWeapon` behaves the same as above, with the Super Weapon's owner being the owner of the spying unit.
+- Additional espionage bonuses can be toggled with `SpyEffect.Custom`.
+  - `SpyEffect.VictimSuperWeapon` instantly launches a Super Weapon for the owner of the infiltrated building at building's coordinates.
+  - `SpyEffect.InfiltratorSuperWeapon` behaves the same as above, with the Super Weapon's owner being the owner of the spying unit.
 
 In `rulesmd.ini`:
 ```ini
 [SOMEBUILDING]                     ; BuildingType
-SpyEffects.Custom=false            ; boolean
-SpyEffects.VictimSuperWeapon=      ; SuperWeaponType
-SpyEffects.InfiltratorSuperWeapon= ; SuperWeaponType
+SpyEffect.Custom=false            ; boolean
+SpyEffect.VictimSuperWeapon=      ; SuperWeaponType
+SpyEffect.InfiltratorSuperWeapon= ; SuperWeaponType
 ```
 
 ## Infantry
@@ -563,6 +574,20 @@ Shrapnel.AffectsGround=false     ; boolean
 Shrapnel.AffectsBuildings=false  ; boolean
 ```
 
+### Projectiles blocked by land or water
+
+- It is now possible to make projectiles consider either land or water as obstacles that block their path by setting `SubjectToLand/Water` to true, respectively. Weapons firing such projectiles will consider targets blocked by such obstacles as out of range and will attempt to reposition themselves so they can fire without being blocked by the said obstacles before firing and if `SubjectToLand/Water.Detonate` is set to true, the projectiles will detonate if they somehow manage to collide with the said obstacles.
+  - In a special case, `Level=true` projectiles by default, if neither `SubjectToLand` or `SubjectToWater` are set, consider tiles belonging to non-water tilesets as obstacles, but this behaviour can be overridden by setting these keys.
+
+In `rulesmd.ini`:
+```ini
+[SOMEPROJECTILE]              ; Projectile
+SubjectToLand=                ; boolean
+SubjectToLand.Detonate=true   ; boolean
+SubjectToWater=               ; boolean
+SubjectToWater.Detonate=true  ; boolean
+```
+
 ## Super Weapons
 
 ### LimboDelivery
@@ -626,32 +651,54 @@ SW.Next.RandomWeightsN=         ; List of integers.
 - Any superweapon can now detonate a Warhead or a weapon at superweapon's target cell.
   - If both `Detonate.Warhead` and `Detonate.Weapon` are set, latter takes precedence.
   - `Detonate.Damage`, if not set, defaults to weapon `Damage` for `Detonate.Weapon` and 0 for `Detonate.Warhead`.
-  - Both the weapon and Warhead behave as if fired by whatever building fired the Superweapon. This respects controls like `SW.RangeMinimum/Maximum` (similar to Ares' GenericWarhead superweapon in this regard).
+  - Both the weapon and Warhead behave as if fired by whatever building fired the Superweapon. This respects controls like `SW.RangeMinimum/Maximum` (similar to Ares' GenericWarhead superweapon in this regard). If firing building could not be found, the house the Superweapon belonged to is still used to deal damage and apply Phobos-introduced Warhead effects.
+  - If `Detonate.AtFirer` is set to true, the weapon or Warhead is detonated at the firing building instead of the superweapon's target cell. If there is no firer, no detonation will occur.
 
 In `rulesmd.ini`:
 ```ini
-[SOMESW]           ; Super Weapon
-Detonate.Warhead=  ; Warhead
-Detonate.Weapon=   ; WeaponType
-Detonate.Damage=   ; integer
+[SOMESW]                ; Super Weapon
+Detonate.Warhead=       ; Warhead
+Detonate.Weapon=        ; WeaponType
+Detonate.Damage=        ; integer
+Detonate.AtFirer=false  ; boolean
 ```
 
 ## Technos
 
 ### Automatic passenger deletion
 
-- Transports with these tags will erase the passengers overtime. Bigger units takes more time. Optionally this logic can work like a grinder.
- - Good combination with Ares Abductor logic.
+- Transports can erase passengers over time. Passengers are deleted in order of entering the transport, from first to last.
+  - `PassengerDeletion.Rate` determines the interval in game frames that it takes to erase a single passenger.
+    - If `PassengerDeletion.Rate.SizeMultiply` is set to true, this time interval is multiplied by the passenger's `Size`.
+  - `PassengerDeletion.UseCostAsRate`, if set to true, changes the time interval for erasing a passenger to be based on the passenger's `Cost`. This does not factor in modifiers like `FactoryPlant`.
+    - `PassengerDeletion.CostMultiplier` can be used to modify the cost-based time interval.
+    - `PassengerDeletion.CostRateCap` can be used to set a cap to the cost-based time interval.
+  - `PassengerDeletion.AllowedHouses` determines which houses passengers can belong to be eligible for deletion.
+  - `PassengerDeletion.DontScore`, if set to true, makes it so that the deleted passengers are not counted as having been killed by the transport (no experience, not recorded towards owning house's score etc).
+  - If `PassengerDeletion.Soylent` is set to true, an amount of credits is refunded to the owner of the transport. The exact amount refunded is determined by the passengers `Soylent`, or if not set, its `Cost` (this is affected by modifiers such as `FactoryPlant`).
+    - `PassengerDeletion.SoylentMultiplier` is a direct multiplier applied to the refunded amount of credits.
+    - `PassengerDeletion.SoylentAllowedHouses` determines which houses passengers can belong to be eligible for refunding.
+    - `PassengerDeletion.DisplaySoylent` can be set to true to display the amount of credits refunded on the transport. `PassengerDeletion.DisplaySoylentToHouses` determines which houses can see this and `PassengerDeletion.DisplaySoylentOffset` can be used to adjust the display offset.
+  - `PassengerDeletion.ReportSound` and `PassengerDeletion.Anim` can be used to specify a sound and animation to play when a passenger is erased, respectively.
 
 In `rulesmd.ini`:
 ```ini
-[SOMETECHNO]                               ; TechnoType
-PassengerDeletion.Rate=0                   ; integer, game frames
-PassengerDeletion.Rate.SizeMultiply=true   ; boolean, whether to multiply frames amount by size
-PassengerDeletion.Soylent=no               ; boolean
-PassengerDeletion.SoylentFriendlies=false  ; boolean
-PassengerDeletion.ReportSound=             ; Sound
-PassengerDeletion.Anim=                    ; Animation
+[SOMETECHNO]                                    ; TechnoType
+PassengerDeletion.Rate=0                        ; integer, game frames
+PassengerDeletion.Rate.SizeMultiply=true        ; boolean
+PassengerDeletion.UseCostAsRate=false           ; boolean
+PassengerDeletion.CostMultiplier=1.0            ; floating point value, percents or absolute
+PassengerDeletion.CostRateCap=                  ; integer, game frames
+PassengerDeletion.AllowedHouses=all             ; Affected House Enumeration (none|owner/self|allies/ally|team|enemies/enemy|all)
+PassengerDeletion.DontScore=false               ; boolean
+PassengerDeletion.Soylent=false                 ; boolean
+PassengerDeletion.SoylentMultiplier=1.0         ; float, percents or absolute
+PassengerDeletion.SoylentAllowedHouses=enemies  ; Affected House Enumeration (none|owner/self|allies/ally|team|enemies/enemy|all)
+PassengerDeletion.DisplaySoylent=false          ; boolean
+PassengerDeletion.DisplaySoylentToHouses=All    ; Affected House Enumeration (none|owner/self|allies/ally|team|enemies/enemy|all)
+PassengerDeletion.DisplaySoylentOffset=0,0      ; X,Y, pixels relative to default
+PassengerDeletion.ReportSound=                  ; Sound
+PassengerDeletion.Anim=                         ; Animation
 ```
 
 ### Automatic passenger owner change to match transport owner
@@ -684,6 +731,7 @@ AutoFire.TargetSelf=false  ; boolean
 - You can now override global `OpenTopped` transport properties per TechnoType.
 - `OpenTopped.IgnoreRangefinding` can be used to disable `OpenTopped` transport rangefinding behaviour where smallest weapon range between transport and all passengers is used when approaching targets that are out of range and when scanning for potential targets.
 - `OpenTopped.AllowFiringIfDeactivated` can be used to customize whether or not passengers can fire out when the transport is deactivated (EMP, powered unit etc).
+- `OpenTopped.ShareTransportTarget` controls whether or not the current target of the transport itself is passed to the passengers as well.
 
 ```ini
 [SOMETECHNO]                              ; TechnoType
@@ -692,11 +740,12 @@ OpenTopped.DamageMultiplier=              ; floating point value, override of th
 OpenTopped.WarpDistance=                  ; integer, override of the global default
 OpenTopped.IgnoreRangefinding=false       ; boolean
 OpenTopped.AllowFiringIfDeactivated=true  ; boolean
+OpenTopped.ShareTransportTarget=true      ; boolean
 ```
 
 ### Disabling fallback to (Elite)Secondary weapon
 
-- It is now possible to disable the fallback to `(Elite)Secondary` weapon from `(Elite)Primary` weapon if it cannot fire at the chosen target by setting `NoSecondaryWeaponFallback` to true (defaults to false). This does not apply to special cases where `(Elite)Secondary` weapon is always chosen, including but not necessarily limited to the following:
+- It is now possible to disable the fallback to `(Elite)Secondary` weapon from `(Elite)Primary` weapon if it cannot fire at the chosen target by setting `NoSecondaryWeaponFallback` to true (defaults to false). `NoSecondaryWeaponFallback.AllowAA` controls whether or not fallback because of projectile `AA` setting and target being in air is still allowed. This does not apply to special cases where `(Elite)Secondary` weapon is always chosen, including but not necessarily limited to the following:
   - `OpenTransportWeapon=1` on an unit firing from inside `OpenTopped=true` transport.
   - `NoAmmoWeapon=1` on an unit with  `Ammo` value higher than 0 and current ammo count lower or  equal to `NoAmmoAmount`.
   - Deployed `IsSimpleDeployer=true` units with`DeployFireWeapon=1` set or omitted.
@@ -708,8 +757,9 @@ OpenTopped.AllowFiringIfDeactivated=true  ; boolean
 
 In `rulesmd.ini`:
 ```ini
-[SOMETECHNO]                     ; TechnoType
-NoSecondaryWeaponFallback=false  ; boolean
+[SOMETECHNO]                             ; TechnoType
+NoSecondaryWeaponFallback=false          ; boolean
+NoSecondaryWeaponFallback.AllowAA=false  ; boolean
 ```
 
 ### Firing offsets for specific Burst shots
@@ -741,6 +791,17 @@ ForceWeapon.Cloaked=-1          ; integer. 0 for primary weapon, 1 for secondary
 ForceWeapon.Disguised=-1        ; integer. 0 for primary weapon, 1 for secondary weapon, -1 to disable
 ```
 
+### Make units try turning to target when firing with `OmniFire=yes`
+- The unit will try to turn the body to target even firing with `OmniFire=yes`
+  - Recommended for jumpjets if you want it to turn to target when firing.
+
+In `rulesmd.ini`:
+```ini
+[SOMEWEAPONTYPE]          ; WeaponType
+OmniFire=yes
+OmniFire.TurnToTarget=no  ; boolean
+```
+
 ### Initial strength for TechnoTypes and cloned infantry
 
 ![image](_static/images/initialstrength.cloning-01.png)
@@ -767,33 +828,38 @@ Both `InitialStrength` and `InitialStrength.Cloning` never surpass the type's `S
 - Objects can be destroyed automatically if *any* of these conditions is met:
   - `OnAmmoDepletion`: The object will die if the remaining ammo reaches 0.
   - `AfterDelay`: The object will die if the countdown (in frames) reaches 0.
+  - `TechnosExist` / `TechnosDontExist`: The object will die if TechnoTypes exist or do not exist, respectively.
+    - `Technos(Dont)Exist.Any` controls whether or not a single listed TechnoType is enough to satisfy the requirement or if all are required.
+    - `Technos(Dont)Exist.AllowLimboed` controls whether or not limboed TechnoTypes (f.ex those in transports) are counted. Note that this may count TechnoTypes that are still being built.
+    - `Technos(Dont)Exist.Houses` controls which houses are checked.
 
 - The auto-death behavior can be chosen from the following:
   - `kill`: The object will be destroyed normally.
   - `vanish`: The object will be directly removed from the game peacefully instead of actually getting killed.
   - `sell`: If the object is a **building** with buildup, it will be sold instead of destroyed.
 
-If this option is not set, the self-destruction logic will not be enabled.
+If this option is not set, the self-destruction logic will not be enabled. `AutoDeath.VanishAnimation` can be set to animation to play at object's location if `vanish` behaviour is chosen.
 ```{note}
 Please notice that if the object is a unit which carries passengers, they will not be released even with the `kill` option. This might change in the future if necessary.
-
-If the object enters transport, the countdown will continue, but it will not self-destruct inside the transport.
 ```
 
+This logic also supports buildings delivered by [LimboDelivery](#LimboDelivery)
 
 In `rulesmd.ini`:
 ```ini
-[SOMETECHNO]                             ; TechnoType
-AutoDeath.Behavior=                      ; enumeration (kill | vanish | sell), default not set
-
-AutoDeath.OnAmmoDepletion=no             ; boolean
-AutoDeath.AfterDelay=0                   ; positive integer
-AutoDeath.TechnosDontExist=              ; list of TechnoType names
-AutoDeath.TechnosDontExist.Any=false     ; boolean
-AutoDeath.TechnosDontExist.Houses=owner  ; Affected House Enumeration (none|owner/self|allies/ally|team|enemies/enemy|all)
-AutoDeath.TechnosExist=                  ; list of TechnoType names
-AutoDeath.TechnosExist.Any=true          ; boolean
-AutoDeath.TechnosExist.Houses=owner      ; Affected House Enumeration (none|owner/self|allies/ally|team|enemies/enemy|all)
+[SOMETECHNO]                                   ; TechnoType
+AutoDeath.Behavior=                            ; enumeration (kill | vanish | sell), default not set
+AutoDeath.VanishAnimation                      ; Animation
+AutoDeath.OnAmmoDepletion=no                   ; boolean
+AutoDeath.AfterDelay=0                         ; positive integer
+AutoDeath.TechnosDontExist=                    ; list of TechnoType names
+AutoDeath.TechnosDontExist.Any=false           ; boolean
+AutoDeath.TechnosDontExist.AllowLimboed=false  ; boolean
+AutoDeath.TechnosDontExist.Houses=owner        ; Affected House Enumeration (none|owner/self|allies/ally|team|enemies/enemy|all)
+AutoDeath.TechnosExist=                        ; list of TechnoType names
+AutoDeath.TechnosExist.Any=true                ; boolean
+AutoDeath.TechnosExist.AllowLimboed=false       ; boolean
+AutoDeath.TechnosExist.Houses=owner            ; Affected House Enumeration (none|owner/self|allies/ally|team|enemies/enemy|all)
 ```
 
 ### Mind Control enhancement
@@ -839,19 +905,21 @@ In `rulesmd.ini`:
 Promote.IncludeSpawns=false  ; boolean
 ```
 
-### Spawn range limit
+### Spawner pursuit range & spawn delay customization
 
 ![image](_static/images/spawnrange-01.gif)
 *Limited pursue range for spawns in [Fantasy ADVENTURE](https://www.moddb.com/mods/fantasy-adventure)*
 
-- The spawned units will abort the infinite pursuit if the enemy is out of range.
-`Spawner.ExtraLimitRange` adds extra pursuit range to the spawned units.
+- If `Spawner.LimitRange` is set, the spawned units will abort their pursuit if the enemy is out of the range of the largest weapon `Range` of a `Spawner=true` weapon of the spawner.
+  - `Spawner.ExtraLimitRange` adds extra pursuit range on top of the weapon range.
+- `Spawner.DelayFrames` can be used to set the minimum number of game frames in between each spawn ejecting from the spawner. By default this is 9 frames for missiles and 20 for everything else.
 
 In `rulesmd.ini`:
 ```ini
 [SOMETECHNO]               ; TechnoType
 Spawner.LimitRange=false   ; boolean
-Spawner.ExtraLimitRange=0  ; integer
+Spawner.ExtraLimitRange=0  ; integer, range in cells
+Spawner.DelayFrames=       ; integer, game frames
 ```
 
 ### Weapons fired on warping in / out
@@ -1092,16 +1160,21 @@ In `rulesmd.ini`:
 AreaFire.Target=base ; AreaFire Target Enumeration (base|self|random)
 ```
 
-### Burst.Delays
+### Burst delay customizations
 
-- Allows specifying weapon-specific burst shot delays. Takes precedence over the old `BurstDelayX` logic available on VehicleTypes, functions with Infantry & BuildingType weapons (AircraftTypes are not supported due to their weapon firing system being completely different) and allows every shot of `Burst` to have a separate delay instead of only first four shots.
-- If no delay is defined for a shot, it falls back to last delay value defined (f.ex `Burst=3` and `Burst.Delays=10` would use 10 as delay for all shots).
-- Using `-1` as delay reverts back to old logic (`BurstDelay0-3` for VehicleTypes if available or random value between 3-5 otherwise) for that shot.
+- `Burst.Delays` allows specifying weapon-specific burst shot delays. Takes precedence over the old `BurstDelayX` logic available on VehicleTypes, functions with Infantry & BuildingType weapons (AircraftTypes are not supported due to their weapon firing system being completely different) and allows every shot of `Burst` to have a separate delay instead of only first four shots.
+  - If no delay is defined for a shot, it falls back to last delay value defined (f.ex `Burst=3` and `Burst.Delays=10` would use 10 as delay for all shots).
+  - Using `-1` as delay reverts back to old logic (`BurstDelay0-3` for VehicleTypes if available or random value between 3-5 otherwise) for that shot.
+- `Burst.FireWithinSequence` is only used if the weapon is fired by InfantryTypes, and setting it to true allows infantry to fire multiple `Burst` shots within same firing sequence.
+  - First shot is always fired at sequence frame determined by firing frame controls on InfantryType image (`FireUp` et al).
+  - Following shots come at intervals determined by `Burst.Delays` (with minimum delay of 1 frame) or random delay between 3 to 5 frames if not defined. Note that if next shot would be fired at a frame that is beyond the firing sequence's length, burst shot count is reset and weapon starts reloading.
+  - Burst shot counter is not immediately reset if firing is ceased mid-sequence after at least one shot, but the frame at which each burst shot is fired will not be influenced by this (in other words, resuming firing afterward without weapon reload taking place would restart firing sequence but no firing will take place until the frame at which next burst shot should be fired is hit).
 
 In `rulesmd.ini`:
 ```ini
-[SOMEWEAPON]     ; WeaponType
-Burst.Delays=-1  ; integer - burst delays (comma-separated) for shots in order from first to last.
+[SOMEWEAPON]                    ; WeaponType
+Burst.Delays=-1                 ; integer - burst delays (comma-separated) for shots in order from first to last.
+Burst.FireWithinSequence=false  ; boolean
 ```
 
 ### Feedback weapon

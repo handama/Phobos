@@ -102,6 +102,7 @@ This page lists all the individual contributions to the project by their author.
   - TerrainType `DestroyAnim` & `DestroySound`
   - Laser trails for VoxelAnims
   - MakeInfantry logic on BombClass bugfix
+  - Debris & meteor impact behaviour settings
 - **FS-21**:
   - Dump Object Info enhancements
   - `Powered.KillSpawns`
@@ -119,6 +120,7 @@ This page lists all the individual contributions to the project by their author.
   - Customizable FLH when infantry is prone or deployed
   - Initial strength for cloned infantry
 - **Starkku**:
+  - Misc. minor bugfixes & improvements
   - Warhead shield penetration & breaking
   - Strafing aircraft weapon customization
   - Vehicle `DeployFire` fixes/improvements
@@ -153,7 +155,7 @@ This page lists all the individual contributions to the project by their author.
   - Passable & buildable-upon TerrainTypes
   - Automatic passenger owner change toggle
   - Interceptor improvements
-  - OpenTopped transport rangefinding & deactivated state customizations
+  - OpenTopped transport behaviour customizations
   - Animation damage / weapon improvements
   - Warhead self-damaging toggle
   - Trailer animation owner inheritance
@@ -168,14 +170,30 @@ This page lists all the individual contributions to the project by their author.
   - IvanBomb detonation & image display centered on buildings
   - Customizable ROF random delay
   - BibShape drawing during buildup fix
+  - Spawner spawn delay customization
+  - Cluster scatter distance customization
+  - FlakScatter distance customization
+  - Debris & meteor impact behaviour settings
+  - Custom warhead debris animations
+  - Attached particle system for animations
+  - Removal of hardcoded AA & Gattling weapon selection restrictions
+  - Projectile obstacle logic additions
+  - `AnimList` on zero damage Warheads toggle
+  - Additions to automatic passenger deletion
+  - Buildings considered as vehicles
+  - TechnoType target evaluation map zone check behaviour customization
+  - CanC4 damage rounding fix & toggle
 - **Morton (MortonPL)**:
-  - `XDrawOffset`
+  - `XDrawOffset` for animations
   - Shield passthrough & absorption
   - Building `LimboDelivery` logic
   - Fix for `Image` in art rules
   - Power delta counter
   - Super Weapons launching other Super Weapons
   - SpyEffects expansion, launching Super Weapons on building infiltration
+  - Real time timers
+  - Default campaign game speed override and custom campaign game speed FPS
+  - Including INI files and inheriting INI sections
   - Help with docs
 - **ChrisLv_CN** (work relicensed under [following permission](https://github.com/Phobos-developers/Phobos/blob/develop/images/ChrisLv-relicense.png)):
    - General assistance
@@ -184,31 +202,40 @@ This page lists all the individual contributions to the project by their author.
    - Laser fixes prototype
 - **Trsdy**
    - Preserve IronCurtain status upon DeploysInto/UndeploysInto
-   - Misc jumpjet fixes:
-      - Facing towards target fix
+   - Several jumpjet fixes:
+      - Facing towards target even if not omni-firing
       - Turret direction in idle state fix
       - Sensor fix
       - Allow to tilt on ground
+   - OmniFire.TurnToTarget
    - Object Self-destruction logic
    - Misc vanilla suicidal behavior fix
    - Post-type-conversion update
    - Units retaining orders after changing ownership bugfix
-   - Building EVA_StructureSold and SellSound dehardcode
+   - Several fixes and dehardcode related to building selling/undeploying:
+     - Building `EVA_StructureSold` and `SellSound` dehardcode
+     - Restore `EVA_StructureSold` for buildings with `UndeploysInto`
+     - Redeployable MCV in campaigns
+     - Allow buildings with `UndeploysInto` to be sold if `Unsellable=no` even if not conyard
+     - Trigger actions that allow/forbid MCV to redeploy in game
    - `AlternateFLH` of vehicles in `OpenTopped` transport.
    - Slaves' house customization when owner is killed
    - Trigger Action spawned team IFV/Opentopped logic fix
    - Singleplayer Campaign AI's base node/SW-delivered/trigger action 125-delivered structures' auto-repairability dehardcode
    - Power delta counter : blackout indication mark
    - Harvester counter
+   - Income money string indication upon ore dump
    - Warhead superweapon launch logic
    - "Shield is broken" trigger event
    - RadialIndicator observer visibility
    - Cloaked objects from allies displaying to player in singleplayer campaigns
-   - Skip `NaturalParticleSystem` displaying from in-map pre-placed structures.
+   - Skip `NaturalParticleSystem` displaying from in-map pre-placed structures
+   - Random crate generation limited to land option, optimization for crates' random sampling
    - `ImmuneToCrit` for shields
    - Forbidding parallel AI queues by type
    - The option to allow DieSound/VoiceDie being played when grinding
    - Allow iron-curtain effects on infantries
+   - Break the mindcontrol link when capturing a mind-controlled building with engineer
    - Misc code refactor & maintenance, CN doc fix
 - **FlyStar**
    - Campaign load screen PCX support
@@ -216,8 +243,10 @@ This page lists all the individual contributions to the project by their author.
 - **NetsuNegi** - Forbidding parallel AI queues by type
 - **Apollo** - Translucent SHP drawing patches
 - **ststl**
+   - Customizable ShowTimer priority of superweapons
    - Iron Curtain effects customization on infantries and organic units
    - Use `CustomPalette` for animations with `Tiled=yes`
+   - Unlimited `AlternateFLH` entries
 - **TwinkleStar**
   - Custom slaves free sound
   - Jumpjet crash rotation control

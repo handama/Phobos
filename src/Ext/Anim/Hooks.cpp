@@ -1,6 +1,10 @@
 #include "Body.h"
 
+#include <ScenarioClass.h>
+#include <WarheadTypeClass.h>
+
 #include <Ext/AnimType/Body.h>
+#include <Ext/WarheadType/Body.h>
 #include <Ext/WeaponType/Body.h>
 
 DEFINE_HOOK(0x423B95, AnimClass_AI_HideIfNoOre_Threshold, 0x8)
@@ -81,6 +85,7 @@ DEFINE_HOOK(0x424513, AnimClass_AI_Damage, 0x6)
 		pThis->Accum = 0.0;
 
 	TechnoClass* pInvoker = nullptr;
+	HouseClass* pInvokerHouse = nullptr;
 
 	if (pTypeExt->Damage_DealtByInvoker)
 	{
@@ -88,12 +93,15 @@ DEFINE_HOOK(0x424513, AnimClass_AI_Damage, 0x6)
 		pInvoker = pExt->Invoker;
 
 		if (!pInvoker)
+		{
 			pInvoker = pThis->OwnerObject ? abstract_cast<TechnoClass*>(pThis->OwnerObject) : nullptr;
+			pInvokerHouse = !pInvoker ? pExt->InvokerHouse : nullptr;
+		}
 	}
 
 	if (pTypeExt->Weapon.isset())
 	{
-		WeaponTypeExt::DetonateAt(pTypeExt->Weapon.Get(), pThis->GetCoords(), pInvoker, appliedDamage);
+		WeaponTypeExt::DetonateAt(pTypeExt->Weapon.Get(), pThis->GetCoords(), pInvoker, appliedDamage, pInvokerHouse);
 	}
 	else
 	{
@@ -105,7 +113,12 @@ DEFINE_HOOK(0x424513, AnimClass_AI_Damage, 0x6)
 		auto pOwner = pInvoker ? pInvoker->Owner : nullptr;
 
 		if (!pOwner)
-			pOwner = pThis->OwnerObject ? pThis->OwnerObject->GetOwningHouse() : nullptr;
+		{
+			if (pThis->Owner)
+				pOwner = pThis->Owner;
+			else if (pThis->OwnerObject)
+				pOwner = pThis->OwnerObject->GetOwningHouse();
+		}
 
 		MapClass::DamageArea(pThis->GetCoords(), appliedDamage, pInvoker, pWarhead, true, pOwner);
 	}
@@ -126,8 +139,99 @@ DEFINE_HOOK(0x424322, AnimClass_AI_TrailerInheritOwner, 0x6)
 			auto pExt = AnimExt::ExtMap.Find(pThis);
 			pTrailerAnim->Owner = pThis->Owner;
 			pTrailerAnimExt->Invoker = pExt->Invoker;
+			pTrailerAnimExt->InvokerHouse = pExt->InvokerHouse;
 		}
 	}
+
+	return 0;
+}
+
+DEFINE_HOOK(0x423CC7, AnimClass_AI_HasExtras_Expired, 0x6)
+{
+	enum { SkipGameCode = 0x423EFD };
+
+	GET(AnimClass* const, pThis, ESI);
+	GET(bool const, heightFlag, EAX);
+
+	if (!pThis || !pThis->Type)
+		return SkipGameCode;
+
+	CoordStruct nLocation = pThis->Location;
+	auto const pOwner = AnimExt::GetOwnerHouse(pThis);
+	auto const pAnimTypeExt = AnimTypeExt::ExtMap.Find(pThis->Type);
+	AnimTypeClass* pSplashAnim = nullptr;
+
+	if (pThis->GetCell()->LandType != LandType::Water || heightFlag || pAnimTypeExt->ExplodeOnWater)
+	{
+		if (auto const pWarhead = pThis->Type->Warhead)
+		{
+			auto const nDamage = Game::F2I(pThis->Type->Damage);
+			TechnoClass* pOwnerTechno = abstract_cast<TechnoClass*>(pThis->OwnerObject);
+
+			if (pAnimTypeExt->Warhead_Detonate)
+			{
+				WarheadTypeExt::DetonateAt(pWarhead, nLocation, pOwnerTechno, nDamage);
+			}
+			else
+			{
+				MapClass::DamageArea(nLocation, nDamage, pOwnerTechno, pWarhead, pWarhead->Tiberium, pOwner);
+				MapClass::FlashbangWarheadAt(nDamage, pWarhead, nLocation);
+			}
+		}
+
+		if (auto const pExpireAnim = pThis->Type->ExpireAnim)
+		{
+			if (auto pAnim = GameCreate<AnimClass>(pExpireAnim, nLocation, 0, 1, 0x2600u, 0, 0))
+				AnimExt::SetAnimOwnerHouseKind(pAnim, pOwner, nullptr, false);
+		}
+	}
+	else
+	{
+		TypeList<AnimTypeClass*> defaultSplashAnims;
+
+		if (!pThis->Type->IsMeteor)
+		{
+			defaultSplashAnims = TypeList<AnimTypeClass*>();
+			defaultSplashAnims.AddItem(RulesClass::Instance->Wake);
+		}
+		else
+		{
+			defaultSplashAnims = RulesClass::Instance->SplashList;
+		}
+
+		auto const splash = pAnimTypeExt->SplashAnims.GetElements(defaultSplashAnims);
+
+		if (splash.size() > 0)
+		{
+			auto nIndexR = (splash.size() - 1);
+			auto nIndex = pAnimTypeExt->SplashAnims_PickRandom ?
+				ScenarioClass::Instance->Random.RandomRanged(0, nIndexR) : nIndexR;
+
+			pSplashAnim = splash.at(nIndex);
+		}
+	}
+
+	if (pSplashAnim)
+	{
+		if (auto const pSplashAnimCreated = GameCreate<AnimClass>(pSplashAnim, nLocation, 0, 1, 0x600u, false))
+			AnimExt::SetAnimOwnerHouseKind(pSplashAnimCreated, pOwner, nullptr, false);
+	}
+
+	return SkipGameCode;
+}
+
+DEFINE_HOOK(0x424807, AnimClass_AI_Next, 0x6)
+{
+	GET(AnimClass*, pThis, ESI);
+
+	const auto pExt = AnimExt::ExtMap.Find(pThis);
+	const auto pTypeExt = AnimTypeExt::ExtMap.Find(pThis->Type);
+
+	if (pExt->AttachedSystem && pExt->AttachedSystem->Type != pTypeExt->AttachedSystem)
+		pExt->DeleteAttachedSystem();
+
+	if (!pExt->AttachedSystem && pTypeExt->AttachedSystem)
+		pExt->CreateAttachedSystem(pTypeExt->AttachedSystem);
 
 	return 0;
 }

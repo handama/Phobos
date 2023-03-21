@@ -2,20 +2,24 @@
 
 #include <BitFont.h>
 
-#include <Misc/FlyingStrings.h>
 #include <Utilities/EnumFunctions.h>
 
 template<> const DWORD Extension<BuildingClass>::Canary = 0x87654321;
 BuildingExt::ExtContainer BuildingExt::ExtMap;
 
-void BuildingExt::ExtData::DisplayGrinderRefund()
+void BuildingExt::ExtData::DisplayIncomeString()
 {
-	if (this->AccumulatedGrindingRefund && Unsorted::CurrentFrame % 15 == 0)
+	if (this->AccumulatedIncome && Unsorted::CurrentFrame % 15 == 0)
 	{
-		FlyingStrings::AddMoneyString(this->AccumulatedGrindingRefund, this->OwnerObject()->Owner,
-			this->TypeExtData->Grinding_DisplayRefund_Houses, this->OwnerObject()->GetRenderCoords(), this->TypeExtData->Grinding_DisplayRefund_Offset);
+		FlyingStrings::AddMoneyString(
+			this->AccumulatedIncome,
+			this->OwnerObject()->Owner,
+			this->TypeExtData->DisplayIncome_Houses.Get(RulesExt::Global()->DisplayIncome_Houses.Get()),
+			this->OwnerObject()->GetRenderCoords(),
+			this->TypeExtData->DisplayIncome_Offset
+		);
 
-		this->AccumulatedGrindingRefund = 0;
+		this->AccumulatedIncome = 0;
 	}
 }
 
@@ -77,15 +81,11 @@ void BuildingExt::StoreTiberium(BuildingClass* pThis, float amount, int idxTiber
 	}
 }
 
-void BuildingExt::UpdatePrimaryFactoryAI(BuildingClass* pThis)
+void BuildingExt::ExtData::UpdatePrimaryFactoryAI()
 {
-	auto pOwner = pThis->Owner;
+	auto pOwner = this->OwnerObject()->Owner;
 
 	if (!pOwner || pOwner->ProducingAircraftTypeIndex < 0)
-		return;
-
-	auto BuildingExt = BuildingExt::ExtMap.Find(pThis);
-	if (!BuildingExt)
 		return;
 
 	AircraftTypeClass* pAircraft = AircraftTypeClass::Array->GetItem(pOwner->ProducingAircraftTypeIndex);
@@ -94,18 +94,18 @@ void BuildingExt::UpdatePrimaryFactoryAI(BuildingClass* pThis)
 	BuildingClass* newBuilding = nullptr;
 
 	// Update what is the current air factory for future comparisons
-	if (BuildingExt->CurrentAirFactory)
+	if (this->CurrentAirFactory)
 	{
 		int nDocks = 0;
-		if (BuildingExt->CurrentAirFactory->Type)
-			nDocks = BuildingExt->CurrentAirFactory->Type->NumberOfDocks;
+		if (this->CurrentAirFactory->Type)
+			nDocks = this->CurrentAirFactory->Type->NumberOfDocks;
 
-		int nOccupiedDocks = CountOccupiedDocks(BuildingExt->CurrentAirFactory);
+		int nOccupiedDocks = BuildingExt::CountOccupiedDocks(this->CurrentAirFactory);
 
 		if (nOccupiedDocks < nDocks)
-			currFactory = BuildingExt->CurrentAirFactory->Factory;
+			currFactory = this->CurrentAirFactory->Factory;
 		else
-			BuildingExt->CurrentAirFactory = nullptr;
+			this->CurrentAirFactory = nullptr;
 	}
 
 	// Obtain a list of air factories for optimizing the comparisons
@@ -120,14 +120,14 @@ void BuildingExt::UpdatePrimaryFactoryAI(BuildingClass* pThis)
 		}
 	}
 
-	if (BuildingExt->CurrentAirFactory)
+	if (this->CurrentAirFactory)
 	{
 		for (auto pBuilding : airFactoryBuilding)
 		{
-			if (pBuilding == BuildingExt->CurrentAirFactory)
+			if (pBuilding == this->CurrentAirFactory)
 			{
-				BuildingExt->CurrentAirFactory->Factory = currFactory;
-				BuildingExt->CurrentAirFactory->IsPrimaryFactory = true;
+				this->CurrentAirFactory->Factory = currFactory;
+				this->CurrentAirFactory->IsPrimaryFactory = true;
 			}
 			else
 			{
@@ -147,7 +147,7 @@ void BuildingExt::UpdatePrimaryFactoryAI(BuildingClass* pThis)
 	for (auto pBuilding : airFactoryBuilding)
 	{
 		int nDocks = pBuilding->Type->NumberOfDocks;
-		int nOccupiedDocks = CountOccupiedDocks(pBuilding);
+		int nOccupiedDocks = BuildingExt::CountOccupiedDocks(pBuilding);
 
 		if (nOccupiedDocks < nDocks)
 		{
@@ -156,7 +156,7 @@ void BuildingExt::UpdatePrimaryFactoryAI(BuildingClass* pThis)
 				newBuilding = pBuilding;
 				newBuilding->Factory = currFactory;
 				newBuilding->IsPrimaryFactory = true;
-				BuildingExt->CurrentAirFactory = newBuilding;
+				this->CurrentAirFactory = newBuilding;
 
 				continue;
 			}
@@ -245,8 +245,8 @@ bool BuildingExt::DoGrindingExtras(BuildingClass* pBuilding, TechnoClass* pTechn
 	{
 		const auto pTypeExt = pExt->TypeExtData;
 
-		if (pTypeExt->Grinding_DisplayRefund)
-			pExt->AccumulatedGrindingRefund += refund;
+		if (pTypeExt->DisplayIncome.Get(RulesExt::Global()->DisplayIncome.Get()))
+			pExt->AccumulatedIncome += refund;
 
 		if (pTypeExt->Grinding_Weapon.isset()
 			&& Unsorted::CurrentFrame >= pExt->GrindingWeapon_LastFiredFrame + pTypeExt->Grinding_Weapon.Get()->ROF)
@@ -339,7 +339,7 @@ void BuildingExt::ExtData::Serialize(T& Stm)
 		.Process(this->LimboID)
 		.Process(this->GrindingWeapon_LastFiredFrame)
 		.Process(this->CurrentAirFactory)
-		.Process(this->AccumulatedGrindingRefund)
+		.Process(this->AccumulatedIncome)
 		;
 }
 

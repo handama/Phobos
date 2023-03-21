@@ -2,6 +2,7 @@
 #include <AnimClass.h>
 #include <BuildingClass.h>
 #include <TechnoClass.h>
+#include <InfantryClass.h>
 #include <FootClass.h>
 #include <UnitClass.h>
 #include <OverlayTypeClass.h>
@@ -13,7 +14,6 @@
 #include <JumpjetLocomotionClass.h>
 #include <BombClass.h>
 #include <WarheadTypeClass.h>
-#include <GameStrings.h>
 #include <Ext/Rules/Body.h>
 #include <Ext/BuildingType/Body.h>
 #include <Ext/Techno/Body.h>
@@ -191,6 +191,19 @@ DEFINE_HOOK(0x44377E, BuildingClass_ActiveClickWith, 0x6)
 // Author: Uranusian
 DEFINE_JUMP(LJMP, 0x47CA05, 0x47CA33); // CellClass_IsClearToBuild_SkipNaval
 
+// Check WaterBound when setting rally points / undeploying instead of just Naval.
+DEFINE_HOOK(0x4438B4, BuildingClass_SetRallyPoint_Naval, 0x6)
+{
+	enum { IsNaval = 0x4438BC, NotNaval = 0x4438C9 };
+
+	GET(BuildingTypeClass*, pBuildingType, EAX);
+
+	if (pBuildingType->Naval || pBuildingType->SpeedType == SpeedType::Float)
+		return IsNaval;
+
+	return NotNaval;
+}
+
 // bugfix: DeathWeapon not properly detonates
 // Author: Uranusian
 DEFINE_HOOK(0x70D77F, TechnoClass_FireDeathWeapon_ProjectileFix, 0x8)
@@ -202,55 +215,6 @@ DEFINE_HOOK(0x70D77F, TechnoClass_FireDeathWeapon_ProjectileFix, 0x8)
 	pBullet->Explode(true);
 
 	return 0x70D787;
-}
-
-// Fix [JumpjetControls] obsolete in RA2/YR
-// Author: Uranusian
-DEFINE_HOOK(0x7115AE, TechnoTypeClass_CTOR_JumpjetControls, 0xA)
-{
-	GET(TechnoTypeClass*, pThis, ESI);
-	auto pRules = RulesClass::Instance();
-	auto pRulesExt = RulesExt::Global();
-
-	pThis->JumpjetTurnRate = pRules->TurnRate;
-	pThis->JumpjetSpeed = pRules->Speed;
-	pThis->JumpjetClimb = static_cast<float>(pRules->Climb);
-	pThis->JumpjetCrash = static_cast<float>(pRulesExt->JumpjetCrash);
-	pThis->JumpjetHeight = pRules->CruiseHeight;
-	pThis->JumpjetAccel = static_cast<float>(pRules->Acceleration);
-	pThis->JumpjetWobbles = static_cast<float>(pRules->WobblesPerSecond);
-	pThis->JumpjetNoWobbles = pRulesExt->JumpjetNoWobbles;
-	pThis->JumpjetDeviation = pRules->WobbleDeviation;
-
-	return 0x711601;
-}
-
-// skip vanilla JumpjetControls and make it earlier load
-DEFINE_JUMP(LJMP, 0x668EB5, 0x668EBD); // RulesClass_Process_SkipJumpjetControls
-
-DEFINE_HOOK(0x52D0F9, InitRules_EarlyLoadJumpjetControls, 0x6)
-{
-	GET(RulesClass*, pThis, ECX);
-	GET(CCINIClass*, pINI, EAX);
-
-	pThis->Read_JumpjetControls(pINI);
-
-	return 0;
-}
-
-DEFINE_HOOK(0x6744E4, RulesClass_ReadJumpjetControls_Extra, 0x7)
-{
-	auto pRulesExt = RulesExt::Global();
-	if (!pRulesExt)
-		return 0;
-
-	GET(CCINIClass*, pINI, EDI);
-	INI_EX exINI(pINI);
-
-	pRulesExt->JumpjetCrash.Read(exINI, GameStrings::JumpjetControls, "Crash");
-	pRulesExt->JumpjetNoWobbles.Read(exINI, GameStrings::JumpjetControls, "NoWobbles");
-
-	return 0;
 }
 
 // Fix the crash of TemporalTargetingMe related "stack dump starts with 0051BB7D"
@@ -536,7 +500,7 @@ static DamageAreaResult __fastcall _BombClass_Detonate_DamageArea
 			}
 
 			if (const auto pExt = AnimExt::ExtMap.Find(pAnim))
-				pExt->Invoker = pThisBomb->Owner;
+				pExt->SetInvoker(pThisBomb->Owner);
 		}
 	}
 
@@ -605,6 +569,87 @@ DEFINE_HOOK(0x70BCE6, TechnoClass_GetTargetCoords_BuildingFix, 0x6)
 		const auto coords = pBuilding->GetTargetCoords();
 		R->EAX(&coords);
 	}
+
+	return 0;
+}
+
+DEFINE_HOOK(0x56BD8B, MapClass_PlaceRandomCrate_Sampling, 0x5)
+{
+	enum { SpawnCrate = 0x56BE7B, SkipSpawn = 0x56BE91 };
+
+	int XP = 2 * MapClass::Instance->VisibleRect.X - MapClass::Instance->MapRect.Width
+		+ ScenarioClass::Instance->Random.RandomRanged(0, 2 * MapClass::Instance->VisibleRect.Width);
+	int YP = 2 * MapClass::Instance->VisibleRect.Y + MapClass::Instance->MapRect.Width
+		+ ScenarioClass::Instance->Random.RandomRanged(0, 2 * MapClass::Instance->VisibleRect.Height + 2);
+	CellStruct candidate { (short)((XP + YP) / 2),(short)((YP - XP) / 2) };
+
+	auto pCell = MapClass::Instance->TryGetCellAt(candidate);
+	if (!pCell)
+		return SkipSpawn;
+
+	if (!MapClass::Instance->IsWithinUsableArea(pCell, true))
+		return SkipSpawn;
+
+	bool isWater = pCell->LandType == LandType::Water;
+	if (isWater && RulesExt::Global()->CrateOnlyOnLand.Get())
+		return SkipSpawn;
+
+	REF_STACK(CellStruct, cell, STACK_OFFSET(0x28, -0x18));
+	cell = MapClass::Instance->NearByLocation(pCell->MapCoords,
+		isWater ? SpeedType::Float : SpeedType::Track,
+		-1, MovementZone::Normal, false, 1, 1, false, false, false, true, CellStruct::Empty, false, false);
+
+	R->EAX(&cell);
+
+	return SpawnCrate;
+}
+
+// Enable sorted add for Air/Top layers to fix issues with attached anims etc.
+DEFINE_HOOK(0x4A9750, DisplayClass_Submit_LayerSort, 0x9)
+{
+	GET(Layer, layer, EDI);
+
+	R->ECX(layer != Layer::Surface && layer != Layer::Underground);
+
+	return 0;
+}
+
+// Fixes C4=no amphibious infantry being killed in water if Chronoshifted/Paradropped there.
+DEFINE_HOOK(0x51A996, InfantryClass_PerCellProcess_KillOnImpassable, 0x5)
+{
+	enum { ContinueChecks = 0x51A9A0, SkipKilling = 0x51A9EB };
+
+	GET(InfantryClass*, pThis, ESI);
+	GET(LandType, landType, EBX);
+
+	if (landType == LandType::Rock)
+		return ContinueChecks;
+
+	if (landType == LandType::Water)
+	{
+		float multiplier = GroundType::Array[static_cast<int>(landType)].Cost[static_cast<int>(pThis->Type->SpeedType)];
+
+		if (multiplier == 0.0)
+			return ContinueChecks;
+	}
+
+	return SkipKilling;
+}
+
+// BuildingClass_What_Action() - Fix no attack cursor if AG=no projectile on primary
+DEFINE_JUMP(LJMP, 0x447380, 0x44739E);
+DEFINE_JUMP(LJMP, 0x447709, 0x447727);
+
+// AG=no projectiles shouldn't fire at land.
+DEFINE_HOOK(0x6FC87D, TechnoClass_CanFire_AG, 0x6)
+{
+	enum { PreventFire = 0x6FC86A };
+
+	GET(WeaponTypeClass*, pWeapon, EDI);
+	GET_STACK(AbstractClass*, pTarget, STACK_OFFSET(0x20, 0x4));
+
+	if (!pWeapon->Projectile->AG && !pTarget->IsInAir())
+		return PreventFire;
 
 	return 0;
 }

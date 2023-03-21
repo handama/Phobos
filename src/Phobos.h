@@ -31,16 +31,11 @@ public:
 
 	static const char* AppIconPath;
 	static const wchar_t* VersionDescription;
-
-	static bool Debug_DisplayDamageNumbers;
+	static bool DisplayDamageNumbers;
 
 #ifdef DEBUG
 	static bool DetachFromDebugger();
 #endif
-	static void Clear();
-	static void PointerGotInvalid(AbstractClass* const pInvalid, bool const removed);
-	static HRESULT SaveGameData(IStream* pStm);
-	static void LoadGameData(IStream* pStm);
 
 	class UI
 	{
@@ -72,5 +67,17 @@ public:
 		static bool DevelopmentCommands;
 		static bool ArtImageSwap;
 		static bool ShowPlacementPreview;
+		static bool RealTimeTimers;
+		static bool RealTimeTimers_Adaptive;
+		static int CampaignDefaultGameSpeed;
+	};
+
+	class Misc
+	{
+	public:
+		static bool CustomGS;
+		static int CustomGS_ChangeInterval[7];
+		static int CustomGS_ChangeDelay[7];
+		static int CustomGS_DefaultDelay[7];
 	};
 };
