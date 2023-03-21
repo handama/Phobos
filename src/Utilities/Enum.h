@@ -193,6 +193,8 @@ enum class TargetZoneScanType
 	Same = 0,
 	Any = 1,
 	InRange = 2
+};
+
 enum class HorizontalPosition : BYTE
 {
 	Left = 0,

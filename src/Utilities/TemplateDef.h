@@ -872,60 +872,7 @@ namespace detail
 		return value.Read(parser, pSection, pKey);
 	}
 
-
-	template <>
-	inline bool read<IronCurtainEffect>(IronCurtainEffect& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
-	{
-		if (parser.ReadString(pSection, pKey))
-		{
-			auto parsed = IronCurtainEffect::Kill;
-			auto str = parser.value();
-
-			if (_strcmpi(str, "invulnerable") == 0)
-			{
-				parsed = IronCurtainEffect::Invulnerable;
-			}
-			else if (_strcmpi(str, "ignore") == 0)
-			{
-				parsed = IronCurtainEffect::Ignore;
-			}
-			else if (_strcmpi(str, "kill") != 0)
-			{
-				Debug::INIParseFailed(pSection, pKey, parser.value(), "IronCurtainEffect can be either kill, invulnerable or ignore");
-				return false;
-			}
-
-			value = parsed;
-			return true;
-		}
-
-		return false;
-	}
-
-	template <>
-	inline bool read<TargetZoneScanType>(TargetZoneScanType& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
-	{
-		if (parser.ReadString(pSection, pKey))
-		{
-			if (_strcmpi(parser.value(), "same") == 0)
-			{
-				value = TargetZoneScanType::Same;
-			}
-			else if (_strcmpi(parser.value(), "any") == 0)
-			{
-				value = TargetZoneScanType::Any;
-			}
-			else if (_strcmpi(parser.value(), "inrange") == 0)
-			{
-				value = TargetZoneScanType::InRange;
-			}
-			else
-			{
-				Debug::INIParseFailed(pSection, pKey, parser.value(), "Expected a target zone scan type");
-				return false;
-			}
-
-	template <>
+		template <>
 	inline bool read<HorizontalPosition>(HorizontalPosition& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
 	{
 		if (parser.ReadString(pSection, pKey))
@@ -1022,6 +969,65 @@ namespace detail
 		return false;
 	}
 
+
+	template <>
+	inline bool read<IronCurtainEffect>(IronCurtainEffect& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
+	{
+		if (parser.ReadString(pSection, pKey))
+		{
+			auto parsed = IronCurtainEffect::Kill;
+			auto str = parser.value();
+
+			if (_strcmpi(str, "invulnerable") == 0)
+			{
+				parsed = IronCurtainEffect::Invulnerable;
+			}
+			else if (_strcmpi(str, "ignore") == 0)
+			{
+				parsed = IronCurtainEffect::Ignore;
+			}
+			else if (_strcmpi(str, "kill") != 0)
+			{
+				Debug::INIParseFailed(pSection, pKey, parser.value(), "IronCurtainEffect can be either kill, invulnerable or ignore");
+				return false;
+			}
+
+			value = parsed;
+			return true;
+		}
+
+		return false;
+	}
+
+	template <>
+	inline bool read<TargetZoneScanType>(TargetZoneScanType& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
+	{
+		if (parser.ReadString(pSection, pKey))
+		{
+			if (_strcmpi(parser.value(), "same") == 0)
+			{
+				value = TargetZoneScanType::Same;
+			}
+			else if (_strcmpi(parser.value(), "any") == 0)
+			{
+				value = TargetZoneScanType::Any;
+			}
+			else if (_strcmpi(parser.value(), "inrange") == 0)
+			{
+				value = TargetZoneScanType::InRange;
+			}
+			else
+			{
+				Debug::INIParseFailed(pSection, pKey, parser.value(), "Expected a target zone scan type");
+				return false;
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
 	template <>
 	inline bool read<CLSID>(CLSID& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
 	{
@@ -1065,7 +1071,10 @@ if(_strcmpi(parser.value(), #name) == 0){ value = LocomotionClass::CLSIDs::name;
 			return false;
 
 		return true;
-	inline bool read<DisplayInfoType>(DisplayInfoType& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
+	}
+
+	template <>
+		inline bool read<DisplayInfoType>(DisplayInfoType& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
 	{
 		if (parser.ReadString(pSection, pKey))
 		{

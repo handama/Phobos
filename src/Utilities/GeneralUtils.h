@@ -10,6 +10,7 @@
 #include <iterator>
 #include <vector>
 #include "Template.h"
+#include <string>
 
 #define MIN(x) std::numeric_limits<x>::min()
 #define MAX(x) std::numeric_limits<x>::max()

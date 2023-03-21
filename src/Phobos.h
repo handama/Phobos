@@ -70,6 +70,8 @@ public:
 		static bool RealTimeTimers;
 		static bool RealTimeTimers_Adaptive;
 		static int CampaignDefaultGameSpeed;
+		static bool EnableBuildingPlacementPreview;
+		static bool DigitalDisplay_Enable;
 	};
 
 	class Misc
@@ -79,7 +81,6 @@ public:
 		static int CustomGS_ChangeInterval[7];
 		static int CustomGS_ChangeDelay[7];
 		static int CustomGS_DefaultDelay[7];
-		static bool EnableBuildingPlacementPreview;
-		static bool DigitalDisplay_Enable;
+
 	};
 };

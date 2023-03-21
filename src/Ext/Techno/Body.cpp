@@ -10,6 +10,7 @@
 #include <BitFont.h>
 
 #include <Ext/House/Body.h>
+#include <Utilities/EnumFunctions.h>
 
 template<> const DWORD Extension<TechnoClass>::Canary = 0x55555555;
 TechnoExt::ExtContainer TechnoExt::ExtMap;
