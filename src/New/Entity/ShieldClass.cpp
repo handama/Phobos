@@ -731,6 +731,21 @@ void ShieldClass::DrawShieldBar(int iLength, Point2D* pLocation, RectangleStruct
 	}
 }
 
+bool ShieldClass::IsGreenSP()
+{
+	return RulesClass::Instance->ConditionYellow * Type->Strength.Get() < HP;
+}
+
+bool ShieldClass::IsYellowSP()
+{
+	return RulesClass::Instance->ConditionRed * Type->Strength.Get() < HP && HP <= RulesClass::Instance->ConditionYellow * Type->Strength.Get();
+}
+
+bool ShieldClass::IsRedSP()
+{
+	return HP <= RulesClass::Instance->ConditionRed * Type->Strength.Get();
+}
+
 void ShieldClass::DrawShieldBar_Building(int iLength, Point2D* pLocation, RectangleStruct* pBound)
 {
 	CoordStruct vCoords = { 0, 0, 0 };
@@ -744,7 +759,6 @@ void ShieldClass::DrawShieldBar_Building(int iLength, Point2D* pLocation, Rectan
 	vLoc.Y -= 3;
 
 	Point2D vPos = { 0, 0 };
-
 	const int iTotal = DrawShieldBar_PipAmount(iLength);
 	int frame = this->DrawShieldBar_Pip(true);
 
@@ -755,8 +769,9 @@ void ShieldClass::DrawShieldBar_Building(int iLength, Point2D* pLocation, Rectan
 			frameIdx;
 			frameIdx--, deltaX += 4, deltaY -= 2)
 		{
-			vPos.X = vPos2.X + vLoc.X + 4 * iLength + 3 - deltaX;
-			vPos.Y = vPos2.Y + vLoc.Y - 2 * iLength + 4 - deltaY;
+			vPos = TechnoExt::GetBuildingSelectBracketPosition(Techno, BuildingSelectBracketPosition::Top);
+			vPos.X -= deltaX + 6;
+			vPos.Y -= deltaY + 3;
 
 			DSurface::Temp->DrawSHP(FileSystem::PALETTE_PAL, FileSystem::PIPS_SHP,
 				frame, &vPos, pBound, BlitterFlags(0x600), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
@@ -770,8 +785,9 @@ void ShieldClass::DrawShieldBar_Building(int iLength, Point2D* pLocation, Rectan
 			frameIdx;
 			frameIdx--, deltaX += 4, deltaY -= 2)
 		{
-			vPos.X = vPos2.X + vLoc.X + 4 * iLength + 3 - deltaX;
-			vPos.Y = vPos2.Y + vLoc.Y - 2 * iLength + 4 - deltaY;
+			vPos = TechnoExt::GetBuildingSelectBracketPosition(Techno, BuildingSelectBracketPosition::Top);
+			vPos.X -= deltaX + 6;
+			vPos.Y -= deltaY + 3;
 
 			int emptyFrame = this->Type->Pips_Building_Empty.Get(RulesExt::Global()->Pips_Shield_Building_Empty.Get(0));
 
@@ -783,46 +799,34 @@ void ShieldClass::DrawShieldBar_Building(int iLength, Point2D* pLocation, Rectan
 
 void ShieldClass::DrawShieldBar_Other(int iLength, Point2D* pLocation, RectangleStruct* pBound)
 {
-	Point2D vPos = { 0,0 };
+	Point2D vPos = TechnoExt::GetFootSelectBracketPosition(Techno, Anchor(HorizontalPosition::Left, VerticalPosition::Top));
 	Point2D vLoc = *pLocation;
-	int frame, XOffset, YOffset;
-	YOffset = this->Techno->GetTechnoType()->PixelSelectionBracketDelta + this->Type->BracketDelta;
-	vLoc.Y -= 5;
-
 	auto pipBoard = this->Type->Pips_Background.Get(RulesExt::Global()->Pips_Shield_Background.Get(FileSystem::PIPBRD_SHP()));
+	int frame;
+
+	vPos.Y += this->Techno->GetTechnoType()->PixelSelectionBracketDelta + this->Type->BracketDelta - 3;
 
 	if (iLength == 8)
-	{
-		vPos.X = vLoc.X + 11;
-		vPos.Y = vLoc.Y - 25 + YOffset;
 		frame = pipBoard->Frames > 2 ? 3 : 1;
-		XOffset = -5;
-		YOffset -= 24;
-	}
 	else
-	{
-		vPos.X = vLoc.X + 1;
-		vPos.Y = vLoc.Y - 26 + YOffset;
 		frame = pipBoard->Frames > 2 ? 2 : 0;
-		XOffset = -15;
-		YOffset -= 25;
-	}
 
 	if (this->Techno->IsSelected)
 	{
+		vPos.X += iLength + 1 + (iLength == 8 ? iLength + 1 : 0);;
 		DSurface::Temp->DrawSHP(FileSystem::PALETTE_PAL, pipBoard,
 			frame, &vPos, pBound, BlitterFlags(0xE00), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
+		vPos.X -= iLength + 1 + (iLength == 8 ? iLength + 1 : 0);
 	}
+
+	frame = this->DrawShieldBar_Pip(false);
+	vPos.Y += 1;
 
 	const int iTotal = DrawShieldBar_PipAmount(iLength);
 
-	frame = this->DrawShieldBar_Pip(false);
-
 	for (int i = 0; i < iTotal; ++i)
 	{
-		vPos.X = vLoc.X + XOffset + 2 * i;
-		vPos.Y = vLoc.Y + YOffset;
-
+		vPos.X += 2;
 		DSurface::Temp->DrawSHP(FileSystem::PALETTE_PAL, FileSystem::PIPS_SHP,
 			frame, &vPos, pBound, BlitterFlags(0x600), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
 	}

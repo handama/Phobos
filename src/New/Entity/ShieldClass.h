@@ -43,6 +43,10 @@ public:
 	static void SyncShieldToAnother(TechnoClass* pFrom, TechnoClass* pTo);
 	static bool ShieldIsBrokenTEvent(ObjectClass* pAttached);
 
+	bool IsGreenSP();
+	bool IsYellowSP();
+	bool IsRedSP();
+
 	static void PointerGotInvalid(void* ptr, bool removed);
 	bool Load(PhobosStreamReader& Stm, bool RegisterForChange);
 	bool Save(PhobosStreamWriter& Stm) const;

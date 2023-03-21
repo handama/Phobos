@@ -9,6 +9,7 @@
 #include <New/Type/LaserTrailTypeClass.h>
 #include <New/Type/Affiliated/InterceptorTypeClass.h>
 #include <New/Type/Affiliated/PassengerDeletionTypeClass.h>
+#include <New/Type/DigitalDisplayTypeClass.h>
 
 class Matrix3D;
 
@@ -132,6 +133,9 @@ public:
 		Valueable<bool> Explodes_KillPassengers;
 		Nullable<int> DeployFireWeapon;
 		Valueable<TargetZoneScanType> TargetZoneScanType;
+
+		Valueable<bool> DigitalDisplay_Disable;
+		ValueableVector<DigitalDisplayTypeClass*> DigitalDisplayTypes;
 
 		struct LaserTrailDataEntry
 		{
@@ -262,6 +266,8 @@ public:
 			, Explodes_KillPassengers { true }
 			, DeployFireWeapon {}
 			, TargetZoneScanType { TargetZoneScanType::Same }
+			, DigitalDisplay_Disable { false }
+			, DigitalDisplayTypes {}
 		{ }
 
 		virtual ~ExtData() = default;

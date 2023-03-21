@@ -250,6 +250,8 @@ This page lists all the individual contributions to the project by their author.
 - **TwinkleStar**
   - Custom slaves free sound
   - Jumpjet crash rotation control
+- **ststl** - Use `CustomPalette` for animations with `Tiled=yes`
+- **ststl, FlyStar, Saigyouji, JunJacobYoung** - Digital Display
 - **SukaHati (Erzoid)** - Minimum interceptor guard range
 - **E1 Elite** - TileSet 255 and above bridge repair fix
 - **AutoGavy** - interceptor logic, Warhead critical hit logic

@@ -2,6 +2,12 @@
 
 #include <HouseClass.h>
 #include <ScenarioClass.h>
+#include <SpawnManagerClass.h>
+#include <InfantryClass.h>
+#include <ParticleSystemClass.h>
+#include <TacticalClass.h>
+#include <Unsorted.h>
+#include <BitFont.h>
 
 #include <Ext/House/Body.h>
 
@@ -198,6 +204,256 @@ bool TechnoExt::AllowedTargetByZone(TechnoClass* pThis, TechnoClass* pTarget, Ta
 	}
 
 	return true;
+}
+
+Point2D TechnoExt::GetScreenLocation(TechnoClass* pThis)
+{
+	CoordStruct crdAbsolute = pThis->GetCoords();
+	Point2D  posScreen = { 0,0 };
+	TacticalClass::Instance->CoordsToScreen(&posScreen, &crdAbsolute);
+	posScreen -= TacticalClass::Instance->TacticalPos;
+
+	return posScreen;
+}
+
+Point2D TechnoExt::GetFootSelectBracketPosition(TechnoClass* pThis, Anchor anchor)
+{
+	int iLength = 17;
+	Point2D posScreen = GetScreenLocation(pThis);
+
+	if (pThis->WhatAmI() == AbstractType::Infantry)
+		iLength = 8;
+
+	RectangleStruct rBracket =
+	{
+		posScreen.X - iLength + (iLength == 8),
+		posScreen.Y - 28 + (iLength == 8),
+		iLength * 2,
+		iLength * 3
+	};
+	Point2D posRes = anchor.OffsetPosition(rBracket);
+
+	return posRes;
+}
+
+Point2D TechnoExt::GetBuildingSelectBracketPosition(TechnoClass* pThis, BuildingSelectBracketPosition ePos)
+{
+	BuildingTypeClass* pBuildingType = static_cast<BuildingTypeClass*>(pThis->GetTechnoType());
+	Point2D posRes = GetScreenLocation(pThis);
+	CoordStruct crdDim2 = CoordStruct::Empty;
+	pBuildingType->Dimension2(&crdDim2);
+	Point2D posFix = Point2D::Empty;
+	CoordStruct crdTmp = { -crdDim2.X / 2, crdDim2.Y / 2, crdDim2.Z };
+	TacticalClass::Instance->CoordsToScreen(&posFix, &crdTmp);
+	int iFoundationHeight = pBuildingType->GetFoundationHeight(false);
+	int iFoundationWidth = pBuildingType->GetFoundationWidth();
+	int iHeight = pBuildingType->Height * 12;
+	int iLengthH = iFoundationHeight * 7 + iFoundationHeight / 2;
+	int iLengthW = iFoundationWidth * 7 + iFoundationWidth / 2;
+	posRes.X += posFix.X + 3 + iLengthH * 4;
+	posRes.Y += posFix.Y + 4 - iLengthH * 2;
+
+	switch (ePos)
+	{
+	case BuildingSelectBracketPosition::Top:
+		break;
+	case BuildingSelectBracketPosition::LeftTop:
+		posRes.X -= iLengthH * 4;
+		posRes.Y += iLengthH * 2;
+		break;
+	case BuildingSelectBracketPosition::LeftBottom:
+		posRes.X -= iLengthH * 4;
+		posRes.Y += iLengthH * 2 + iHeight;
+		break;
+	case BuildingSelectBracketPosition::Bottom:
+		posRes.Y += iLengthW * 2 + iLengthH * 2 + iHeight;
+		break;
+	case BuildingSelectBracketPosition::RightBottom:
+		posRes.X += iLengthW * 4;
+		posRes.Y += iLengthW * 2 + iHeight;
+		break;
+	case BuildingSelectBracketPosition::RightTop:
+		posRes.X += iLengthW * 4;
+		posRes.Y += iLengthW * 2;
+	default:
+		break;
+	}
+
+	return posRes;
+}
+
+void TechnoExt::ProcessDigitalDisplays(TechnoClass* pThis)
+{
+	if (!Phobos::Config::DigitalDisplay_Enable)
+		return;
+
+	TechnoTypeClass* pType = pThis->GetTechnoType();
+	TechnoTypeExt::ExtData* pTypeExt = TechnoTypeExt::ExtMap.Find(pType);
+
+	if (pTypeExt->DigitalDisplay_Disable)
+		return;
+
+	TechnoExt::ExtData* pExt = TechnoExt::ExtMap.Find(pThis);
+	int iLength = 17;
+	ValueableVector<DigitalDisplayTypeClass*>* pDisplayTypes = nullptr;
+
+	if (!pTypeExt->DigitalDisplayTypes.empty())
+	{
+		pDisplayTypes = &pTypeExt->DigitalDisplayTypes;
+	}
+	else
+	{
+		switch (pThis->WhatAmI())
+		{
+		case AbstractType::Building:
+		{
+			pDisplayTypes = &RulesExt::Global()->Buildings_DefaultDigitalDisplayTypes;
+			BuildingTypeClass* pBuildingType = static_cast<BuildingTypeClass*>(pThis->GetTechnoType());
+			int iFoundationHeight = pBuildingType->GetFoundationHeight(false);
+			iLength = iFoundationHeight * 7 + iFoundationHeight / 2;
+		}break;
+		case AbstractType::Infantry:
+		{
+			pDisplayTypes = &RulesExt::Global()->Infantry_DefaultDigitalDisplayTypes;
+			iLength = 8;
+		}break;
+		case AbstractType::Unit:
+		{
+			pDisplayTypes = &RulesExt::Global()->Vehicles_DefaultDigitalDisplayTypes;
+		}break;
+		case AbstractType::Aircraft:
+		{
+			pDisplayTypes = &RulesExt::Global()->Aircraft_DefaultDigitalDisplayTypes;
+		}break;
+		default:
+			return;
+		}
+	}
+
+	for (DigitalDisplayTypeClass*& pDisplayType : *pDisplayTypes)
+	{
+		if (HouseClass::IsCurrentPlayerObserver() && !pDisplayType->CanSee_Observer)
+			continue;
+
+		if (!HouseClass::IsCurrentPlayerObserver() && !EnumFunctions::CanTargetHouse(pDisplayType->CanSee, pThis->Owner, HouseClass::CurrentPlayer))
+			continue;
+
+		int iCur = -1;
+		int iMax = -1;
+
+		GetValuesForDisplay(pThis, pDisplayType->InfoType, iCur, iMax);
+
+		if (iCur == -1 || iMax == -1)
+			continue;
+
+		bool isBuilding = pThis->WhatAmI() == AbstractType::Building;
+		bool hasShield = pExt->Shield != nullptr && !pExt->Shield->IsBrokenAndNonRespawning();
+		Point2D posDraw = pThis->WhatAmI() == AbstractType::Building ?
+			GetBuildingSelectBracketPosition(pThis, pDisplayType->AnchorType_Building)
+			: GetFootSelectBracketPosition(pThis, pDisplayType->AnchorType);
+		posDraw.Y += pType->PixelSelectionBracketDelta;
+
+		if (pDisplayType->InfoType == DisplayInfoType::Shield)
+			posDraw.Y += pExt->Shield->GetType()->BracketDelta;
+
+		pDisplayType->Draw(posDraw, iLength, iCur, iMax, isBuilding, hasShield);
+	}
+}
+
+void TechnoExt::GetValuesForDisplay(TechnoClass* pThis, DisplayInfoType infoType, int& iCur, int& iMax)
+{
+	TechnoTypeClass* pType = pThis->GetTechnoType();
+	TechnoExt::ExtData* pExt = TechnoExt::ExtMap.Find(pThis);
+
+	switch (infoType)
+	{
+	case DisplayInfoType::Health:
+	{
+		iCur = pThis->Health;
+		iMax = pType->Strength;
+		break;
+	}
+	case DisplayInfoType::Shield:
+	{
+		if (pExt->Shield == nullptr || pExt->Shield->IsBrokenAndNonRespawning())
+			return;
+		iCur = pExt->Shield->GetHP();
+		iMax = pExt->Shield->GetType()->Strength.Get();
+		break;
+	}
+	case DisplayInfoType::Ammo:
+	{
+		if (pType->Ammo <= 0)
+			return;
+		iCur = pThis->Ammo;
+		iMax = pType->Ammo;
+		break;
+	}
+	case DisplayInfoType::MindControl:
+	{
+		if (pThis->CaptureManager == nullptr)
+			return;
+		iCur = pThis->CaptureManager->ControlNodes.Count;
+		iMax = pThis->CaptureManager->MaxControlNodes;
+		break;
+	}
+	case DisplayInfoType::Spawns:
+	{
+		if (pThis->SpawnManager == nullptr || pType->Spawns == nullptr || pType->SpawnsNumber <= 0)
+			return;
+		iCur = pThis->SpawnManager->CountAliveSpawns();
+		iMax = pType->SpawnsNumber;
+		break;
+	}
+	case DisplayInfoType::Passengers:
+	{
+		if (pType->Passengers <= 0)
+			return;
+		iCur = pThis->Passengers.NumPassengers;
+		iMax = pType->Passengers;
+		break;
+	}
+	case DisplayInfoType::Tiberium:
+	{
+		if (pType->Storage <= 0)
+			return;
+		iCur = static_cast<int>(pThis->Tiberium.GetTotalAmount());
+		iMax = pType->Storage;
+		break;
+	}
+	case DisplayInfoType::Experience:
+	{
+		iCur = static_cast<int>(pThis->Veterancy.Veterancy * RulesClass::Instance->VeteranRatio * pType->GetCost());
+		iMax = static_cast<int>(2.0 * RulesClass::Instance->VeteranRatio * pType->GetCost());
+		break;
+	}
+	case DisplayInfoType::Occupants:
+	{
+		if (pThis->WhatAmI() != AbstractType::Building)
+			return;
+		BuildingTypeClass* pBuildingType = abstract_cast<BuildingTypeClass*>(pType);
+		BuildingClass* pBuilding = abstract_cast<BuildingClass*>(pThis);
+		if (!pBuildingType->CanBeOccupied)
+			return;
+		iCur = pBuilding->Occupants.Count;
+		iMax = pBuildingType->MaxNumberOccupants;
+		break;
+	}
+	case DisplayInfoType::GattlingStage:
+	{
+		if (!pType->IsGattling)
+			return;
+		iCur = pThis->CurrentGattlingStage;
+		iMax = pType->WeaponStages;
+		break;
+	}
+	default:
+	{
+		iCur = pThis->Health;
+		iMax = pType->Strength;
+		break;
+	}
+	}
 }
 
 // =============================

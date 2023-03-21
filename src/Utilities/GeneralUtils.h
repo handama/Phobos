@@ -29,6 +29,7 @@ public:
 	static int ChooseOneWeighted(const double dice, const std::vector<int>* weights);
 	static bool HasHealthRatioThresholdChanged(double oldRatio, double newRatio);
 	static bool ApplyTheaterSuffixToString(char* str);
+	static std::string IntToDigits(int num);
 
 	template<typename T>
 	static T FastPow(T x, size_t n)

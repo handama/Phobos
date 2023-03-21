@@ -26,6 +26,71 @@ IngameScore.LoseTheme= ; Soundtrack theme ID
 
 ## Battle screen UI/UX
 
+### Digital display
+
+![image](_static/images/DigitalDisplay1.png)
+
+![image](_static/images/DigitalDisplay2.png)
+
+- You can now configure various types of numerical counters to be displayed over Techno to represent its attributes, such as health points or shield points.
+ - `Anchor.Horizontal` and `Anchor.Vertical` set the anchor point from which the display is drawn (depending on `Align`) relative to unit's center/selection box. For buildings, `Anchor.Building` is used instead.
+    - `Offset` and `Offset.ShieldDelta` (the latter applied when a shield is active) can be used to further modify the position.
+  - By default, values are displayed in `current/maximum` format (i.e. 20/40). `HideMaxValue=yes` will make the counter show only the current value (i.e. 20). `Percentage=yes` changes the format to `percent%` (i.e. 50%).
+  - `CanSee` and `CanSee.Observer` can limit visibility to specific players.
+  - The digits can be either a custom shape (.shp) or text drawn using the game font. This depends on whether `Shape` is set.
+    - `Text.Color`, `Text.Color.ConditionYellow` and `Text.Color.ConditionRed` allow customization of the font color. `Text.Background=yes` will additionally draw a black rectangle background.
+    - When using shapes, a custom palette can be specified with `Palette`. `Shape.Spacing` controls pixel buffer between characters.
+    - Frames 0-9 will be used as digits when the owner's health bar is green, 10-19 when yellow, 20-29 when red. For `/` and `%` characters, frame numbers are 30-31, 32-33, 34-35, respectively.
+  - Default `Align` for texts is `right` for BuildingTypes, `center` for others.
+  - Default `Align` for shapes is `left` for BuildingTypes, `center` for others.
+
+In `rulesmd.ini`:
+
+```ini
+[DigitalDisplayTypes]
+0=SOMEDIGITALDISPLAYTYPE
+
+[AudioVisual]
+Buildings.DefaultDigitalDisplayTypes=  	; list of DigitalDisplayTypes
+Infantry.DefaultDigitalDisplayTypes=   	; list of DigitalDisplayTypes
+Vehicles.DefaultDigitalDisplayTypes=   	; list of DigitalDisplayTypes
+Aircraft.DefaultDigitalDisplayTypes=   	; list of DigitalDisplayTypes
+
+[SOMEDIGITALDISPLAYTYPE]				; DigitalDisplayType
+; Generic
+InfoType=Health                        	; Displayed value enumeration (health|shield|ammo|mindcontrol|spawns|passengers|tiberium|experience|occupants|gattlingstage)
+Offset=0,0                             	; integer - horizontal, vertical
+Offset.ShieldDelta=0,0                  ; integer - horizontal, vertical, added to Offset when a techno is shielded, defaults to 0,-10 when InfoType=shield
+Align=                                 	; Text alignment enumeration, - left|right|center/centre
+Anchor.Horizontal=Left                 	; Horizontal position enumeration (left|center/centre|right)
+Anchor.Vertical=top                    	; Vertical position enumeration (top|center/centre|bottom)
+Anchor.Building=lefttop                	; Hexagon vertex enumeration (top|lefttop|leftbottom|bottom|rightbottom|righttop)
+Percentage=no                          	; boolean
+HideMaxValue=no                        	; boolean
+CanSee=owner                           	; Affected house enumeration (none|owner/self|allies/ally|team|enemies/enemy|all)
+CanSee.Observer=true                   	; boolean
+; Text
+Text.Color=0,255,0                     	; integer - Red,Green,Blue
+Text.Color.ConditionYellow=255,255,0   	; integer - Red,Green,Blue
+Text.Color.ConditionRed=255,0,0        	; integer - Red,Green,Blue
+Text.Background=no                     	; boolean
+; Shape
+Shape=                                 	; filename with .shp extension, if not present, game-drawn text will be used instead
+Palette=palette.pal                    	; filename with .pal extension
+Shape.Interval=8,0                     	; integer - horizontal and vertical spacing between digits, can be negative, defaults to 8,-4 for buildings
+
+[SOMETECHNOTYPE]
+DigitalDisplay.Disable=no              	; boolean
+DigitalDisplayTypes=                   	; list of DigitalDisplayTypes
+# (<--Remove) ```
+
+In `Ra2MD.ini`:
+
+```ini
+[Phobos]
+DigitalDisplay.Enable=false  ; boolean
+# (<--Remove) ```
+
 ### Hide health bars
 
 ![image](_static/images/healthbar.hide-01.png)
