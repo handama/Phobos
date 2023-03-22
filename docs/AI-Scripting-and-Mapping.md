@@ -405,6 +405,7 @@ x=12002,n
 0         | stop when controlled by human |
 1         | stop when controlled by computer  |
 
+
 #### `12502` Manipulate Mind Controlled Units    
 
 - Can put all mind controlled units into grinder, or let them attack (or steal if is spy).
@@ -426,6 +427,16 @@ In `aimd.ini`:
 x=12503,n             ; n is one of AITargetTypess
 ```
 
+
+#### `12504` Pick Neutral Targets    
+
+- This action can make following actions pick neutral units as targets or not.
+
+- The possible argument values are:
+| *Argument* | *Description*                       |
+| :------: | :-------------------------------------------: |
+0         | do not pick neutral targets |
+1         | pick neutral targets  |
 
 
 
