@@ -103,6 +103,7 @@ This page lists all the individual contributions to the project by their author.
   - Laser trails for VoxelAnims
   - MakeInfantry logic on BombClass bugfix
   - Debris & meteor impact behaviour settings
+  - Upgrade logic to allow altering of SpySat status
 - **FS-21**:
   - Dump Object Info enhancements
   - `Powered.KillSpawns`
@@ -165,7 +166,7 @@ This page lists all the individual contributions to the project by their author.
   - Railgun particle target coordinate fix
   - Building target coordinate offset fix
   - Warhead / weapon detonation at superweapon target cell
-  - Cloaked objects displaying to observers
+  - Cloaked & disguised objects displaying to observers
   - Building airstrike target eligibility customization
   - IvanBomb detonation & image display centered on buildings
   - Customizable ROF random delay
@@ -183,6 +184,12 @@ This page lists all the individual contributions to the project by their author.
   - Buildings considered as vehicles
   - TechnoType target evaluation map zone check behaviour customization
   - CanC4 damage rounding fix & toggle
+  - Option to center pause menu background
+  - Disguise logic improvements
+  - Custom insignias
+  - `ZShapePointMove` buildup toggle
+  - `UndeploysInto` building selling buildup sequence length customization
+  - AI naval vehicle production fix
 - **Morton (MortonPL)**:
   - `XDrawOffset` for animations
   - Shield passthrough & absorption
@@ -207,6 +214,7 @@ This page lists all the individual contributions to the project by their author.
       - Turret direction in idle state fix
       - Sensor fix
       - Allow to tilt on ground
+      - Forbid firing when crashing
    - OmniFire.TurnToTarget
    - Object Self-destruction logic
    - Misc vanilla suicidal behavior fix
@@ -236,7 +244,9 @@ This page lists all the individual contributions to the project by their author.
    - The option to allow DieSound/VoiceDie being played when grinding
    - Allow iron-curtain effects on infantries
    - Break the mindcontrol link when capturing a mind-controlled building with engineer
-   - Misc code refactor & maintenance, CN doc fix
+   - Building LightSource tint S/L fix
+   - Permanent healthbar display on units targeted by temporal weapons fix
+   - Misc code refactor & maintenance, CN doc fixes, bugfixes
 - **FlyStar**
    - Campaign load screen PCX support
    - New condition for automatic self-destruction logic when TechnoTypes exist/don't exist
@@ -256,7 +266,7 @@ This page lists all the individual contributions to the project by their author.
 - **E1 Elite** - TileSet 255 and above bridge repair fix
 - **AutoGavy** - interceptor logic, Warhead critical hit logic
 - **Chasheen (Chasheenburg)** - CN docs help
-- **Ares developers** - YRpp and Syringe which are used, save/load, project foundation and generally useful code from Ares, unfinished RadTypes code, prototype deployer fixes, Superweapon launch site & availability code
+- **Ares developers** - YRpp and Syringe which are used, save/load, project foundation and generally useful code from Ares, unfinished RadTypes code, prototype deployer fixes, Superweapon launch site & availability code, AI vehicle production update code
 - **tomsons26** - all-around help, assistance and guidance in reverse-engineering, YR binary mappings
 - **CCHyper** - all-around help, current project logo, assistance and guidance in reverse-engineering, YR binary mappings
 - **AlexB** - Original FlyingStrings implementation

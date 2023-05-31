@@ -13,15 +13,18 @@ You can use the migration utility (can be found on [Phobos supplementaries repo]
 - SHP debris hardcoded shadows now respect `Shadow=no` tag value, and due to it being the default value they wouldn't have hardcoded shadows anymore by default. Override this by specifying `Shadow=yes` for SHP debris.
 - Translucent RLE SHPs will now be drawn using a more precise and performant algorithm that has no green tint and banding. Can be disabled with `rulesmd.ini->[General]->FixTransparencyBlitters=no`.
 - Iron Curtain status is now preserved by default when converting between TechnoTypes via `DeploysInto`/`UndeploysInto`. This behavior can be turned off per-TechnoType and global basis using `[SOMETECHNOTYPE]/[CombatDamage]->IronCurtain.KeptOnDeploy=no`.
-
-### From Ares
-
-- `[#include]` section and `[CHILD]:[PARENT]` section inheritance notation are disabled, replaced by Phobos `[$Include]` and `$Inherits`.
+- The obsolete `[General] WarpIn` has been enabled for the default anim type when technos are warping in. If you want to restore the vanilla behavior, use the same anim type as `WarpOut`.
 
 ### From older Phobos versions
 
+#### From post-0.3 devbuilds
+
+- INI inclusion and inheritance are now turned off by default and need to be turned on via command line flags `-Include` and `-Inheritance`.
+
 #### From 0.3
 
+- `LaunchSW.RealLaunch=false` now checks if firing house has enough credits to satisfy SW's `Money.Amount` in order to be fired.
+- `CreateUnit` now creates the units by default at animation's height (even if `CreateUnit.ConsiderPathfinding` is enabled) instead of always at ground level. This behaviour can be restored by setting `CreateUnit.AlwaysSpawnOnGround` to true.
 - Phobos-introduced attack scripts now consider potential target's current map zone when evaluating targets. [TargetZoneScanType](Fixed-or-Improved-Logics.md#customizable-target-evaluation-map-zone-check-behaviour) can be used to customize this behaviour.
 - `Artillary`, `ICBMLauncher`, `TickTank` or `SensorArray` no longer affect whether or not building is considered as vehicle for AI attack scripts. Use [ConsideredVehicle](Fixed-or-Improved-Logics.md#buildings-considered-as-vehicles) instead on buildings that do not have both `UndeploysInto` set and `Foundation=1x1`.
 - `PassengerDeletion.SoylentFriendlies` has been replaced by `PassengerDeletion.SoylentAllowedHouses`. Current default value of `PassengerDeletion.SoylentAllowedHouses=enemies` matches the previous default behaviour with `PassengerDeletion.SoylentFriendlies=false`.
@@ -254,7 +257,7 @@ You can use the migration utility (can be found on [Phobos supplementaries repo]
 
 ## Changelog
 
-### 0.3.1
+### Version TBD (develop branch nightly builds)
 
 <details>
   <summary>Click to show</summary>
@@ -277,7 +280,6 @@ New:
 - Custom `SlavesFreeSound` (by TwinkleStar)
 - Allows jumpjet to crash without rotation (by TwinkleStar)
 - Customizable priority of superweapons timer sorting(by ststl)
-- Spawn animation for `CreateUnit` (by Starkku)
 - Customizable aircraft spawner spawn delay (by Starkku)
 - Customizable Cluster scatter distance (by Starkku)
 - Customizable FlakScatter distance (by Starkku)
@@ -298,6 +300,15 @@ New:
 - `CanC4=false` building zero damage toggle (by Starkku)
 - OpenTopped transport target sharing customization (by Starkku)
 - Vanish animation for `AutoDeath.Behavior=vanish` (by Starkku)
+- `AAOnly` for projectiles (by Starkku)
+- `CreateUnit` improvements & additions (units spawning in air, spawn animation) (by Starkku)
+- Option to center pause menu background (by Starkku)
+- LaunchSW.DisplayMoney (by Starkku)
+- Disguise logic improvements (by Starkku)
+- Custom insignias (by Starkku)
+- Upgrade logic to allow altering of SpySat status (by Otamaa)
+- Allow `ZShapePointMove` to apply during buildup via `ZShapePointMove.OnBuildup` (by Starkku)
+- `UndeploysInto` building selling buildup sequence length customization (by Starkku)
 
 Vanilla fixes:
 - Allow AI to repair structures built from base nodes/trigger action 125/SW delivery in single player missions (by Trsdy)
@@ -307,7 +318,7 @@ Vanilla fixes:
 - Prevented units from retaining previous order after ownership change (by Trsdy)
 - Break the mind-control link when capturing a mind-controlled building with an engineer (by Trsdy)
 - Fixed BibShape drawing for a couple of frames during buildup for buildings with long buildup animations (by Starkku)
-- Cloaked objects displaying to observers (by Starkku)
+- Cloaked & disguised objects displaying to observers (by Starkku)
 - Cloaked objects from allies displaying to player in single player missions (by Trsdy)
 - Skip `NaturalParticleSystem` displaying from in-map pre-placed structures (by Trsdy)
 - Made sure that `Suicide=yes` weapon does kill the firer (by Trsdy)
@@ -317,7 +328,7 @@ Vanilla fixes:
 - Fixed `LandTargeting=1` not preventing from targeting TerrainTypes (trees etc.) on land (by Starkku)
 - Fixed `NavalTargeting=6` not preventing from targeting empty water cells or TerrainTypes (trees etc.) on water (by Starkku)
 - Fixed `NavalTargeting=7` and/or `LandTargeting=2` resulting in still targeting TerrainTypes (trees etc.) on land with `Primary` weapon (by Starkku)
-- Fixed an issue that causes attached animations on flying objects not layer correctly (by Starkku)
+- Fixed an issue that causes objects in layers outside ground layer to not be sorted correctly (caused issues with animation and jumpjet layering for an instance) (by Starkku)
 - Restored `EVA_StructureSold` for buildings with `UndeploysInto` (by Trsdy)
 - Allow MCV to redeploy in campaigns (by Trsdy)
 - Allow buildings with `UndeploysInto` to be sold if `Unsellable=no` but `ConstructionYard=no` (by Trsdy)
@@ -325,8 +336,15 @@ Vanilla fixes:
 - Fixed `WaterBound=true` buildings with `UndeploysInto` not correctly setting the location for the vehicle to move into when undeployed (by Starkku)
 - Allow more than 5 `AlternateFLH` entries for units (by ststl)
 - Buildings with `CanC4=false` will no longer take 1 point of positive damage if hit by negative damage (by Starkku)
-- Buildings with primary weapon that has `AG=no` projectile now have attack cursor when selected (by Starkku)
-- Weapons with `AG=no` projectiles can no longer fire at any ground targets, instead of only being prevented firing at ground cells (by Starkku)
+- Buildings with primary weapon that has `AG=false` projectile now have attack cursor when selected (by Starkku)
+- Transports with `OpenTopped=true` and weapon that has `Burst` above 1 and passengers firing out no longer have the passenger firing offset shift lateral position based on burst index (by Starkku)
+- Light tint created by a building is now able to be removed after loading the game (by Trsdy)
+- Prevented crashing jumpjet units from firing (by Trsdy)
+- Fixed disguised infantry not using custom palette for drawing the disguise when needed (by Starkku)
+- Reenabled the obsolete `[General] WarpIn` as default anim type when units are warping in (by Trsdy)
+- Fixed permanent health bar display for units targeted by temporal weapons upon mouse hover (by Trsdy)
+- Buildings with superweapons no longer display `SuperAnimThree` at beginning of match if pre-placed on the map (by Starkku)
+- AI players can now build `Naval=true` and `Naval=false` vehicles concurrently like human players do (by Starkku)
 
 Phobos fixes:
 - Fixed a few errors of calling for superweapon launch by `LaunchSW` or building infiltration (by Trsdy)
@@ -341,8 +359,15 @@ Phobos fixes:
 - `PassengerDeletion.Soylent` now correctly calculates refund value if removed passenger has no explicitly set `Soylent` value (by Starkku)
 - Animation `Weapon` with `Damage.DealtByInvoker=true` now uses the invoker's house to deal damage and apply Phobos warhead effects even if invoker is dead when weapon is fired (by Starkku)
 - Superweapon `Detonate.Weapon` & `Detonate.Warhead` now use the firing house to deal damage and apply Phobos warhead effects even if no firing building is found (by Starkku)
-</details>
+- `CreateUnit` now uses civilian house as owner instead if the intended owner house has been defeated (this is in-line with how `MakeInfantry` works) (by Starkku)
+- `IsHouseColor` laser trails on techno now correctly change color when it changes owner (by Trsdy)
+- Fixed `Layer.UseObjectLayer=true` to work correctly for all cases where object changes layer (by Starkku)
+- Fixed floating point value parsing precision to match the game (by Starkku)
+- Fixed `DetonateOnAllMapObjects.RequireVerses` not considering shield armor types (by Starkku)
 
+Fixes / interactions with other extensions:
+- Fixed an issue introduced by Ares that caused `Grinding=true` building `ActiveAnim` to be incorrectly restored while `SpecialAnim` was playing and the building was sold, erased or destroyed (by Starkku)
+</details>
 
 ### 0.3
 

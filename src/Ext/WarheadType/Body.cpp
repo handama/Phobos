@@ -4,6 +4,7 @@
 #include <HouseClass.h>
 
 #include <Ext/BulletType/Body.h>
+#include <Ext/Techno/Body.h>
 #include <Utilities/EnumFunctions.h>
 
 template<> const DWORD Extension<WarheadTypeClass>::Canary = 0x22222222;
@@ -87,10 +88,16 @@ bool WarheadTypeExt::ExtData::EligibleForFullMapDetonation(TechnoClass* pTechno,
 		return false;
 	}
 
-	if (this->DetonateOnAllMapObjects_RequireVerses &&
-		GeneralUtils::GetWarheadVersusArmor(this->OwnerObject(), pTechno->GetTechnoType()->Armor) == 0.0)
+	if (this->DetonateOnAllMapObjects_RequireVerses)
 	{
-		return false;
+		auto const pExt = TechnoExt::ExtMap.Find(pTechno);
+		auto armorType = pTechno->GetTechnoType()->Armor;
+
+		if (pExt->Shield && pExt->Shield->IsActive() && !pExt->Shield->CanBePenetrated(this->OwnerObject()))
+			armorType = pExt->Shield->GetArmorType();
+
+		if (GeneralUtils::GetWarheadVersusArmor(this->OwnerObject(), armorType) == 0.0)
+			return false;
 	}
 
 	return true;
@@ -172,6 +179,9 @@ void WarheadTypeExt::ExtData::LoadFromINIFile(CCINIClass* const pINI)
 	this->LaunchSW_RealLaunch.Read(exINI, pSection, "LaunchSW.RealLaunch");
 	this->LaunchSW_IgnoreInhibitors.Read(exINI, pSection, "LaunchSW.IgnoreInhibitors");
 	this->LaunchSW_IgnoreDesignators.Read(exINI, pSection, "LaunchSW.IgnoreDesignators");
+	this->LaunchSW_DisplayMoney.Read(exINI, pSection, "LaunchSW.DisplayMoney");
+	this->LaunchSW_DisplayMoney_Houses.Read(exINI, pSection, "LaunchSW.DisplayMoney.Houses");
+	this->LaunchSW_DisplayMoney_Offset.Read(exINI, pSection, "LaunchSW.DisplayMoney.Offset");
 
 	this->AllowDamageOnSelf.Read(exINI, pSection, "AllowDamageOnSelf");
 	this->DebrisAnims.Read(exINI, pSection, "DebrisAnims");
@@ -253,6 +263,10 @@ void WarheadTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->LaunchSW_RealLaunch)
 		.Process(this->LaunchSW_IgnoreInhibitors)
 		.Process(this->LaunchSW_IgnoreDesignators)
+		.Process(this->LaunchSW_DisplayMoney)
+		.Process(this->LaunchSW_DisplayMoney_Houses)
+		.Process(this->LaunchSW_DisplayMoney_Offset)
+
 		.Process(this->AllowDamageOnSelf)
 		.Process(this->DebrisAnims)
 		.Process(this->Debris_Conventional)

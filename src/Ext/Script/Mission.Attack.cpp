@@ -466,8 +466,9 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, i
 		if ((weaponType && weaponType->Projectile->AG) || agentMode)
 			unitWeaponsHaveAG = true;
 
-		//disable Damage calculate
-		//int weaponDamage = 0;
+		// Check verses instead of damage to allow support units etc.
+		/*
+		int weaponDamage = 0;
 
 		//if (weaponType)
 		//{
@@ -477,12 +478,16 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, i
 		//		weaponDamage = MapClass::GetTotalDamage(weaponType->Damage, weaponType->Warhead, objectType->Armor, 0);
 		//}
 
-		//// If the target can't be damaged then isn't a valid target
-		//if (weaponType && weaponDamage <= 0 && !agentMode)
-		//	continue;
+		// If the target can't be damaged then isn't a valid target
+		if (weaponType && weaponDamage <= 0 && !agentMode)
+			continue;
+		*/
 
 		if (!agentMode)
 		{
+			if (weaponType && GeneralUtils::GetWarheadVersusArmor(weaponType->Warhead, objectType->Armor) == 0.0)
+				continue;
+
 			if (object->IsInAir() && !unitWeaponsHaveAA)
 				continue;
 
@@ -639,7 +644,7 @@ bool ScriptExt::EvaluateObjectWithMask(TechnoClass* pTechno, int mask, int attac
 	auto const& neutralTechBuildings = RulesClass::Instance->NeutralTechBuildings;
 	int nSuperWeapons = 0;
 	double distanceToTarget = 0;
-	bool buildingIsConsideredVehicle = pTypeBuilding && pTypeBuilding->IsUndeployable();
+	bool buildingIsConsideredVehicle = pTypeBuilding && pTypeBuilding->IsVehicle();
 
 	// Special case: validate target if is part of a technos list in [AITargetTypes] section
 	if (attackAITargetType >= 0 && RulesExt::Global()->AITargetTypesLists.size() > 0)

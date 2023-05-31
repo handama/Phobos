@@ -91,6 +91,7 @@ public:
 		Valueable<bool> NotHuman_RandomDeathSequence;
 
 		Nullable<InfantryTypeClass*> DefaultDisguise;
+		Valueable<bool> UseDisguiseMovementSpeed;
 
 		Nullable<int> OpenTopped_RangeBonus;
 		Nullable<float> OpenTopped_DamageMultiplier;
@@ -136,6 +137,13 @@ public:
 
 		Valueable<bool> DigitalDisplay_Disable;
 		ValueableVector<DigitalDisplayTypeClass*> DigitalDisplayTypes;
+		Promotable<SHPStruct*> Insignia;
+		Valueable<Vector3D<int>> InsigniaFrames;
+		Promotable<int> InsigniaFrame;
+		Nullable<bool> Insignia_ShowEnemy;
+		std::vector<Promotable<SHPStruct*>> Insignia_Weapon;
+		std::vector<Promotable<int>> InsigniaFrame_Weapon;
+		std::vector<Vector3D<int>> InsigniaFrames_Weapon;
 
 		struct LaserTrailDataEntry
 		{
@@ -209,6 +217,7 @@ public:
 			, NotHuman_RandomDeathSequence { false }
 
 			, DefaultDisguise {}
+			, UseDisguiseMovementSpeed {}
 
 			, OpenTopped_RangeBonus {}
 			, OpenTopped_DamageMultiplier {}
@@ -248,26 +257,40 @@ public:
 			, SellSound {}
 			, EVA_Sold {}
 			, EnemyUIName {}
+
 			, ForceWeapon_Naval_Decloaked { -1 }
 			, ForceWeapon_Cloaked { -1 }
 			, ForceWeapon_Disguised { -1 }
+
 			, Ammo_Shared { false }
 			, Ammo_Shared_Group { -1 }
+
 			, SelfHealGainType {}
 			, Passengers_SyncOwner { false }
 			, Passengers_SyncOwner_RevertOnExit { true }
+
 			, PronePrimaryFireFLH {}
 			, ProneSecondaryFireFLH {}
 			, DeployedPrimaryFireFLH {}
 			, DeployedSecondaryFireFLH {}
+
 			, IronCurtain_KeptOnDeploy {}
 			, IronCurtain_Effect {}
 			, IronCurtain_KillWarhead {}
+
 			, Explodes_KillPassengers { true }
 			, DeployFireWeapon {}
 			, TargetZoneScanType { TargetZoneScanType::Same }
 			, DigitalDisplay_Disable { false }
 			, DigitalDisplayTypes {}
+
+			, Insignia {}
+			, InsigniaFrames { { -1, -1, -1 } }
+			, InsigniaFrame { -1 }
+			, Insignia_ShowEnemy {}
+			, Insignia_Weapon {}
+			, InsigniaFrame_Weapon {}
+			, InsigniaFrames_Weapon {}
 		{ }
 
 		virtual ~ExtData() = default;
@@ -302,6 +325,7 @@ public:
 	static ExtContainer ExtMap;
 
 	static void ApplyTurretOffset(TechnoTypeClass* pType, Matrix3D* mtx, double factor = 1.0);
+	static TechnoTypeClass* GetTechnoType(ObjectTypeClass* pType);
 
 	// Ares 0.A
 	static const char* GetSelectionGroupID(ObjectTypeClass* pType);
