@@ -997,7 +997,9 @@ void ScriptExt::Mission_Attack(TeamClass * pTeam, bool repeatAction = true, int 
 			&& (!pLeaderUnit->Owner->IsAlliedWith(pFocus)
 				|| (pLeaderUnit->Owner->IsAlliedWith(pFocus)
 					&& pFocus->IsMindControlled()
-					&& !pLeaderUnit->Owner->IsAlliedWith(pFocus->MindControlledBy))))
+					&& !pLeaderUnit->Owner->IsAlliedWith(pFocus->MindControlledBy)))
+				|| (pLeaderUnit->Owner->IsAlliedWith(pFocus) && (scriptArgument == 42 || scriptArgument == 43))
+			)
 		{
 
 			bool bForceNextAction = false;
@@ -1210,8 +1212,8 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass * pTechno, TeamClass * pTeam,
 		}
 
 		// If the target can't be damaged then isn't a valid target
-		if (weaponType && weaponDamage <= 0 && !agentMode)
-			continue;
+		//if (weaponType && weaponDamage <= 0 && !agentMode)
+		//	continue;
 
 		if (!agentMode)
 		{
@@ -1260,8 +1262,8 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass * pTechno, TeamClass * pTeam,
 			&& !object->Absorbed
 			&& !object->TemporalTargetingMe
 			&& !object->BeingWarpedOut
-			&& (object->Owner != pTechno->Owner || (object->Owner == pTechno->Owner && attackAITargetType == -1 && (method == 39 || method == 40)))
-			&& (!pTechno->Owner->IsAlliedWith(object) || (object->Owner == pTechno->Owner && attackAITargetType == -1 && (method == 39 || method == 40))
+			&& (object->Owner != pTechno->Owner || (object->Owner == pTechno->Owner && attackAITargetType == -1 && (method == 39 || method == 40)) || (pTechno->Owner->IsAlliedWith(object) && attackAITargetType == -1 && (method == 42 || method == 43)))
+			&& (!pTechno->Owner->IsAlliedWith(object) || (object->Owner == pTechno->Owner && attackAITargetType == -1 && (method == 39 || method == 40))  || (pTechno->Owner->IsAlliedWith(object) && attackAITargetType == -1 && (method == 42 || method == 43))
 				|| (pTechno->Owner->IsAlliedWith(object)
 					&& object->IsMindControlled()
 					&& !pTechno->Owner->IsAlliedWith(object->MindControlledBy))))
@@ -1953,12 +1955,16 @@ bool ScriptExt::EvaluateObjectWithMask(TechnoClass * pTechno, int mask, int atta
 
 		// Ground Vehicle
 		if (!pTechno->Owner->IsNeutral()
-			&& (pTechnoType->WhatAmI() == AbstractType::UnitType
-				|| (pTechnoType->WhatAmI() == AbstractType::BuildingType
-					&& pTypeBuilding->UndeploysInto
-					&& !pTypeBuilding->BaseNormal)
-				&& !pTechno->IsInAir()
-				&& !pTechnoType->Naval))
+			&& (
+					(pTechnoType->WhatAmI() == AbstractType::UnitType
+					|| (pTechnoType->WhatAmI() == AbstractType::BuildingType
+						&& pTypeBuilding->UndeploysInto
+						&& !pTypeBuilding->BaseNormal))
+					&& !pTechno->IsInAir()
+					&& !pTechnoType->Naval
+					&& pTechno->GetCell()->LandType != LandType::Water
+				)
+			)
 		{
 			return true;
 		}
@@ -2330,6 +2336,44 @@ bool ScriptExt::EvaluateObjectWithMask(TechnoClass * pTechno, int mask, int atta
 		}
 
 		break;
+
+	case 42:
+		// Friendly low health land units
+		pTypeBuilding = abstract_cast<BuildingTypeClass*>(pTechnoType);
+
+		// Ground Vehicle
+		if (!pTechno->Owner->IsNeutral()
+					&& (
+						(pTechnoType->WhatAmI() == AbstractType::UnitType
+							|| (pTechnoType->WhatAmI() == AbstractType::BuildingType
+								&& pTypeBuilding->UndeploysInto
+								&& !pTypeBuilding->BaseNormal))
+						&& !pTechno->IsInAir()
+						&& !pTechnoType->Naval
+						&& pTechno->GetCell()->LandType != LandType::Water
+						)
+					&& (pTechno->Health < pTechnoType->Strength || pTechno->IsParalyzed())
+				)
+		{
+			return true;
+		}
+
+		break;
+
+	case 43:
+		// Friendly Grabbed Naval Unit
+		if (pTechno->Owner->IsAlliedWith(pTeamLeader)
+			&& pTechnoType->WhatAmI() != AbstractType::BuildingType
+			&& (pTechnoType->Naval
+				|| pTechno->GetCell()->LandType == LandType::Water)
+			&& pTechno->IsParalyzed() && pTechnoType->Parasiteable)
+		{
+			return true;
+		}
+
+		break;
+
+		//(object->Owner == pTechno->Owner && attackAITargetType == -1 && (method == 39 || method == 40)) || (pTechno->Owner->IsAlliedWith(object) && attackAITargetType == -1 && (method == 42 || method == 43))
 
 	default:
 		break;
@@ -5396,6 +5440,17 @@ void ScriptExt::Mission_Attack_Individually(TeamClass * pTeam, int numberPerTarg
 				//Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Team Number [%s] (UID: %lu) start to hunt (NO targets).\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pLeaderUnit->GetTechnoType()->get_ID(), pLeaderUnit->UniqueID);
 				pTeamData->IdxSelectedObjectFromAIList = -1;
 				pTeamData->IndividualTargets.Clear();
+				if (scriptArgument == 42 || scriptArgument == 43)
+				{
+					for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+					{
+						pUnit->CurrentTargets.Clear();
+						pUnit->SetTarget(nullptr);
+						pUnit->SetFocus(nullptr);
+						pUnit->SetDestination(nullptr, false);
+					}
+				}
+
 				pTeam->StepCompleted = true;
 				Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Jump to NEXT line: %d = %d,%d (No target found)\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pScript->CurrentMission + 1, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Action, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Argument);
 				return;
@@ -5418,7 +5473,9 @@ void ScriptExt::Mission_Attack_Individually(TeamClass * pTeam, int numberPerTarg
 				&& (!pLeaderUnit->Owner->IsAlliedWith(pFocus)
 					|| (pLeaderUnit->Owner->IsAlliedWith(pFocus)
 						&& pFocus->IsMindControlled()
-						&& !pLeaderUnit->Owner->IsAlliedWith(pFocus->MindControlledBy))))
+						&& !pLeaderUnit->Owner->IsAlliedWith(pFocus->MindControlledBy)))
+					|| (pLeaderUnit->Owner->IsAlliedWith(pFocus) && (scriptArgument == 42 || scriptArgument == 43))
+				)
 			{
 
 
@@ -5552,6 +5609,16 @@ void ScriptExt::Mission_Attack_Individually(TeamClass * pTeam, int numberPerTarg
 	{
 		pTeamData->IdxSelectedObjectFromAIList = -1;
 		pTeamData->IndividualTargets.Clear();
+		if (scriptArgument == 42 || scriptArgument == 43)
+		{
+			for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+			{
+				pUnit->CurrentTargets.Clear();
+				pUnit->SetTarget(nullptr);
+				pUnit->SetFocus(nullptr);
+				pUnit->SetDestination(nullptr, false);
+			}
+		}
 		pTeam->StepCompleted = true;
 		Debug::Log("DEBUG: [%s] [%s] (line: %d = %d,%d) Jump to NEXT line: %d = %d,%d (No target found)\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pScript->CurrentMission + 1, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Action, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Argument);
 		return;
