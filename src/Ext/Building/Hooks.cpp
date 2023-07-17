@@ -8,6 +8,7 @@
 #include <Ext/WarheadType/Body.h>
 #include <BitFont.h>
 #include <Misc/FlyingStrings.h>
+#include <TacticalClass.h>
 
 //After TechnoClass_AI?
 DEFINE_HOOK(0x43FE69, BuildingClass_AI, 0xA)
@@ -24,12 +25,59 @@ DEFINE_HOOK(0x43FE69, BuildingClass_AI, 0xA)
 	if (!pExt->TypeExtData || pExt->TypeExtData->OwnerObject() != pType)
 		pExt->TypeExtData = BuildingTypeExt::ExtMap.Find(pType);
 	*/
+
 	if (RulesExt::Global()->DisplayIncome_AllowAI || pThis->Owner->IsControlledByHuman())
 		pExt->DisplayIncomeString();
-
 	pExt->ApplyPoweredKillSpawns();
 
 	return 0;
+}
+
+DEFINE_HOOK(0x4403D4, BuildingClass_AI_ChronoSparkle, 0x6)
+{
+	enum { SkipGameCode = 0x44055D };
+
+	GET(BuildingClass*, pThis, ESI);
+
+	if (RulesClass::Instance->ChronoSparkle1)
+	{
+		auto const displayPositions = RulesExt::Global()->ChronoSparkleBuildingDisplayPositions;
+		auto const pType = pThis->Type;
+		bool displayOnBuilding = (displayPositions & ChronoSparkleDisplayPosition::Building) != ChronoSparkleDisplayPosition::None;
+		bool displayOnSlots = (displayPositions & ChronoSparkleDisplayPosition::OccupantSlots) != ChronoSparkleDisplayPosition::None;
+		bool displayOnOccupants = (displayPositions & ChronoSparkleDisplayPosition::Occupants) != ChronoSparkleDisplayPosition::None;
+		int occupantCount = displayOnSlots ? pType->MaxNumberOccupants : pThis->GetOccupantCount();
+		bool showOccupy = occupantCount && (displayOnOccupants || displayOnSlots);
+
+		if (showOccupy)
+		{
+			for (int i = 0; i < occupantCount; i++)
+			{
+				if (!((Unsorted::CurrentFrame + i) % RulesExt::Global()->ChronoSparkleDisplayDelay))
+				{
+					auto muzzleOffset = pType->MaxNumberOccupants <= 10 ? pType->MuzzleFlash[i] : BuildingTypeExt::ExtMap.Find(pType)->OccupierMuzzleFlashes.at(i);
+					auto offset = Point2D::Empty;
+					auto coords = CoordStruct::Empty;
+					auto const renderCoords = pThis->GetRenderCoords();
+					offset = *TacticalClass::Instance->ApplyMatrix_Pixel(&offset, &muzzleOffset);
+					coords.X += offset.X;
+					coords.Y += offset.Y;
+					coords += renderCoords;
+
+					if (auto const pAnim = GameCreate<AnimClass>(RulesClass::Instance->ChronoSparkle1, coords))
+						pAnim->ZAdjust = -200;
+				}
+			}
+		}
+
+		if ((!showOccupy || displayOnBuilding) && !(Unsorted::CurrentFrame % RulesExt::Global()->ChronoSparkleDisplayDelay))
+		{
+			GameCreate<AnimClass>(RulesClass::Instance->ChronoSparkle1, pThis->GetCenterCoords());
+		}
+
+	}
+
+	return SkipGameCode;
 }
 
 DEFINE_HOOK(0x7396D2, UnitClass_TryToDeploy_Transfer, 0x5)
@@ -359,4 +407,29 @@ DEFINE_HOOK(0x4575A2, BuildingClass_Infiltrate_AfterAres, 0xE)
 
 	BuildingExt::HandleInfiltrate(pBuilding, pInfiltratorHouse);
 	return 0;
+}
+
+
+DEFINE_HOOK(0x43D6E5, BuildingClass_Draw_ZShapePointMove, 0x5)
+{
+	enum { Apply = 0x43D6EF, Skip = 0x43D712 };
+
+	GET(BuildingClass*, pThis, ESI);
+	GET(Mission, mission, EAX);
+
+	if ((mission != Mission::Selling && mission != Mission::Construction) || BuildingTypeExt::ExtMap.Find(pThis->Type)->ZShapePointMove_OnBuildup)
+		return Apply;
+
+	return Skip;
+}
+
+DEFINE_HOOK(0x4511D6, BuildingClass_AnimationAI_SellBuildup, 0x7)
+{
+	enum { Skip = 0x4511E6, Continue = 0x4511DF };
+
+	GET(BuildingClass*, pThis, ESI);
+
+	auto const pTypeExt = BuildingTypeExt::ExtMap.Find(pThis->Type);
+
+	return pTypeExt->SellBuildupLength == pThis->Animation.Value ? Continue : Skip;
 }

@@ -18,8 +18,8 @@ public:
 	~ShieldClass();
 
 	int ReceiveDamage(args_ReceiveDamage* args);
-	bool CanBeTargeted(WeaponTypeClass* pWeapon);
-	bool CanBePenetrated(WarheadTypeClass* pWarhead);
+	bool CanBeTargeted(WeaponTypeClass* pWeapon) const;
+	bool CanBePenetrated(WarheadTypeClass* pWarhead) const;
 	void BreakShield(AnimTypeClass* pBreakAnim = nullptr, WeaponTypeClass* pBreakWeapon = nullptr);
 
 	void SetRespawn(int duration, double amount, int rate, bool resetTimer);
@@ -28,22 +28,27 @@ public:
 	void AI_Temporal();
 	void AI();
 
-	void DrawShieldBar(int iLength, Point2D* pLocation, RectangleStruct* pBound);
-	double GetHealthRatio();
+	void DrawShieldBar(int length, Point2D* pLocation, RectangleStruct* pBound);
+	double GetHealthRatio() const;
 	void SetHP(int amount);
-	int GetHP();
-	bool IsActive();
-	bool IsAvailable();
-	bool IsBrokenAndNonRespawning();
-	ShieldTypeClass* GetType();
-	ArmorType GetArmorType();
-	int GetFramesSinceLastBroken();
+	int GetHP() const;
+	bool IsActive() const;
+	bool IsAvailable() const;
+	bool IsBrokenAndNonRespawning() const;
+	ShieldTypeClass* GetType() const;
+	ArmorType GetArmorType() const;
+	int GetFramesSinceLastBroken() const;
 	void SetAnimationVisibility(bool visible);
 
 	static void SyncShieldToAnother(TechnoClass* pFrom, TechnoClass* pTo);
 	static bool ShieldIsBrokenTEvent(ObjectClass* pAttached);
 
+	bool IsGreenSP();
+	bool IsYellowSP();
+	bool IsRedSP();
+
 	static void PointerGotInvalid(void* ptr, bool removed);
+
 	bool Load(PhobosStreamReader& Stm, bool RegisterForChange);
 	bool Save(PhobosStreamWriter& Stm) const;
 
@@ -70,10 +75,10 @@ private:
 	void TemporalCheck();
 	bool ConvertCheck();
 
-	void DrawShieldBar_Building(int iLength, Point2D* pLocation, RectangleStruct* pBound);
-	void DrawShieldBar_Other(int iLength, Point2D* pLocation, RectangleStruct* pBound);
-	int DrawShieldBar_Pip(const bool isBuilding);
-	int DrawShieldBar_PipAmount(int iLength);
+	void DrawShieldBar_Building(const int length, Point2D* pLocation, RectangleStruct* pBound);
+	void DrawShieldBar_Other(const int length, Point2D* pLocation, RectangleStruct* pBound);
+	int DrawShieldBar_Pip(const bool isBuilding) const;
+	int DrawShieldBar_PipAmount(const int length) const;
 
 	/// Properties ///
 	TechnoClass* Techno;

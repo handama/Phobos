@@ -7,6 +7,7 @@
 #include <Ext/Bullet/Body.h>
 #include <Ext/House/Body.h>
 #include <Utilities/EnumFunctions.h>
+#include <Utilities/AresFunctions.h>
 
 // methods used in TechnoClass_AI hooks or anything similar
 
@@ -261,7 +262,14 @@ void TechnoExt::ExtData::EatPassengers()
 							pFoot->RemoveGunner(pPassenger);
 
 							if (pThis->Passengers.NumPassengers > 0)
-								pFoot->ReceiveGunner(pThis->Passengers.FirstPassenger);
+							{
+								FootClass* pGunner = nullptr;
+
+								for (auto pNext = pThis->Passengers.FirstPassenger; pNext; pNext = abstract_cast<FootClass*>(pNext->NextObject))
+									pGunner = pNext;
+
+								pFoot->ReceiveGunner(pGunner);
+							}
 						}
 					}
 
@@ -304,10 +312,10 @@ void TechnoExt::ExtData::UpdateOnTunnelEnter()
 		if (const auto pShieldData = this->Shield.get())
 			pShieldData->SetAnimationVisibility(false);
 
-		for (auto& pLaserTrail : this->LaserTrails)
+		for (auto& trail : this->LaserTrails)
 		{
-			pLaserTrail->Visible = false;
-			pLaserTrail->LastLocation = { };
+			trail.Visible = false;
+			trail.LastLocation = { };
 		}
 
 		this->IsInTunnel = true;
@@ -360,8 +368,8 @@ void TechnoExt::ExtData::UpdateTypeData(TechnoTypeClass* currentType)
 	{
 		if (auto const pLaserType = LaserTrailTypeClass::Array[entry.idxType].get())
 		{
-			this->LaserTrails.push_back(std::make_unique<LaserTrailClass>(
-				pLaserType, pThis->Owner, entry.FLH, entry.IsOnTurret));
+			this->LaserTrails.push_back(LaserTrailClass {
+				pLaserType, pThis->Owner, entry.FLH, entry.IsOnTurret });
 		}
 	}
 
@@ -391,19 +399,19 @@ void TechnoExt::ExtData::UpdateLaserTrails()
 
 	// LaserTrails update routine is in TechnoClass::AI hook because TechnoClass::Draw
 	// doesn't run when the object is off-screen which leads to visual bugs - Kerbiter
-	for (auto const& trail : this->LaserTrails)
+	for (auto& trail : this->LaserTrails)
 	{
-		if (pThis->CloakState == CloakState::Cloaked && !trail->Type->CloakVisible)
+		if (pThis->CloakState == CloakState::Cloaked && !trail.Type->CloakVisible)
 			continue;
 
 		if (!this->IsInTunnel)
-			trail->Visible = true;
+			trail.Visible = true;
 
-		CoordStruct trailLoc = TechnoExt::GetFLHAbsoluteCoords(pThis, trail->FLH, trail->IsOnTurret);
-		if (pThis->CloakState == CloakState::Uncloaking && !trail->Type->CloakVisible)
-			trail->LastLocation = trailLoc;
+		CoordStruct trailLoc = TechnoExt::GetFLHAbsoluteCoords(pThis, trail.FLH, trail.IsOnTurret);
+		if (pThis->CloakState == CloakState::Uncloaking && !trail.Type->CloakVisible)
+			trail.LastLocation = trailLoc;
 		else
-			trail->Update(trailLoc);
+			trail.Update(trailLoc);
 	}
 }
 
@@ -503,7 +511,7 @@ void TechnoExt::ApplyGainedSelfHeal(TechnoClass* pThis)
 				{
 					if (auto const pBuilding = abstract_cast<BuildingClass*>(pThis))
 					{
-						pBuilding->UpdatePlacement(PlacementType::Redraw);
+						pBuilding->Mark(MarkType::Change);
 						pBuilding->ToggleDamagedAnims(false);
 					}
 
@@ -567,8 +575,12 @@ void TechnoExt::KillSelf(TechnoClass* pThis, AutoDeathBehavior deathOption, Anim
 		{
 			if (pBld->HasBuildUp)
 			{
-				pBld->Sell(true);
-
+				// Sorry FirestormWall
+				if (pBld->GetCurrentMission() != Mission::Selling)
+				{
+					pBld->QueueMission(Mission::Selling, false);
+					pBld->NextMission();
+				}
 				return;
 			}
 		}
@@ -577,8 +589,17 @@ void TechnoExt::KillSelf(TechnoClass* pThis, AutoDeathBehavior deathOption, Anim
 	}
 
 	default: //must be AutoDeathBehavior::Kill
-		pThis->ReceiveDamage(&pThis->Health, 0, RulesClass::Instance->C4Warhead, nullptr, true, false, nullptr);
-		// Due to Ares, ignoreDefense=true will prevent passenger/crew/hijacker from escaping
+		if (IS_ARES_FUN_AVAILABLE(SpawnSurvivors))
+		{
+			switch (pThis->WhatAmI())
+			{
+			case AbstractType::Unit:
+			case AbstractType::Aircraft:
+				AresFunctions::SpawnSurvivors(static_cast<FootClass*>(pThis), nullptr, false, false);
+			default:break;
+			}
+		}
+		pThis->ReceiveDamage(&pThis->Health, 0, RulesClass::Instance->C4Warhead, nullptr, true, false, pThis->Owner);
 		return;
 	}
 }

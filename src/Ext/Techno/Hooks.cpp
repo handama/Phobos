@@ -57,7 +57,112 @@ DEFINE_HOOK(0x6FA793, TechnoClass_AI_SelfHealGain, 0x5)
 	return SkipGameSelfHeal;
 }
 
-DEFINE_HOOK(0x70A4FB, TechnoClass_Draw_Pips_SelfHealGain, 0x5)
+DEFINE_HOOK(0x709B2E, TechnoClass_DrawPips_Sizes, 0x5)
+{
+	GET(TechnoClass*, pThis, ECX);
+	REF_STACK(int, pipWidth, STACK_OFFSET(0x74, -0x1C));
+
+	Point2D size;
+	bool isBuilding = pThis->WhatAmI() == AbstractType::Building;
+
+	if (pThis->GetTechnoType()->PipScale == PipScale::Ammo)
+	{
+		if (isBuilding)
+			size = RulesExt::Global()->Pips_Ammo_Buildings_Size;
+		else
+			size = RulesExt::Global()->Pips_Ammo_Size;
+
+		size = TechnoTypeExt::ExtMap.Find(pThis->GetTechnoType())->AmmoPipSize.Get(size);
+	}
+	else
+	{
+		if (isBuilding)
+			size = RulesExt::Global()->Pips_Generic_Buildings_Size;
+		else
+			size = RulesExt::Global()->Pips_Generic_Size;
+	}
+
+	pipWidth = size.X;
+	R->ESI(size.Y);
+
+	return 0;
+}
+
+DEFINE_HOOK(0x70A36E, TechnoClass_DrawPips_Ammo, 0x6)
+{
+	enum { SkipGameDrawing = 0x70A4EC };
+
+	GET(TechnoClass*, pThis, ECX);
+	LEA_STACK(RectangleStruct*, offset, STACK_OFFSET(0x74, -0x24));
+	GET_STACK(RectangleStruct*, rect, STACK_OFFSET(0x74, 0xC));
+	GET(int, pipWrap, EBX);
+	GET_STACK(int, pipCount, STACK_OFFSET(0x74, -0x54));
+	GET_STACK(int, maxPips, STACK_OFFSET(0x74, -0x60));
+	GET(int, yOffset, ESI);
+
+	auto const pTypeExt = TechnoTypeExt::ExtMap.Find(pThis->GetTechnoType());
+	Point2D position = { offset->X, offset->Y };
+
+	if (pipWrap > 0)
+	{
+		int levels = maxPips / pipWrap - 1;
+
+		for (int i = 0; i < pipWrap; i++)
+		{
+			int frame = pTypeExt->PipWrapAmmoPip;
+
+			if (levels >= 0)
+			{
+				int counter = i + pipWrap * levels;
+				int frameCounter = levels;
+				bool calculateFrame = true;
+
+				while (counter >= pThis->Ammo)
+				{
+					frameCounter--;
+					counter -= pipWrap;
+
+					if (frameCounter < 0)
+					{
+						calculateFrame = false;
+						break;
+					}
+				}
+
+				if (calculateFrame)
+					frame = frameCounter + frame + 1;
+			}
+
+			position.X += offset->Width;
+			position.Y += yOffset;
+
+			DSurface::Temp->DrawSHP(FileSystem::PALETTE_PAL, FileSystem::PIPS2_SHP,
+				frame, &position, rect, BlitterFlags(0x600), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
+		}
+	}
+	else
+	{
+		int ammoFrame = pTypeExt->AmmoPip;
+		int emptyFrame = pTypeExt->EmptyAmmoPip;
+
+		for (int i = 0; i < maxPips; i++)
+		{
+			if (i >= pipCount && emptyFrame < 0)
+				break;
+
+			int frame = i >= pipCount ? emptyFrame : ammoFrame;
+			position.X += offset->Width;
+			position.Y += yOffset;
+
+			DSurface::Temp->DrawSHP(FileSystem::PALETTE_PAL, FileSystem::PIPS2_SHP,
+				frame, &position, rect, BlitterFlags(0x600), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
+		}
+	}
+
+	return SkipGameDrawing;
+}
+
+DEFINE_HOOK(0x70A4FB, TechnoClass_DrawPips_SelfHealGain, 0x5)
 {
 	enum { SkipGameDrawing = 0x70A6C0 };
 
@@ -74,15 +179,45 @@ DEFINE_HOOK(0x6F42F7, TechnoClass_Init, 0x2)
 {
 	GET(TechnoClass*, pThis, ESI);
 
+	auto const pType = pThis->GetTechnoType();
+
+	if (!pType)
+		return 0;
+
 	auto const pExt = TechnoExt::ExtMap.Find(pThis);
+	pExt->TypeExtData = TechnoTypeExt::ExtMap.Find(pType);
 
-	if (!pExt->TypeExtData)
-		pExt->TypeExtData = TechnoTypeExt::ExtMap.Find(pThis->GetTechnoType());
-
-	if (pExt->TypeExtData)
-		pExt->CurrentShieldType = pExt->TypeExtData->ShieldType;
-
+	pExt->CurrentShieldType = pExt->TypeExtData->ShieldType;
 	pExt->InitializeLaserTrails();
+
+	return 0;
+}
+
+DEFINE_HOOK(0x4DBF13, FootClass_SetOwningHouse, 0x6)
+{
+	GET(FootClass* const, pThis, ESI);
+
+	auto pExt = TechnoExt::ExtMap.Find(pThis);
+	for (auto& trail : pExt->LaserTrails)
+	{
+		if (trail.Type->IsHouseColor)
+			trail.CurrentColor = pThis->Owner->LaserColor;
+	}
+
+	if (pThis->Owner->IsHumanPlayer)
+		TechnoExt::ChangeOwnerMissionFix(pThis);
+
+	return 0;
+}
+
+DEFINE_HOOK(0x4483C0, BuildingClass_SetOwningHouse_MuteSound, 0x6)
+{
+	GET(BuildingClass* const, pThis, ESI);
+	REF_STACK(bool, announce, STACK_OFFSET(0x60, 0x8));
+
+	pThis->NextMission();
+
+	announce = announce && !pThis->Type->IsVehicle();
 
 	return 0;
 }
@@ -242,10 +377,10 @@ DEFINE_HOOK(0x71067B, TechnoClass_EnterTransport_LaserTrails, 0x7)
 
 	if (pTechnoExt)
 	{
-		for (auto& pLaserTrail : pTechnoExt->LaserTrails)
+		for (auto& trail : pTechnoExt->LaserTrails)
 		{
-			pLaserTrail->Visible = false;
-			pLaserTrail->LastLocation = { };
+			trail.Visible = false;
+			trail.LastLocation = { };
 		}
 	}
 
@@ -259,10 +394,10 @@ DEFINE_HOOK(0x4D7221, FootClass_Unlimbo_LaserTrails, 0x6)
 
 	if (auto pTechnoExt = TechnoExt::ExtMap.Find(pTechno))
 	{
-		for (auto& pLaserTrail : pTechnoExt->LaserTrails)
+		for (auto& trail : pTechnoExt->LaserTrails)
 		{
-			pLaserTrail->LastLocation = { };
-			pLaserTrail->Visible = true;
+			trail.LastLocation = { };
+			trail.Visible = true;
 		}
 	}
 
@@ -290,6 +425,7 @@ DEFINE_HOOK_AGAIN(0x703789, TechnoClass_CloakUpdateMCAnim, 0x6) // TechnoClass_D
 DEFINE_HOOK(0x6FB9D7, TechnoClass_CloakUpdateMCAnim, 0x6)       // TechnoClass_Cloaking_AI
 {
 	GET(TechnoClass*, pThis, ESI);
+
 	if (const auto pExt = TechnoExt::ExtMap.Find(pThis))
 		pExt->UpdateMindControlAnim();
 
@@ -395,4 +531,76 @@ DEFINE_HOOK(0x6F7E47, TechnoClass_EvaluateObject_MapZone, 0x7)
 	}
 
 	return AllowedObject;
+}
+
+DEFINE_HOOK(0x6F534E, TechnoClass_DrawExtras_Insignia, 0x5)
+{
+	enum { SkipGameCode = 0x6F5388 };
+
+	GET(TechnoClass*, pThis, EBP);
+	GET_STACK(Point2D*, pLocation, STACK_OFFSET(0x98, 0x4));
+	GET(RectangleStruct*, pBounds, ESI);
+
+	if (pThis->VisualCharacter(false, nullptr) != VisualType::Hidden)
+		TechnoExt::DrawInsignia(pThis, pLocation, pBounds);
+
+	return SkipGameCode;
+}
+
+DEFINE_HOOK(0x70EFE0, TechnoClass_GetMaxSpeed, 0x6)
+{
+	enum { SkipGameCode = 0x70EFF2 };
+
+	GET(TechnoClass*, pThis, ECX);
+
+	int maxSpeed = 0;
+
+	if (pThis)
+	{
+		maxSpeed = pThis->GetTechnoType()->Speed;
+
+		auto const pTypeExt = TechnoTypeExt::ExtMap.Find(pThis->GetTechnoType());
+
+		if (pTypeExt->UseDisguiseMovementSpeed && pThis->IsDisguised())
+		{
+			if (auto const pType = TechnoTypeExt::GetTechnoType(pThis->Disguise))
+				maxSpeed = pType->Speed;
+		}
+	}
+
+	R->EAX(maxSpeed);
+	return SkipGameCode;
+}
+
+DEFINE_HOOK(0x54B188, JumpjetLocomotionClass_Process_LayerUpdate, 0x6)
+{
+	GET(TechnoClass*, pLinkedTo, EAX);
+
+	TechnoExt::UpdateAttachedAnimLayers(pLinkedTo);
+
+	return 0;
+}
+
+DEFINE_HOOK(0x4CD4E1, FlyLocomotionClass_Update_LayerUpdate, 0x6)
+{
+	GET(TechnoClass*, pLinkedTo, ECX);
+
+	if (pLinkedTo->LastLayer != pLinkedTo->InWhichLayer())
+		TechnoExt::UpdateAttachedAnimLayers(pLinkedTo);
+
+	return 0;
+}
+
+// Move to UnitClass hooks file if it is ever created.
+DEFINE_HOOK(0x736234, UnitClass_ChronoSparkleDelay, 0x5)
+{
+	R->ECX(RulesExt::Global()->ChronoSparkleDisplayDelay);
+	return 0x736239;
+}
+
+// Move to InfantryClass hooks file if it is ever created.
+DEFINE_HOOK(0x51BAFB, InfantryClass_ChronoSparkleDelay, 0x5)
+{
+	R->ECX(RulesExt::Global()->ChronoSparkleDisplayDelay);
+	return 0x51BB00;
 }

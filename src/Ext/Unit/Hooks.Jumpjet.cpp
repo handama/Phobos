@@ -1,6 +1,6 @@
 #include <JumpjetLocomotionClass.h>
 #include <UnitClass.h>
-
+#include <Utilities/Macro.h>
 #include <Ext/TechnoType/Body.h>
 #include <Ext/WeaponType/Body.h>
 
@@ -145,4 +145,38 @@ DEFINE_HOOK(0x54DD3D, JumpjetLocomotionClass_DrawMatrix_AxisCenterInAir, 0x5)
 	return 0;
 }
 */
+
+FireError __stdcall JumpjetLocomotionClass_Can_Fire(ILocomotion* pThis)
+{
+	// do not use explicit toggle for this
+	if (static_cast<JumpjetLocomotionClass*>(pThis)->State == JumpjetLocomotionClass::State::Crashing)
+		return FireError::CANT;
+	return FireError::OK;
+}
+
+DEFINE_JUMP(VTABLE, 0x7ECDF4, GET_OFFSET(JumpjetLocomotionClass_Can_Fire));
+
 //TODO : Issue #690 #655
+
+// Fix initial facing when jumpjet locomotor is being attached
+DEFINE_HOOK(0x54AE44, JumpjetLocomotionClass_LinkToObject_FixFacing, 0x7)
+{
+	GET(ILocomotion*, iLoco, EBP);
+	auto const pThis = static_cast<JumpjetLocomotionClass*>(iLoco);
+
+	pThis->LocomotionFacing.SetCurrent(pThis->LinkedTo->PrimaryFacing.Current());
+	pThis->LocomotionFacing.SetDesired(pThis->LinkedTo->PrimaryFacing.Desired());
+
+	return 0;
+}
+
+// Fix initial facing when jumpjet locomotor on unlimbo
+void __stdcall JumpjetLocomotionClass_Unlimbo(ILocomotion* pThis)
+{
+	auto const pThisLoco = static_cast<JumpjetLocomotionClass*>(pThis);
+
+	pThisLoco->LocomotionFacing.SetCurrent(pThisLoco->LinkedTo->PrimaryFacing.Current());
+	pThisLoco->LocomotionFacing.SetDesired(pThisLoco->LinkedTo->PrimaryFacing.Desired());
+}
+
+DEFINE_JUMP(VTABLE, 0x7ECDB8, GET_OFFSET(JumpjetLocomotionClass_Unlimbo))

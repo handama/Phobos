@@ -240,20 +240,31 @@ DEFINE_HOOK(0x6FC339, TechnoClass_CanFire, 0x6)
 	GET(TechnoClass*, pThis, ESI);
 	GET(WeaponTypeClass*, pWeapon, EDI);
 	GET_STACK(AbstractClass*, pTarget, STACK_OFFSET(0x20, 0x4));
+
 	// Checking for nullptr is not required here, since the game has already executed them before calling the hook  -- Belonit
 	const auto pWH = pWeapon->Warhead;
 
 	if (const auto pWHExt = WarheadTypeExt::ExtMap.Find(pWH))
 	{
 		const int nMoney = pWHExt->TransactMoney;
+
 		if (nMoney < 0 && pThis->Owner->Available_Money() < -nMoney)
 			return CannotFire;
 	}
+
 	if (const auto pWeaponExt = WeaponTypeExt::ExtMap.Find(pWeapon))
 	{
 		const auto pTechno = abstract_cast<TechnoClass*>(pTarget);
-
 		CellClass* pTargetCell = nullptr;
+
+		// AAOnly doesn't need to be checked if LandTargeting=1.
+		if ((!pTechno || pTechno->GetTechnoType()->LandTargeting != LandTargetingType::Land_Not_OK) && pWeapon->Projectile->AA && pTarget && !pTarget->IsInAir())
+		{
+			auto const pBulletTypeExt = BulletTypeExt::ExtMap.Find(pWeapon->Projectile);
+
+			if (pBulletTypeExt->AAOnly)
+				return CannotFire;
+		}
 
 		if (pTarget)
 		{
@@ -525,10 +536,16 @@ DEFINE_HOOK(0x6F3AF9, TechnoClass_GetFLH_AlternateFLH, 0x6)
 	return 0x6F3B37;
 }
 
+namespace BurstFLHTemp
+{
+	bool FLHFound;
+}
+
 DEFINE_HOOK(0x6F3B37, TechnoClass_GetFLH_BurstFLH_1, 0x7)
 {
 	GET(TechnoClass*, pThis, EBX);
 	GET_STACK(int, weaponIndex, STACK_OFFSET(0xD8, 0x8));
+
 	if (weaponIndex < 0)
 		return 0;
 
@@ -536,6 +553,7 @@ DEFINE_HOOK(0x6F3B37, TechnoClass_GetFLH_BurstFLH_1, 0x7)
 	CoordStruct FLH = CoordStruct::Empty;
 
 	FLH = TechnoExt::GetBurstFLH(pThis, weaponIndex, FLHFound);
+	BurstFLHTemp::FLHFound = FLHFound;
 
 	if (!FLHFound)
 	{
@@ -555,17 +573,12 @@ DEFINE_HOOK(0x6F3B37, TechnoClass_GetFLH_BurstFLH_1, 0x7)
 
 DEFINE_HOOK(0x6F3C88, TechnoClass_GetFLH_BurstFLH_2, 0x6)
 {
-	GET(TechnoClass*, pThis, EBX);
 	GET_STACK(int, weaponIndex, STACK_OFFSET(0xD8, 0x8));
-	if (weaponIndex < 0)
-		return 0;
 
-	bool FLHFound = false;
-
-	TechnoExt::GetBurstFLH(pThis, weaponIndex, FLHFound);
-
-	if (FLHFound)
+	if (BurstFLHTemp::FLHFound || weaponIndex < 0)
 		R->EAX(0);
+
+	BurstFLHTemp::FLHFound = false;
 
 	return 0;
 }

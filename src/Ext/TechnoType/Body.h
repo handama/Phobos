@@ -9,6 +9,7 @@
 #include <New/Type/LaserTrailTypeClass.h>
 #include <New/Type/Affiliated/InterceptorTypeClass.h>
 #include <New/Type/Affiliated/PassengerDeletionTypeClass.h>
+#include <New/Type/DigitalDisplayTypeClass.h>
 
 class Matrix3D;
 
@@ -16,6 +17,9 @@ class TechnoTypeExt
 {
 public:
 	using base_type = TechnoTypeClass;
+
+	static constexpr DWORD Canary = 0x11111111;
+	static constexpr size_t ExtPointerOffset = 0xDF4;
 
 	class ExtData final : public Extension<TechnoTypeClass>
 	{
@@ -32,6 +36,8 @@ public:
 		std::unique_ptr<InterceptorTypeClass> InterceptorType;
 
 		Valueable<PartialVector3D<int>> TurretOffset;
+		Nullable<bool> TurretShadow;
+		ValueableVector<int> ShadowIndices;
 		Valueable<bool> Spawner_LimitRange;
 		Valueable<int> Spawner_ExtraLimitRange;
 		Nullable<int> Spawner_DelayFrames;
@@ -90,6 +96,7 @@ public:
 		Valueable<bool> NotHuman_RandomDeathSequence;
 
 		Nullable<InfantryTypeClass*> DefaultDisguise;
+		Valueable<bool> UseDisguiseMovementSpeed;
 
 		Nullable<int> OpenTopped_RangeBonus;
 		Nullable<float> OpenTopped_DamageMultiplier;
@@ -133,6 +140,28 @@ public:
 		Nullable<int> DeployFireWeapon;
 		Valueable<TargetZoneScanType> TargetZoneScanType;
 
+		Promotable<SHPStruct*> Insignia;
+		Valueable<Vector3D<int>> InsigniaFrames;
+		Promotable<int> InsigniaFrame;
+		Nullable<bool> Insignia_ShowEnemy;
+		std::vector<Promotable<SHPStruct*>> Insignia_Weapon;
+		std::vector<Promotable<int>> InsigniaFrame_Weapon;
+		std::vector<Vector3D<int>> InsigniaFrames_Weapon;
+
+		Nullable<bool> TiltsWhenCrushes_Vehicles;
+		Nullable<bool> TiltsWhenCrushes_Overlays;
+		Nullable<double> CrushForwardTiltPerFrame;
+		Valueable<double> CrushOverlayExtraForwardTilt;
+		Valueable<double> CrushSlowdownMultiplier;
+
+		Valueable<bool> DigitalDisplay_Disable;
+		ValueableVector<DigitalDisplayTypeClass*> DigitalDisplayTypes;
+
+		Valueable<int> AmmoPip;
+		Valueable<int> EmptyAmmoPip;
+		Valueable<int> PipWrapAmmoPip;
+		Nullable<Point2D> AmmoPipSize;
+
 		struct LaserTrailDataEntry
 		{
 			ValueableIdx<LaserTrailTypeClass> idxType;
@@ -171,6 +200,8 @@ public:
 			, InterceptorType { nullptr }
 
 			, TurretOffset { { 0, 0, 0 } }
+			, TurretShadow { }
+			, ShadowIndices { }
 			, Spawner_LimitRange { false }
 			, Spawner_ExtraLimitRange { 0 }
 			, Spawner_DelayFrames {}
@@ -205,6 +236,7 @@ public:
 			, NotHuman_RandomDeathSequence { false }
 
 			, DefaultDisguise {}
+			, UseDisguiseMovementSpeed {}
 
 			, OpenTopped_RangeBonus {}
 			, OpenTopped_DamageMultiplier {}
@@ -244,24 +276,52 @@ public:
 			, SellSound {}
 			, EVA_Sold {}
 			, EnemyUIName {}
+
 			, ForceWeapon_Naval_Decloaked { -1 }
 			, ForceWeapon_Cloaked { -1 }
 			, ForceWeapon_Disguised { -1 }
+
 			, Ammo_Shared { false }
 			, Ammo_Shared_Group { -1 }
+
 			, SelfHealGainType {}
 			, Passengers_SyncOwner { false }
 			, Passengers_SyncOwner_RevertOnExit { true }
+
 			, PronePrimaryFireFLH {}
 			, ProneSecondaryFireFLH {}
 			, DeployedPrimaryFireFLH {}
 			, DeployedSecondaryFireFLH {}
+
 			, IronCurtain_KeptOnDeploy {}
 			, IronCurtain_Effect {}
 			, IronCurtain_KillWarhead {}
+
 			, Explodes_KillPassengers { true }
 			, DeployFireWeapon {}
 			, TargetZoneScanType { TargetZoneScanType::Same }
+
+			, Insignia {}
+			, InsigniaFrames { { -1, -1, -1 } }
+			, InsigniaFrame { -1 }
+			, Insignia_ShowEnemy {}
+			, Insignia_Weapon {}
+			, InsigniaFrame_Weapon {}
+			, InsigniaFrames_Weapon {}
+
+			, TiltsWhenCrushes_Vehicles {}
+			, TiltsWhenCrushes_Overlays {}
+			, CrushSlowdownMultiplier { 0.2 }
+			, CrushForwardTiltPerFrame {}
+			, CrushOverlayExtraForwardTilt { 0.02 }
+
+			, DigitalDisplay_Disable { false }
+			, DigitalDisplayTypes {}
+
+			, AmmoPip { 13 }
+			, EmptyAmmoPip { -1 }
+			, PipWrapAmmoPip { 14 }
+			, AmmoPipSize {}
 		{ }
 
 		virtual ~ExtData() = default;
@@ -296,6 +356,7 @@ public:
 	static ExtContainer ExtMap;
 
 	static void ApplyTurretOffset(TechnoTypeClass* pType, Matrix3D* mtx, double factor = 1.0);
+	static TechnoTypeClass* GetTechnoType(ObjectTypeClass* pType);
 
 	// Ares 0.A
 	static const char* GetSelectionGroupID(ObjectTypeClass* pType);

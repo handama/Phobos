@@ -10,7 +10,6 @@
 #include <Ext/Anim/Body.h>
 #include <Ext/TechnoType/Body.h>
 
-template<> const DWORD Extension<AnimTypeClass>::Canary = 0xEEEEEEEE;
 AnimTypeExt::ExtContainer AnimTypeExt::ExtMap;
 
 const void AnimTypeExt::ProcessDestroyAnims(UnitClass* pThis, TechnoClass* pKiller)
@@ -22,7 +21,7 @@ const void AnimTypeExt::ProcessDestroyAnims(UnitClass* pThis, TechnoClass* pKill
 
 	if (pThis->Type->DestroyAnim.Count > 0)
 	{
-		auto const facing = pThis->PrimaryFacing.Current().GetFacing<256>();
+		auto const facing = pThis->PrimaryFacing.Current().GetDir();
 		AnimTypeClass* pAnimType = nullptr;
 		auto const pTypeExt = TechnoTypeExt::ExtMap.Find(pThis->Type);
 
@@ -34,7 +33,7 @@ const void AnimTypeExt::ProcessDestroyAnims(UnitClass* pThis, TechnoClass* pKill
 			{
 				idxAnim = pThis->Type->DestroyAnim.Count;
 				if (pThis->Type->DestroyAnim.Count % 2 == 0)
-					idxAnim *= static_cast<int>(facing / 256.0);
+					idxAnim *= static_cast<int>(static_cast<unsigned char>(facing) / 256.0);
 			}
 
 			pAnimType = pThis->Type->DestroyAnim[idxAnim];
@@ -63,7 +62,7 @@ const void AnimTypeExt::ProcessDestroyAnims(UnitClass* pThis, TechnoClass* pKill
 				pAnimExt->FromDeathUnit = true;
 
 				if (pAnimTypeExt->CreateUnit_InheritDeathFacings.Get())
-					pAnimExt->DeathUnitFacing = static_cast<short>(facing);
+					pAnimExt->DeathUnitFacing = facing;
 
 				if (pAnimTypeExt->CreateUnit_InheritTurretFacings.Get())
 				{
@@ -93,6 +92,7 @@ void AnimTypeExt::ExtData::LoadFromINIFile(CCINIClass* pINI)
 	this->CreateUnit_Mission.Read(exINI, pID, "CreateUnit.Mission");
 	this->CreateUnit_Owner.Read(exINI, pID, "CreateUnit.Owner");
 	this->CreateUnit_RandomFacing.Read(exINI, pID, "CreateUnit.RandomFacing");
+	this->CreateUnit_AlwaysSpawnOnGround.Read(exINI, pID, "CreateUnit.AlwaysSpawnOnGround");
 	this->CreateUnit_ConsiderPathfinding.Read(exINI, pID, "CreateUnit.ConsiderPathfinding");
 	this->CreateUnit_SpawnAnim.Read(exINI, pID, "CreateUnit.SpawnAnim");
 	this->XDrawOffset.Read(exINI, pID, "XDrawOffset");
@@ -105,6 +105,7 @@ void AnimTypeExt::ExtData::LoadFromINIFile(CCINIClass* pINI)
 	this->Damage_ApplyOncePerLoop.Read(exINI, pID, "Damage.ApplyOncePerLoop");
 	this->ExplodeOnWater.Read(exINI, pID, "ExplodeOnWater");
 	this->Warhead_Detonate.Read(exINI, pID, "Warhead.Detonate");
+	this->WakeAnim.Read(exINI, pID, "WakeAnim");
 	this->SplashAnims.Read(exINI, pID, "SplashAnims");
 	this->SplashAnims_PickRandom.Read(exINI, pID, "SplashAnims.PickRandom");
 	this->AttachedSystem.Read(exINI, pID, "AttachedSystem", true);
@@ -123,6 +124,7 @@ void AnimTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->CreateUnit_InheritTurretFacings)
 		.Process(this->CreateUnit_Owner)
 		.Process(this->CreateUnit_RandomFacing)
+		.Process(this->CreateUnit_AlwaysSpawnOnGround)
 		.Process(this->CreateUnit_ConsiderPathfinding)
 		.Process(this->CreateUnit_SpawnAnim)
 		.Process(this->XDrawOffset)
@@ -135,6 +137,7 @@ void AnimTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->Damage_ApplyOncePerLoop)
 		.Process(this->ExplodeOnWater)
 		.Process(this->Warhead_Detonate)
+		.Process(this->WakeAnim)
 		.Process(this->SplashAnims)
 		.Process(this->SplashAnims_PickRandom)
 		.Process(this->AttachedSystem)
@@ -160,7 +163,7 @@ DEFINE_HOOK(0x42784B, AnimTypeClass_CTOR, 0x5)
 {
 	GET(AnimTypeClass*, pItem, EAX);
 
-	AnimTypeExt::ExtMap.FindOrAllocate(pItem);
+	AnimTypeExt::ExtMap.TryAllocate(pItem);
 	return 0;
 }
 

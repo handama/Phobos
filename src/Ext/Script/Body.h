@@ -70,6 +70,7 @@ enum class PhobosScripts : unsigned int
 	WaitUntilFullAmmo = 10101,
 	GatherAroundLeader = 10102,
 	LoadIntoTransports = 10103,
+	ChronoshiftToEnemyBase = 10104,
 
 	ChangeTeamGroup = 11500,
 	DistributedLoading = 11501,
@@ -187,6 +188,8 @@ class ScriptExt
 public:
 	using base_type = ScriptClass;
 
+	static constexpr DWORD Canary = 0x3B3B3B3B;
+
 	class ExtData final : public Extension<ScriptClass>
 	{
 	public:
@@ -194,18 +197,20 @@ public:
 
 		ExtData(ScriptClass* OwnerObject) : Extension<ScriptClass>(OwnerObject)
 			// Nothing yet
-		{ }
+		{
+		}
 
 		virtual ~ExtData() = default;
 
-		virtual void InvalidatePointer(void* ptr, bool bRemoved) override {}
+		virtual void InvalidatePointer(void* ptr, bool bRemoved) override { }
 
 		virtual void LoadFromStream(PhobosStreamReader& Stm);
 		virtual void SaveToStream(PhobosStreamWriter& Stm);
 
 	};
 
-	class ExtContainer final : public Container<ScriptExt> {
+	class ExtContainer final : public Container<ScriptExt>
+	{
 	public:
 		ExtContainer();
 		~ExtContainer();
@@ -213,11 +218,11 @@ public:
 
 	static ExtContainer ExtMap;
 
-	static void ProcessAction(TeamClass * pTeam);
-	static void ExecuteTimedAreaGuardAction(TeamClass * pTeam);
-	static void LoadIntoTransports(TeamClass * pTeam);
-	static void WaitUntilFullAmmoAction(TeamClass * pTeam);
-	static void Mission_Gather_NearTheLeader(TeamClass *pTeam, int countdown);
+	static void ProcessAction(TeamClass* pTeam);
+	static void ExecuteTimedAreaGuardAction(TeamClass* pTeam);
+	static void LoadIntoTransports(TeamClass* pTeam);
+	static void WaitUntilFullAmmoAction(TeamClass* pTeam);
+	static void Mission_Gather_NearTheLeader(TeamClass* pTeam, int countdown);
 	static void DecreaseCurrentTriggerWeight(TeamClass* pTeam, bool forceJumpLine, double modifier);
 	static void IncreaseCurrentTriggerWeight(TeamClass* pTeam, bool forceJumpLine, double modifier);
 	static void WaitIfNoTarget(TeamClass *pTeam, int attempts);
@@ -237,13 +242,15 @@ public:
 	static bool StopTeamMemberMoving(TeamClass* pTeam);
 	static bool IsValidRallyTarget(TeamClass* pTeam, FootClass* pFoot, int nType);
 
-	static void UnregisterGreatSuccess(TeamClass * pTeam);
-	static void SetCloseEnoughDistance(TeamClass *pTeam, double distance);
+	
+	static void UnregisterGreatSuccess(TeamClass* pTeam);
+	static void SetCloseEnoughDistance(TeamClass* pTeam, double distance);
 	static void SetMoveMissionEndMode(TeamClass* pTeam, int mode);
 	static void SkipNextAction(TeamClass* pTeam, int successPercentage);
 	static FootClass* FindTheTeamLeader(TeamClass* pTeam);
-	static void Set_ForceJump_Countdown(TeamClass *pTeam, bool repeatLine, int count);
-	static void Stop_ForceJump_Countdown(TeamClass *pTeam);
+	static void Set_ForceJump_Countdown(TeamClass* pTeam, bool repeatLine, int count);
+	static void Stop_ForceJump_Countdown(TeamClass* pTeam);
+	static void ChronoshiftToEnemyBase(TeamClass* pTeam, int extraDistance);
 
 	static bool IsExtVariableAction(int action);
 	static void VariablesHandler(TeamClass* pTeam, PhobosScripts eAction, int nArg);
@@ -251,7 +258,7 @@ public:
 	static void VariableOperationHandler(TeamClass* pTeam, int nVariable, int Number);
 	template<bool IsSrcGlobal, bool IsGlobal, class _Pr>
 	static void VariableBinaryOperationHandler(TeamClass* pTeam, int nVariable, int nVarToOperate);
-	static bool IsUnitAvailable(TechnoClass* pTechno, bool checkIfInTransportOrAbsorbed, bool allowSubterranean);
+	static bool IsUnitAvailable(TechnoClass* pTechno, bool checkIfInTransportOrAbsorbed);
 	static void Log(const char* pFormat, ...);
 
 	static void TransportsReturn(TeamClass* pTeam, FootClass* pTransport);
@@ -285,4 +292,5 @@ public:
 private:
 	static void ModifyCurrentTriggerWeight(TeamClass* pTeam, bool forceJumpLine, double modifier);
 	static bool MoveMissionEndStatus(TeamClass* pTeam, TechnoClass* pFocus, FootClass* pLeader, int mode);
+	static void ChronoshiftTeamToTarget(TeamClass* pTeam, TechnoClass* pTeamLeader, AbstractClass* pTarget);
 };

@@ -29,6 +29,9 @@ void SWTypeExt::FireSuperWeaponExt(SuperClass* pSW, const CellStruct& cell)
 
 		if (pTypeExt->SW_Next.size() > 0)
 			pTypeExt->ApplySWNext(pSW, cell);
+
+		if (pTypeExt->Convert_Pairs.size() > 0)
+			pTypeExt->ApplyTypeConversion(pSW);
 	}
 }
 
@@ -56,6 +59,16 @@ inline void LimboCreate(BuildingTypeClass* pType, HouseClass* pOwner, int ID)
 		pBuilding->InLimbo = false;
 		pBuilding->IsAlive = true;
 		pBuilding->IsOnMap = true;
+
+		// For reasons beyond my comprehension, the discovery logic is checked for certain logics like power drain/output in campaign only.
+		// Normally on unlimbo the buildings are revealed to current player if unshrouded or if game is a campaign and to non-player houses always.
+		// Because of the unique nature of LimboDelivered buildings, this has been adjusted to always reveal to the current player in singleplayer
+		// and to the owner of the building regardless, removing the shroud check from the equation since they don't physically exist - Starkku
+		if (SessionClass::Instance->GameMode == GameMode::Campaign)
+			pBuilding->DiscoveredBy(HouseClass::CurrentPlayer);
+
+		pBuilding->DiscoveredBy(pOwner);
+
 		pOwner->RegisterGain(pBuilding, false);
 		pOwner->UpdatePower();
 		pOwner->RecheckTechTree = true;
@@ -93,13 +106,15 @@ inline void LimboCreate(BuildingTypeClass* pType, HouseClass* pOwner, int ID)
 
 			if (auto pOwnerExt = HouseExt::ExtMap.Find(pOwner))
 			{	// Add building to list of owned limbo buildings
-				pOwnerExt->OwnedLimboDeliveredBuildings.insert({ pBuilding->UniqueID, pBuildingExt });
+				pOwnerExt->OwnedLimboDeliveredBuildings.insert({ pBuilding, pBuildingExt });
 
-				auto pTechExt = TechnoExt::ExtMap.Find(pBuilding);
-				if (pTechExt->TypeExtData->AutoDeath_Behavior.isset() && pTechExt->TypeExtData->AutoDeath_AfterDelay > 0)
+				auto const pTechnoExt = TechnoExt::ExtMap.Find(pBuilding);
+				auto const pTechnoTypeExt = pTechnoExt->TypeExtData;
+
+				if (pTechnoTypeExt->AutoDeath_Behavior.isset() && pTechnoTypeExt->AutoDeath_AfterDelay > 0)
 				{
-					pTechExt->AutoDeathTimer.Start(pTechExt->TypeExtData->AutoDeath_AfterDelay);
-					pOwnerExt->OwnedTimedAutoDeathObjects.push_back(pTechExt);
+					pTechnoExt->AutoDeathTimer.Start(pTechnoTypeExt->AutoDeath_AfterDelay);
+					pOwnerExt->OwnedTimedAutoDeathObjects.push_back(pTechnoExt);
 				}
 			}
 		}
@@ -114,7 +129,7 @@ inline void LimboDelete(BuildingClass* pBuilding, HouseClass* pTargetHouse)
 
 	// Remove building from list of owned limbo buildings
 	if (pOwnerExt)
-		pOwnerExt->OwnedLimboDeliveredBuildings.erase(pBuilding->UniqueID);
+		pOwnerExt->OwnedLimboDeliveredBuildings.erase(pBuilding);
 
 	// Mandatory
 	pBuilding->InLimbo = true;
@@ -188,7 +203,7 @@ void SWTypeExt::ExtData::ApplyLimboKill(HouseClass* pHouse)
 			{
 				if (auto const pHouseExt = HouseExt::ExtMap.Find(pTargetHouse))
 				{
-					for (const auto& [buildingUniqueID, pBuildingExt] : pHouseExt->OwnedLimboDeliveredBuildings)
+					for (const auto& [pBuilding, pBuildingExt] : pHouseExt->OwnedLimboDeliveredBuildings)
 					{
 						if (pBuildingExt->LimboID == limboKillID)
 							LimboDelete(pBuildingExt->OwnerObject(), pTargetHouse);
@@ -285,4 +300,13 @@ void SWTypeExt::ExtData::ApplySWNext(SuperClass* pSW, const CellStruct& cell)
 		for (const auto swType : this->SW_Next)
 			LaunchTheSW(swType);
 	}
+}
+
+void SWTypeExt::ExtData::ApplyTypeConversion(SuperClass* pSW)
+{
+	if (this->Convert_Pairs.size() == 0)
+		return;
+
+	for (const auto pTargetFoot : *FootClass::Array)
+		TypeConvertHelper::Convert(pTargetFoot, this->Convert_Pairs, pSW->Owner);
 }

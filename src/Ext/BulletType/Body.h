@@ -14,6 +14,9 @@ class BulletTypeExt
 public:
 	using base_type = BulletTypeClass;
 
+	static constexpr DWORD Canary = 0xF00DF00D;
+	static constexpr size_t ExtPointerOffset = 0x18;
+
 	class ExtData final : public Extension<BulletTypeClass>
 	{
 	public:
@@ -25,7 +28,7 @@ public:
 		ValueableIdxVector<LaserTrailTypeClass> LaserTrail_Types;
 		Nullable<double> Gravity;
 
-		PhobosTrajectoryType* TrajectoryType;
+		PhobosTrajectoryType* TrajectoryType;// TODO: why not unique_ptr
 		Valueable<double> Trajectory_Speed;
 
 		Valueable<bool> Shrapnel_AffectsGround;
@@ -37,6 +40,8 @@ public:
 
 		Nullable<Leptons> ClusterScatter_Min;
 		Nullable<Leptons> ClusterScatter_Max;
+
+		Valueable<bool> AAOnly;
 
 		// Ares 0.7
 		Nullable<Leptons> BallisticScatter_Min;
@@ -61,6 +66,7 @@ public:
 			, SubjectToLand_Detonate { true }
 			, SubjectToWater {}
 			, SubjectToWater_Detonate { true }
+			, AAOnly { false }
 		{ }
 
 		virtual ~ExtData() = default;

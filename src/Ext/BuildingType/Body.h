@@ -12,6 +12,9 @@ class BuildingTypeExt
 public:
 	using base_type = BuildingTypeClass;
 
+	static constexpr DWORD Canary = 0x11111111;
+	static constexpr size_t ExtPointerOffset = 0x18;
+
 	class ExtData final : public Extension<BuildingTypeClass>
 	{
 	public:
@@ -55,6 +58,8 @@ public:
 		NullableIdx<SuperWeaponTypeClass> SpyEffect_InfiltratorSuperWeapon;
 
 		Nullable<bool> ConsideredVehicle;
+		Valueable<bool> ZShapePointMove_OnBuildup;
+		Valueable<int> SellBuildupLength;
 
 		ExtData(BuildingTypeClass* OwnerObject) : Extension<BuildingTypeClass>(OwnerObject)
 			, PowersUp_Owner { AffectedHouse::Owner }
@@ -89,6 +94,8 @@ public:
 			, SpyEffect_VictimSuperWeapon {}
 			, SpyEffect_InfiltratorSuperWeapon {}
 			, ConsideredVehicle {}
+			, ZShapePointMove_OnBuildup { false }
+			, SellBuildupLength { 23 }
 		{ }
 
 		// Ares 0.A functions
@@ -102,9 +109,7 @@ public:
 		virtual void Initialize() override;
 		virtual void CompleteInitialization();
 
-		virtual void InvalidatePointer(void* ptr, bool bRemoved) override
-		{
-		}
+		virtual void InvalidatePointer(void* ptr, bool bRemoved) override { }
 
 		virtual void LoadFromStream(PhobosStreamReader& Stm) override;
 		virtual void SaveToStream(PhobosStreamWriter& Stm) override;

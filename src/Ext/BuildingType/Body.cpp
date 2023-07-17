@@ -4,7 +4,6 @@
 #include <Utilities/GeneralUtils.h>
 #include <Ext/SWType/Body.h>
 
-template<> const DWORD Extension<BuildingTypeClass>::Canary = 0x11111111;
 BuildingTypeExt::ExtContainer BuildingTypeExt::ExtMap;
 
 // Assuming SuperWeapon & SuperWeapon2 are used (for the moment)
@@ -146,6 +145,7 @@ void BuildingTypeExt::ExtData::LoadFromINIFile(CCINIClass* const pINI)
 	this->DisplayIncome_Offset.Read(exINI, pSection, "DisplayIncome.Offset");
 
 	this->ConsideredVehicle.Read(exINI, pSection, "ConsideredVehicle");
+	this->SellBuildupLength.Read(exINI, pSection, "SellBuildupLength");
 
 	// Ares tag
 	this->SpyEffect_Custom.Read(exINI, pSection, "SpyEffect.Custom");
@@ -183,6 +183,9 @@ void BuildingTypeExt::ExtData::LoadFromINIFile(CCINIClass* const pINI)
 		this->PlacementPreview_Palette.LoadFromINI(pINI, pSection, "PlacementPreview.Palette");
 		this->PlacementPreview_Translucency.Read(exINI, pSection, "PlacementPreview.Translucency");
 	}
+
+	// Art
+	this->ZShapePointMove_OnBuildup.Read(exArtINI, pSection, "ZShapePointMove.OnBuildup");
 }
 
 void BuildingTypeExt::ExtData::CompleteInitialization()
@@ -228,6 +231,8 @@ void BuildingTypeExt::ExtData::Serialize(T& Stm)
 		.Process(this->SpyEffect_VictimSuperWeapon)
 		.Process(this->SpyEffect_InfiltratorSuperWeapon)
 		.Process(this->ConsideredVehicle)
+		.Process(this->ZShapePointMove_OnBuildup)
+		.Process(this->SellBuildupLength)
 		;
 }
 
@@ -276,7 +281,8 @@ DEFINE_HOOK(0x45E50C, BuildingTypeClass_CTOR, 0x6)
 {
 	GET(BuildingTypeClass*, pItem, EAX);
 
-	BuildingTypeExt::ExtMap.FindOrAllocate(pItem);
+	BuildingTypeExt::ExtMap.TryAllocate(pItem);
+
 	return 0;
 }
 

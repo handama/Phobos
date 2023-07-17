@@ -60,7 +60,7 @@ void ShieldClass::PointerGotInvalid(void* ptr, bool removed)
 		for (auto pShield : ShieldClass::Array)
 		{
 			if (pAnim == pShield->IdleAnim)
-				pShield->KillAnim();
+				pShield->IdleAnim = nullptr;
 		}
 	}
 }
@@ -199,7 +199,7 @@ int ShieldClass::ReceiveDamage(args_ReceiveDamage* args)
 			this->WeaponNullifyAnim(pWHExt->Shield_HitAnim.Get(nullptr));
 			this->HP = -residueDamage;
 
-			UpdateIdleAnim();
+			this->UpdateIdleAnim();
 
 			return healthDamage;
 		}
@@ -223,7 +223,7 @@ int ShieldClass::ReceiveDamage(args_ReceiveDamage* args)
 		else
 			this->HP -= shieldDamage;
 
-		UpdateIdleAnim();
+		this->UpdateIdleAnim();
 
 		return 0;
 	}
@@ -263,25 +263,27 @@ void ShieldClass::WeaponNullifyAnim(AnimTypeClass* pHitAnim)
 		GameCreate<AnimClass>(pAnimType, this->Techno->GetCoords());
 }
 
-bool ShieldClass::CanBeTargeted(WeaponTypeClass* pWeapon)
+bool ShieldClass::CanBeTargeted(WeaponTypeClass* pWeapon) const
 {
 	if (!pWeapon)
 		return false;
 
-	if (CanBePenetrated(pWeapon->Warhead) || !this->HP)
+	if (this->CanBePenetrated(pWeapon->Warhead) || !this->HP)
 		return true;
 
 	return GeneralUtils::GetWarheadVersusArmor(pWeapon->Warhead, this->GetArmorType()) != 0.0;
 }
 
-bool ShieldClass::CanBePenetrated(WarheadTypeClass* pWarhead)
+bool ShieldClass::CanBePenetrated(WarheadTypeClass* pWarhead) const
 {
 	if (!pWarhead)
 		return false;
 
 	const auto pWHExt = WarheadTypeExt::ExtMap.Find(pWarhead);
 
-	if (pWHExt->Shield_AffectTypes.size() > 0 && !pWHExt->Shield_AffectTypes.Contains(this->Type))
+	const auto affectedTypes = pWHExt->Shield_Penetrate_Types.GetElements(pWHExt->Shield_AffectTypes);
+
+	if (affectedTypes.size() > 0 && !affectedTypes.contains(this->Type))
 		return false;
 
 	if (pWarhead->Psychedelic)
@@ -385,7 +387,7 @@ void ShieldClass::CloakCheck()
 	this->Cloak = cloakState == CloakState::Cloaked || cloakState == CloakState::Cloaking;
 
 	if (this->Cloak)
-		KillAnim();
+		this->KillAnim();
 }
 
 void ShieldClass::OnlineCheck()
@@ -462,7 +464,7 @@ void ShieldClass::TemporalCheck()
 	}
 }
 
-// Is used for DeploysInto/UndeploysInto and DeploysInto/UndeploysInto
+// Is used for DeploysInto/UndeploysInto and Type conversion
 bool ShieldClass::ConvertCheck()
 {
 	const auto newID = this->Techno->GetTechnoType();
@@ -554,7 +556,7 @@ void ShieldClass::SelfHealing()
 			timer->Start(rate);
 			this->HP += percentageAmount;
 
-			UpdateIdleAnim();
+			this->UpdateIdleAnim();
 
 			if (this->HP > pType->Strength)
 			{
@@ -563,7 +565,7 @@ void ShieldClass::SelfHealing()
 			}
 			else if (this->HP <= 0)
 			{
-				BreakShield();
+				this->BreakShield();
 			}
 		}
 	}
@@ -696,7 +698,7 @@ void ShieldClass::KillAnim()
 {
 	if (this->IdleAnim)
 	{
-		this->IdleAnim->DetachFromObject(this->Techno, false);
+		this->IdleAnim->UnInit();
 		this->IdleAnim = nullptr;
 	}
 }
@@ -720,124 +722,120 @@ AnimTypeClass* ShieldClass::GetIdleAnimType()
 	return this->Type->GetIdleAnimType(isDamaged, this->GetHealthRatio());
 }
 
-void ShieldClass::DrawShieldBar(int iLength, Point2D* pLocation, RectangleStruct* pBound)
+void ShieldClass::DrawShieldBar(int length, Point2D* pLocation, RectangleStruct* pBound)
 {
 	if (this->HP > 0 || this->Type->Respawn)
 	{
 		if (this->Techno->WhatAmI() == AbstractType::Building)
-			this->DrawShieldBar_Building(iLength, pLocation, pBound);
+			this->DrawShieldBar_Building(length, pLocation, pBound);
 		else
-			this->DrawShieldBar_Other(iLength, pLocation, pBound);
+			this->DrawShieldBar_Other(length, pLocation, pBound);
 	}
 }
 
-void ShieldClass::DrawShieldBar_Building(int iLength, Point2D* pLocation, RectangleStruct* pBound)
+bool ShieldClass::IsGreenSP()
 {
-	CoordStruct vCoords = { 0, 0, 0 };
-	this->Techno->GetTechnoType()->Dimension2(&vCoords);
-	Point2D vPos2 = { 0, 0 };
-	CoordStruct vCoords2 = { -vCoords.X / 2, vCoords.Y / 2,vCoords.Z };
-	TacticalClass::Instance->CoordsToScreen(&vPos2, &vCoords2);
+	return RulesClass::Instance->ConditionYellow * Type->Strength.Get() < HP;
+}
 
+bool ShieldClass::IsYellowSP()
+{
+	return RulesClass::Instance->ConditionRed * Type->Strength.Get() < HP && HP <= RulesClass::Instance->ConditionYellow * Type->Strength.Get();
+}
+
+bool ShieldClass::IsRedSP()
+{
+	return HP <= RulesClass::Instance->ConditionRed * Type->Strength.Get();
+}
+
+void ShieldClass::DrawShieldBar_Building(const int length, Point2D* pLocation, RectangleStruct* pBound)
+{
 	Point2D vLoc = *pLocation;
 	vLoc.X -= 5;
 	vLoc.Y -= 3;
 
-	Point2D vPos = { 0, 0 };
-
-	const int iTotal = DrawShieldBar_PipAmount(iLength);
+	Point2D position = { 0, 0 };
+	const int totalLength = DrawShieldBar_PipAmount(length);
 	int frame = this->DrawShieldBar_Pip(true);
 
-	if (iTotal > 0)
+	if (totalLength > 0)
 	{
-		int frameIdx, deltaX, deltaY;
-		for (frameIdx = iTotal, deltaX = 0, deltaY = 0;
+		for (int frameIdx = totalLength, deltaX = 0, deltaY = 0;
 			frameIdx;
 			frameIdx--, deltaX += 4, deltaY -= 2)
 		{
-			vPos.X = vPos2.X + vLoc.X + 4 * iLength + 3 - deltaX;
-			vPos.Y = vPos2.Y + vLoc.Y - 2 * iLength + 4 - deltaY;
+			position = TechnoExt::GetBuildingSelectBracketPosition(Techno, BuildingSelectBracketPosition::Top);
+			position.X -= deltaX + 6;
+			position.Y -= deltaY + 3;
 
 			DSurface::Temp->DrawSHP(FileSystem::PALETTE_PAL, FileSystem::PIPS_SHP,
-				frame, &vPos, pBound, BlitterFlags(0x600), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
+				frame, &position, pBound, BlitterFlags(0x600), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
 		}
 	}
 
-	if (iTotal < iLength)
+	if (totalLength < length)
 	{
-		int frameIdx, deltaX, deltaY;
-		for (frameIdx = iLength - iTotal, deltaX = 4 * iTotal, deltaY = -2 * iTotal;
+		for (int frameIdx = length - totalLength, deltaX = 4 * totalLength, deltaY = -2 * totalLength;
 			frameIdx;
 			frameIdx--, deltaX += 4, deltaY -= 2)
 		{
-			vPos.X = vPos2.X + vLoc.X + 4 * iLength + 3 - deltaX;
-			vPos.Y = vPos2.Y + vLoc.Y - 2 * iLength + 4 - deltaY;
+			position = TechnoExt::GetBuildingSelectBracketPosition(Techno, BuildingSelectBracketPosition::Top);
+			position.X -= deltaX + 6;
+			position.Y -= deltaY + 3;
 
-			int emptyFrame = this->Type->Pips_Building_Empty.Get(RulesExt::Global()->Pips_Shield_Building_Empty.Get(0));
+			const int emptyFrame = this->Type->Pips_Building_Empty.Get(RulesExt::Global()->Pips_Shield_Building_Empty.Get(0));
 
 			DSurface::Temp->DrawSHP(FileSystem::PALETTE_PAL, FileSystem::PIPS_SHP,
-				emptyFrame, &vPos, pBound, BlitterFlags(0x600), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
+				emptyFrame, &position, pBound, BlitterFlags(0x600), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
 		}
 	}
 }
 
-void ShieldClass::DrawShieldBar_Other(int iLength, Point2D* pLocation, RectangleStruct* pBound)
+void ShieldClass::DrawShieldBar_Other(const int length, Point2D* pLocation, RectangleStruct* pBound)
 {
-	Point2D vPos = { 0,0 };
-	Point2D vLoc = *pLocation;
-	int frame, XOffset, YOffset;
-	YOffset = this->Techno->GetTechnoType()->PixelSelectionBracketDelta + this->Type->BracketDelta;
-	vLoc.Y -= 5;
+	auto position = TechnoExt::GetFootSelectBracketPosition(Techno, Anchor(HorizontalPosition::Left, VerticalPosition::Top));
+	const auto pipBoard = this->Type->Pips_Background.Get(RulesExt::Global()->Pips_Shield_Background.Get(FileSystem::PIPBRD_SHP()));
+	int frame;
 
-	auto pipBoard = this->Type->Pips_Background.Get(RulesExt::Global()->Pips_Shield_Background.Get(FileSystem::PIPBRD_SHP()));
+	position.Y += this->Techno->GetTechnoType()->PixelSelectionBracketDelta + this->Type->BracketDelta - 3;
 
-	if (iLength == 8)
-	{
-		vPos.X = vLoc.X + 11;
-		vPos.Y = vLoc.Y - 25 + YOffset;
+	if (length == 8)
 		frame = pipBoard->Frames > 2 ? 3 : 1;
-		XOffset = -5;
-		YOffset -= 24;
-	}
 	else
-	{
-		vPos.X = vLoc.X + 1;
-		vPos.Y = vLoc.Y - 26 + YOffset;
 		frame = pipBoard->Frames > 2 ? 2 : 0;
-		XOffset = -15;
-		YOffset -= 25;
-	}
 
 	if (this->Techno->IsSelected)
 	{
+		position.X += length + 1 + (length == 8 ? length + 1 : 0);
 		DSurface::Temp->DrawSHP(FileSystem::PALETTE_PAL, pipBoard,
-			frame, &vPos, pBound, BlitterFlags(0xE00), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
+			frame, &position, pBound, BlitterFlags(0xE00), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
+		position.X -= length + 1 + (length == 8 ? length + 1 : 0);
 	}
 
-	const int iTotal = DrawShieldBar_PipAmount(iLength);
-
 	frame = this->DrawShieldBar_Pip(false);
+	position.Y += 1;
 
-	for (int i = 0; i < iTotal; ++i)
+	const int totalLength = DrawShieldBar_PipAmount(length);
+	for (int i = 0; i < totalLength; ++i)
 	{
-		vPos.X = vLoc.X + XOffset + 2 * i;
-		vPos.Y = vLoc.Y + YOffset;
-
+		position.X += 2;
 		DSurface::Temp->DrawSHP(FileSystem::PALETTE_PAL, FileSystem::PIPS_SHP,
-			frame, &vPos, pBound, BlitterFlags(0x600), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
+			frame, &position, pBound, BlitterFlags(0x600), 0, 0, ZGradient::Ground, 1000, 0, 0, 0, 0, 0);
 	}
 }
 
-int ShieldClass::DrawShieldBar_Pip(const bool isBuilding)
+int ShieldClass::DrawShieldBar_Pip(const bool isBuilding) const
 {
-	const auto strength = this->Type->Strength;
-	const auto pips_Shield = isBuilding ? this->Type->Pips_Building.Get() : this->Type->Pips.Get();
-	const auto pips_Global = isBuilding ? RulesExt::Global()->Pips_Shield_Building.Get() : RulesExt::Global()->Pips_Shield.Get();
+	const int strength = this->Type->Strength.Get();
+	const auto pipsShield = isBuilding ? this->Type->Pips_Building.Get() : this->Type->Pips.Get();
+	const auto pipsGlobal = isBuilding ? RulesExt::Global()->Pips_Shield_Building.Get() : RulesExt::Global()->Pips_Shield.Get();
 
-	auto shieldPip = pips_Global;
+	CoordStruct shieldPip;
 
-	if (pips_Shield.X != -1)
-		shieldPip = pips_Shield;
+	if (pipsShield.X != -1)
+		shieldPip = pipsShield;
+	else
+		shieldPip = pipsGlobal;
 
 	if (this->HP > RulesClass::Instance->ConditionYellow * strength && shieldPip.X != -1)
 		return shieldPip.X;
@@ -849,19 +847,19 @@ int ShieldClass::DrawShieldBar_Pip(const bool isBuilding)
 	return isBuilding ? 5 : 16;
 }
 
-int ShieldClass::DrawShieldBar_PipAmount(int iLength)
+int ShieldClass::DrawShieldBar_PipAmount(int length) const
 {
 	return this->IsActive()
-		? Math::clamp((int)round(this->GetHealthRatio() * iLength), 0, iLength)
+		? Math::clamp((int)round(this->GetHealthRatio() * length), 1, length)
 		: 0;
 }
 
-double ShieldClass::GetHealthRatio()
+double ShieldClass::GetHealthRatio() const
 {
 	return static_cast<double>(this->HP) / this->Type->Strength;
 }
 
-int ShieldClass::GetHP()
+int ShieldClass::GetHP() const
 {
 	return this->HP;
 }
@@ -873,12 +871,12 @@ void ShieldClass::SetHP(int amount)
 		this->HP = this->Type->Strength;
 }
 
-ShieldTypeClass* ShieldClass::GetType()
+ShieldTypeClass* ShieldClass::GetType() const
 {
 	return this->Type;
 }
 
-ArmorType ShieldClass::GetArmorType()
+ArmorType ShieldClass::GetArmorType() const
 {
 	if (this->Techno && this->Type->InheritArmorFromTechno)
 		return this->Techno->GetTechnoType()->Armor;
@@ -886,12 +884,12 @@ ArmorType ShieldClass::GetArmorType()
 	return this->Type->Armor.Get();
 }
 
-int ShieldClass::GetFramesSinceLastBroken()
+int ShieldClass::GetFramesSinceLastBroken() const
 {
 	return Unsorted::CurrentFrame - this->LastBreakFrame;
 }
 
-bool ShieldClass::IsActive()
+bool ShieldClass::IsActive() const
 {
 	return
 		this->Available &&
@@ -899,12 +897,12 @@ bool ShieldClass::IsActive()
 		this->Online;
 }
 
-bool ShieldClass::IsAvailable()
+bool ShieldClass::IsAvailable() const
 {
 	return this->Available;
 }
 
-bool ShieldClass::IsBrokenAndNonRespawning()
+bool ShieldClass::IsBrokenAndNonRespawning() const
 {
 	return this->HP <= 0 && !this->Type->Respawn;
 }
