@@ -6,7 +6,6 @@
 
 #define TECHNO_IS_ALIVE(tech) (!tech->InLimbo && tech->Health > 0)
 
-template<> const DWORD Extension<ScriptClass>::Canary = 0x3B3B3B3B;
 ScriptExt::ExtContainer ScriptExt::ExtMap;
 
 // =============================
