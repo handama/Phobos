@@ -4,21 +4,23 @@
 
 #include <Utilities/EnumFunctions.h>
 
-template<> const DWORD Extension<BuildingClass>::Canary = 0x87654321;
 BuildingExt::ExtContainer BuildingExt::ExtMap;
 
 void BuildingExt::ExtData::DisplayIncomeString()
 {
 	if (this->AccumulatedIncome && Unsorted::CurrentFrame % 15 == 0)
 	{
-		FlyingStrings::AddMoneyString(
-			this->AccumulatedIncome,
-			this->OwnerObject()->Owner,
-			this->TypeExtData->DisplayIncome_Houses.Get(RulesExt::Global()->DisplayIncome_Houses.Get()),
-			this->OwnerObject()->GetRenderCoords(),
-			this->TypeExtData->DisplayIncome_Offset
-		);
-
+		if ((RulesExt::Global()->DisplayIncome_AllowAI || this->OwnerObject()->Owner->IsControlledByHuman())
+			&& this->TypeExtData->DisplayIncome.Get(RulesExt::Global()->DisplayIncome))
+		{
+			FlyingStrings::AddMoneyString(
+				this->AccumulatedIncome,
+				this->OwnerObject()->Owner,
+				this->TypeExtData->DisplayIncome_Houses.Get(RulesExt::Global()->DisplayIncome_Houses.Get()),
+				this->OwnerObject()->GetRenderCoords(),
+				this->TypeExtData->DisplayIncome_Offset
+			);
+		}
 		this->AccumulatedIncome = 0;
 	}
 }
@@ -241,12 +243,11 @@ bool BuildingExt::CanGrindTechno(BuildingClass* pBuilding, TechnoClass* pTechno)
 
 bool BuildingExt::DoGrindingExtras(BuildingClass* pBuilding, TechnoClass* pTechno, int refund)
 {
-	if (const auto pExt = BuildingExt::ExtMap.Find(pBuilding))
+	if (auto const pExt = BuildingExt::ExtMap.Find(pBuilding))
 	{
-		const auto pTypeExt = pExt->TypeExtData;
+		auto const pTypeExt = pExt->TypeExtData;
 
-		if (pTypeExt->DisplayIncome.Get(RulesExt::Global()->DisplayIncome.Get()))
-			pExt->AccumulatedIncome += refund;
+		pExt->AccumulatedIncome += refund;
 
 		if (pTypeExt->Grinding_Weapon.isset()
 			&& Unsorted::CurrentFrame >= pExt->GrindingWeapon_LastFiredFrame + pTypeExt->Grinding_Weapon.Get()->ROF)
@@ -269,8 +270,9 @@ bool BuildingExt::DoGrindingExtras(BuildingClass* pBuilding, TechnoClass* pTechn
 void BuildingExt::ExtData::ApplyPoweredKillSpawns()
 {
 	auto const pThis = this->OwnerObject();
+	auto const pTypeExt = this->TypeExtData;
 
-	if (this->TypeExtData->Powered_KillSpawns && pThis->Type->Powered && !pThis->IsPowerOnline())
+	if (pTypeExt->Powered_KillSpawns && pThis->Type->Powered && !pThis->IsPowerOnline())
 	{
 		if (auto pManager = pThis->SpawnManager)
 		{
@@ -334,6 +336,7 @@ void BuildingExt::ExtData::Serialize(T& Stm)
 {
 	Stm
 		.Process(this->TypeExtData)
+		.Process(this->TechnoExtData)
 		.Process(this->DeployedTechno)
 		.Process(this->IsCreatedFromMapFile)
 		.Process(this->LimboID)
@@ -341,6 +344,7 @@ void BuildingExt::ExtData::Serialize(T& Stm)
 		.Process(this->CurrentAirFactory)
 		.Process(this->AccumulatedIncome)
 		.Process(this->OwnerObject()->LightSource)
+		.Process(this->CurrentLaserWeaponIndex)
 		;
 }
 
@@ -382,8 +386,13 @@ DEFINE_HOOK(0x43BCBD, BuildingClass_CTOR, 0x6)
 {
 	GET(BuildingClass*, pItem, ESI);
 
-	auto const pExt = BuildingExt::ExtMap.FindOrAllocate(pItem);
-	pExt->TypeExtData = BuildingTypeExt::ExtMap.Find(pItem->Type);
+	auto const pExt = BuildingExt::ExtMap.TryAllocate(pItem);
+
+	if (pExt)
+	{
+		pExt->TypeExtData = BuildingTypeExt::ExtMap.Find(pItem->Type);
+		pExt->TechnoExtData = TechnoExt::ExtMap.Find(pItem);
+	}
 
 	return 0;
 }
@@ -421,3 +430,6 @@ DEFINE_HOOK(0x454244, BuildingClass_Save_Suffix, 0x7)
 
 	return 0;
 }
+
+// Removes setting otherwise unused field (0x6FC) in BuildingClass when building has airstrike applied on it so that it can safely be used to store BuildingExt pointer.
+DEFINE_JUMP(LJMP, 0x41D9FB, 0x41DA05);

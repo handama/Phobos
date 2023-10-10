@@ -21,5 +21,7 @@ docs/locale/.doctrees/
 /.vscode/c_cpp_properties.json
 /.vscode/cspell.json
 /.vscode/settings.json
-PhobosSupplementaries/MigrationUtility/2Scripts.ini.backup
-PhobosSupplementaries/MigrationUtility/2Scripts.ini
+
+build
+cmake-*
+out

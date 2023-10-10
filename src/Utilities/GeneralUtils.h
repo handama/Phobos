@@ -9,8 +9,9 @@
 #include <string.h>
 #include <iterator>
 #include <vector>
-#include "Template.h"
 #include <string>
+
+#include "Template.h"
 
 #define MIN(x) std::numeric_limits<x>::min()
 #define MAX(x) std::numeric_limits<x>::max()
@@ -31,6 +32,8 @@ public:
 	static bool HasHealthRatioThresholdChanged(double oldRatio, double newRatio);
 	static bool ApplyTheaterSuffixToString(char* str);
 	static std::string IntToDigits(int num);
+	static int CountDigitsInNumber(int number);
+	static CoordStruct CalculateCoordsFromDistance(CoordStruct currentCoords, CoordStruct targetCoords, int distance);
 
 	template<typename T>
 	static T FastPow(T x, size_t n)

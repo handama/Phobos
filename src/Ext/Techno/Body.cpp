@@ -1,29 +1,37 @@
 #include "Body.h"
 
+#include <AircraftClass.h>
 #include <HouseClass.h>
 #include <ScenarioClass.h>
 #include <SpawnManagerClass.h>
-#include <InfantryClass.h>
-#include <ParticleSystemClass.h>
 #include <TacticalClass.h>
-#include <Unsorted.h>
-#include <BitFont.h>
 
 #include <Ext/House/Body.h>
+
+#include <Utilities/AresFunctions.h>
 #include <Utilities/EnumFunctions.h>
 
-template<> const DWORD Extension<TechnoClass>::Canary = 0x55555555;
 TechnoExt::ExtContainer TechnoExt::ExtMap;
 
 TechnoExt::ExtData::~ExtData()
 {
-	if (this->TypeExtData->AutoDeath_Behavior.isset())
+	auto const pTypeExt = this->TypeExtData;
+	auto const pType = pTypeExt->OwnerObject();
+	auto pThis = this->OwnerObject();
+
+	if (pTypeExt->AutoDeath_Behavior.isset())
 	{
-		auto pThis = this->OwnerObject();
-		auto hExt = HouseExt::ExtMap.Find(pThis->Owner);
-		auto it = std::find(hExt->OwnedTimedAutoDeathObjects.begin(), hExt->OwnedTimedAutoDeathObjects.end(), this);
-		if (it != hExt->OwnedTimedAutoDeathObjects.end())
-			hExt->OwnedTimedAutoDeathObjects.erase(it);
+		auto const pOwnerExt = HouseExt::ExtMap.Find(pThis->Owner);
+		auto& vec = pOwnerExt->OwnedAutoDeathObjects;
+		vec.erase(std::remove(vec.begin(), vec.end(), this), vec.end());
+	}
+
+	if (pThis->WhatAmI() != AbstractType::Aircraft && pThis->WhatAmI() != AbstractType::Building
+		&& pType->Ammo > 0 && pTypeExt->ReloadInTransport)
+	{
+		auto const pOwnerExt = HouseExt::ExtMap.Find(pThis->Owner);
+		auto& vec = pOwnerExt->OwnedTransportReloaders;
+		vec.erase(std::remove(vec.begin(), vec.end(), this), vec.end());
 	}
 }
 
@@ -131,7 +139,6 @@ CoordStruct TechnoExt::PassengerKickOutLocation(TechnoClass* pThis, FootClass* p
 		speedType = SpeedType::Track;
 		movementZone = MovementZone::Normal;
 	}
-
 	do
 	{
 		placeCoords = pThis->GetCell()->MapCoords - CellStruct { (short)(extraDistanceX / 2), (short)(extraDistanceY / 2) };
@@ -141,7 +148,7 @@ CoordStruct TechnoExt::PassengerKickOutLocation(TechnoClass* pThis, FootClass* p
 		extraDistanceX += 1;
 		extraDistanceY += 1;
 	}
-	while (extraDistanceX < maxAttempts && (pThis->IsCellOccupied(pCell, -1, -1, nullptr, false) != Move::OK) && pCell->MapCoords != CellStruct::Empty);
+	while (extraDistanceX < maxAttempts && (pThis->IsCellOccupied(pCell, FacingType::None, -1, nullptr, false) != Move::OK) && pCell->MapCoords != CellStruct::Empty);
 
 	pCell = MapClass::Instance->TryGetCellAt(placeCoords);
 	if (pCell)
@@ -159,14 +166,14 @@ bool TechnoExt::AllowedTargetByZone(TechnoClass* pThis, TechnoClass* pTarget, Ta
 		return true;
 
 	MovementZone mZone = pThis->GetTechnoType()->MovementZone;
-	int currentZone = useZone ? zone : MapClass::Instance->GetMovementZoneType(pThis->GetMapCoords(), mZone, pThis->IsOnBridge());
+	int currentZone = useZone ? zone : MapClass::Instance->GetMovementZoneType(pThis->GetMapCoords(), mZone, pThis->OnBridge);
 
 	if (currentZone != -1)
 	{
 		if (zoneScanType == TargetZoneScanType::Any)
 			return true;
 
-		int targetZone = MapClass::Instance->GetMovementZoneType(pTarget->GetMapCoords(), mZone, pTarget->IsOnBridge());
+		int targetZone = MapClass::Instance->GetMovementZoneType(pTarget->GetMapCoords(), mZone, pTarget->OnBridge);
 
 		if (zoneScanType == TargetZoneScanType::Same)
 		{
@@ -207,80 +214,186 @@ bool TechnoExt::AllowedTargetByZone(TechnoClass* pThis, TechnoClass* pTarget, Ta
 	return true;
 }
 
+// Feature for common usage : TechnoType conversion -- Trsdy
+// BTW, who said it was merely a Type pointer replacement and he could make a better one than Ares?
+bool TechnoExt::ConvertToType(FootClass* pThis, TechnoTypeClass* pToType)
+{
+	if (IS_ARES_FUN_AVAILABLE(ConvertTypeTo))
+		return AresFunctions::ConvertTypeTo(pThis, pToType);
+	// In case not using Ares 3.0. Only update necessary vanilla properties
+	AbstractType rtti;
+	TechnoTypeClass** nowTypePtr;
+
+	// Different types prohibited
+	switch (pThis->WhatAmI())
+	{
+	case AbstractType::Infantry:
+		nowTypePtr = reinterpret_cast<TechnoTypeClass**>(&(static_cast<InfantryClass*>(pThis)->Type));
+		rtti = AbstractType::InfantryType;
+		break;
+	case AbstractType::Unit:
+		nowTypePtr = reinterpret_cast<TechnoTypeClass**>(&(static_cast<UnitClass*>(pThis)->Type));
+		rtti = AbstractType::UnitType;
+		break;
+	case AbstractType::Aircraft:
+		nowTypePtr = reinterpret_cast<TechnoTypeClass**>(&(static_cast<AircraftClass*>(pThis)->Type));
+		rtti = AbstractType::AircraftType;
+		break;
+	default:
+		Debug::Log("%s is not FootClass, conversion not allowed\n", pToType->get_ID());
+		return false;
+	}
+
+	if (pToType->WhatAmI() != rtti)
+	{
+		Debug::Log("Incompatible types between %s and %s\n", pThis->get_ID(), pToType->get_ID());
+		return false;
+	}
+
+	// Detach CLEG targeting
+	auto tempUsing = pThis->TemporalImUsing;
+	if (tempUsing && tempUsing->Target)
+		tempUsing->Detach();
+
+	HouseClass* const pOwner = pThis->Owner;
+
+	// Remove tracking of old techno
+	if (!pThis->InLimbo)
+		pOwner->RegisterLoss(pThis, false);
+	pOwner->RemoveTracking(pThis);
+
+	int oldHealth = pThis->Health;
+
+	// Generic type-conversion
+	TechnoTypeClass* prevType = *nowTypePtr;
+	*nowTypePtr = pToType;
+
+	// Readjust health according to percentage
+	pThis->SetHealthPercentage((double)(oldHealth) / (double)prevType->Strength);
+	pThis->EstimatedHealth = pThis->Health;
+
+	// Add tracking of new techno
+	pOwner->AddTracking(pThis);
+	if (!pThis->InLimbo)
+		pOwner->RegisterGain(pThis, false);
+	pOwner->RecheckTechTree = true;
+
+	// Update Ares AttachEffects -- skipped
+	// Ares RecalculateStats -- skipped
+
+	// Adjust ammo
+	pThis->Ammo = Math::min(pThis->Ammo, pToType->Ammo);
+	// Ares ResetSpotlights -- skipped
+
+	// Adjust ROT
+	if (rtti == AbstractType::AircraftType)
+		pThis->SecondaryFacing.SetROT(pToType->ROT);
+	else
+		pThis->PrimaryFacing.SetROT(pToType->ROT);
+	// Adjust Ares TurretROT -- skipped
+	//  pThis->SecondaryFacing.SetROT(TechnoTypeExt::ExtMap.Find(pToType)->TurretROT.Get(pToType->ROT));
+
+	// Locomotor change, referenced from Ares 0.A's abduction code, not sure if correct, untested
+	CLSID nowLocoID;
+	ILocomotion* iloco = pThis->Locomotor;
+	const auto& toLoco = pToType->Locomotor;
+	if ((SUCCEEDED(static_cast<LocomotionClass*>(iloco)->GetClassID(&nowLocoID)) && nowLocoID != toLoco))
+	{
+		// because we are throwing away the locomotor in a split second, piggybacking
+		// has to be stopped. otherwise the object might remain in a weird state.
+		while (LocomotionClass::End_Piggyback(pThis->Locomotor));
+		// throw away the current locomotor and instantiate
+		// a new one of the default type for this unit.
+		if (auto newLoco = LocomotionClass::CreateInstance(toLoco))
+		{
+			newLoco->Link_To_Object(pThis);
+			pThis->Locomotor = std::move(newLoco);
+		}
+	}
+
+	// TODO : Jumpjet locomotor special treatement, some brainfart, must be uncorrect, HELP ME!
+	const auto& jjLoco = LocomotionClass::CLSIDs::Jumpjet();
+	if (pToType->BalloonHover && pToType->DeployToLand && prevType->Locomotor != jjLoco && toLoco == jjLoco)
+		pThis->Locomotor->Move_To(pThis->Location);
+
+	return true;
+}
+
 Point2D TechnoExt::GetScreenLocation(TechnoClass* pThis)
 {
-	CoordStruct crdAbsolute = pThis->GetCoords();
-	Point2D  posScreen = { 0,0 };
-	TacticalClass::Instance->CoordsToScreen(&posScreen, &crdAbsolute);
-	posScreen -= TacticalClass::Instance->TacticalPos;
+	CoordStruct absolute = pThis->GetCoords();
+	Point2D  position = { 0,0 };
+	TacticalClass::Instance->CoordsToScreen(&position, &absolute);
+	position -= TacticalClass::Instance->TacticalPos;
 
-	return posScreen;
+	return position;
 }
 
 Point2D TechnoExt::GetFootSelectBracketPosition(TechnoClass* pThis, Anchor anchor)
 {
-	int iLength = 17;
-	Point2D posScreen = GetScreenLocation(pThis);
+	int length = 17;
+	Point2D position = GetScreenLocation(pThis);
 
 	if (pThis->WhatAmI() == AbstractType::Infantry)
-		iLength = 8;
+		length = 8;
 
-	RectangleStruct rBracket =
+	RectangleStruct bracketRect =
 	{
-		posScreen.X - iLength + (iLength == 8),
-		posScreen.Y - 28 + (iLength == 8),
-		iLength * 2,
-		iLength * 3
+		position.X - length + (length == 8) + 1,
+		position.Y - 28 + (length == 8),
+		length * 2,
+		length * 3
 	};
-	Point2D posRes = anchor.OffsetPosition(rBracket);
 
-	return posRes;
+	return anchor.OffsetPosition(bracketRect);
 }
 
-Point2D TechnoExt::GetBuildingSelectBracketPosition(TechnoClass* pThis, BuildingSelectBracketPosition ePos)
+Point2D TechnoExt::GetBuildingSelectBracketPosition(TechnoClass* pThis, BuildingSelectBracketPosition bracketPosition)
 {
-	BuildingTypeClass* pBuildingType = static_cast<BuildingTypeClass*>(pThis->GetTechnoType());
-	Point2D posRes = GetScreenLocation(pThis);
-	CoordStruct crdDim2 = CoordStruct::Empty;
-	pBuildingType->Dimension2(&crdDim2);
-	Point2D posFix = Point2D::Empty;
-	CoordStruct crdTmp = { -crdDim2.X / 2, crdDim2.Y / 2, crdDim2.Z };
-	TacticalClass::Instance->CoordsToScreen(&posFix, &crdTmp);
-	int iFoundationHeight = pBuildingType->GetFoundationHeight(false);
-	int iFoundationWidth = pBuildingType->GetFoundationWidth();
-	int iHeight = pBuildingType->Height * 12;
-	int iLengthH = iFoundationHeight * 7 + iFoundationHeight / 2;
-	int iLengthW = iFoundationWidth * 7 + iFoundationWidth / 2;
-	posRes.X += posFix.X + 3 + iLengthH * 4;
-	posRes.Y += posFix.Y + 4 - iLengthH * 2;
+	const auto pBuildingType = static_cast<BuildingTypeClass*>(pThis->GetTechnoType());
+	Point2D position = GetScreenLocation(pThis);
+	CoordStruct dim2 = CoordStruct::Empty;
+	pBuildingType->Dimension2(&dim2);
+	Point2D positionFix = Point2D::Empty;
+	dim2 = { -dim2.X / 2, dim2.Y / 2, dim2.Z };
+	TacticalClass::Instance->CoordsToScreen(&positionFix, &dim2);
 
-	switch (ePos)
+	const int foundationWidth = pBuildingType->GetFoundationWidth();
+	const int foundationHeight = pBuildingType->GetFoundationHeight(false);
+	const int height = pBuildingType->Height * 12;
+	const int lengthW = foundationWidth * 7 + foundationWidth / 2;
+	const int lengthH = foundationHeight * 7 + foundationHeight / 2;
+
+	position.X += positionFix.X + 3 + lengthH * 4;
+	position.Y += positionFix.Y + 4 - lengthH * 2;
+
+	switch (bracketPosition)
 	{
 	case BuildingSelectBracketPosition::Top:
 		break;
 	case BuildingSelectBracketPosition::LeftTop:
-		posRes.X -= iLengthH * 4;
-		posRes.Y += iLengthH * 2;
+		position.X -= lengthH * 4;
+		position.Y += lengthH * 2;
 		break;
 	case BuildingSelectBracketPosition::LeftBottom:
-		posRes.X -= iLengthH * 4;
-		posRes.Y += iLengthH * 2 + iHeight;
+		position.X -= lengthH * 4;
+		position.Y += lengthH * 2 + height;
 		break;
 	case BuildingSelectBracketPosition::Bottom:
-		posRes.Y += iLengthW * 2 + iLengthH * 2 + iHeight;
+		position.Y += lengthW * 2 + lengthH * 2 + height;
 		break;
 	case BuildingSelectBracketPosition::RightBottom:
-		posRes.X += iLengthW * 4;
-		posRes.Y += iLengthW * 2 + iHeight;
+		position.X += lengthW * 4;
+		position.Y += lengthW * 2 + height;
 		break;
 	case BuildingSelectBracketPosition::RightTop:
-		posRes.X += iLengthW * 4;
-		posRes.Y += iLengthW * 2;
+		position.X += lengthW * 4;
+		position.Y += lengthW * 2;
 	default:
 		break;
 	}
 
-	return posRes;
+	return position;
 }
 
 void TechnoExt::ProcessDigitalDisplays(TechnoClass* pThis)
@@ -288,14 +401,14 @@ void TechnoExt::ProcessDigitalDisplays(TechnoClass* pThis)
 	if (!Phobos::Config::DigitalDisplay_Enable)
 		return;
 
-	TechnoTypeClass* pType = pThis->GetTechnoType();
-	TechnoTypeExt::ExtData* pTypeExt = TechnoTypeExt::ExtMap.Find(pType);
+	const auto pType = pThis->GetTechnoType();
+	const auto pTypeExt = TechnoTypeExt::ExtMap.Find(pType);
 
 	if (pTypeExt->DigitalDisplay_Disable)
 		return;
 
-	TechnoExt::ExtData* pExt = TechnoExt::ExtMap.Find(pThis);
-	int iLength = 17;
+	const auto pExt = TechnoExt::ExtMap.Find(pThis);
+	int length = 17;
 	ValueableVector<DigitalDisplayTypeClass*>* pDisplayTypes = nullptr;
 
 	if (!pTypeExt->DigitalDisplayTypes.empty())
@@ -309,23 +422,27 @@ void TechnoExt::ProcessDigitalDisplays(TechnoClass* pThis)
 		case AbstractType::Building:
 		{
 			pDisplayTypes = &RulesExt::Global()->Buildings_DefaultDigitalDisplayTypes;
-			BuildingTypeClass* pBuildingType = static_cast<BuildingTypeClass*>(pThis->GetTechnoType());
-			int iFoundationHeight = pBuildingType->GetFoundationHeight(false);
-			iLength = iFoundationHeight * 7 + iFoundationHeight / 2;
-		}break;
+			const auto pBuildingType = static_cast<BuildingTypeClass*>(pThis->GetTechnoType());
+			const int height = pBuildingType->GetFoundationHeight(false);
+			length = height * 7 + height / 2;
+			break;
+		}
 		case AbstractType::Infantry:
 		{
 			pDisplayTypes = &RulesExt::Global()->Infantry_DefaultDigitalDisplayTypes;
-			iLength = 8;
-		}break;
+			length = 8;
+			break;
+		}
 		case AbstractType::Unit:
 		{
 			pDisplayTypes = &RulesExt::Global()->Vehicles_DefaultDigitalDisplayTypes;
-		}break;
+			break;
+		}
 		case AbstractType::Aircraft:
 		{
 			pDisplayTypes = &RulesExt::Global()->Aircraft_DefaultDigitalDisplayTypes;
-		}break;
+			break;
+		}
 		default:
 			return;
 		}
@@ -333,128 +450,191 @@ void TechnoExt::ProcessDigitalDisplays(TechnoClass* pThis)
 
 	for (DigitalDisplayTypeClass*& pDisplayType : *pDisplayTypes)
 	{
-		if (HouseClass::IsCurrentPlayerObserver() && !pDisplayType->CanSee_Observer)
+		if (HouseClass::IsCurrentPlayerObserver() && !pDisplayType->VisibleToHouses_Observer)
 			continue;
 
-		if (!HouseClass::IsCurrentPlayerObserver() && !EnumFunctions::CanTargetHouse(pDisplayType->CanSee, pThis->Owner, HouseClass::CurrentPlayer))
+		if (!HouseClass::IsCurrentPlayerObserver() && !EnumFunctions::CanTargetHouse(pDisplayType->VisibleToHouses, pThis->Owner, HouseClass::CurrentPlayer))
 			continue;
 
-		int iCur = -1;
-		int iMax = -1;
+		int value = -1;
+		int maxValue = -1;
 
-		GetValuesForDisplay(pThis, pDisplayType->InfoType, iCur, iMax);
+		GetValuesForDisplay(pThis, pDisplayType->InfoType, value, maxValue);
 
-		if (iCur == -1 || iMax == -1)
+		if (value == -1 || maxValue == -1)
 			continue;
 
-		bool isBuilding = pThis->WhatAmI() == AbstractType::Building;
-		bool hasShield = pExt->Shield != nullptr && !pExt->Shield->IsBrokenAndNonRespawning();
-		Point2D posDraw = pThis->WhatAmI() == AbstractType::Building ?
+		const bool isBuilding = pThis->WhatAmI() == AbstractType::Building;
+		const bool isInfantry = pThis->WhatAmI() == AbstractType::Infantry;
+		const bool hasShield = pExt->Shield != nullptr && !pExt->Shield->IsBrokenAndNonRespawning();
+		Point2D position = pThis->WhatAmI() == AbstractType::Building ?
 			GetBuildingSelectBracketPosition(pThis, pDisplayType->AnchorType_Building)
 			: GetFootSelectBracketPosition(pThis, pDisplayType->AnchorType);
-		posDraw.Y += pType->PixelSelectionBracketDelta;
+		position.Y += pType->PixelSelectionBracketDelta;
 
 		if (pDisplayType->InfoType == DisplayInfoType::Shield)
-			posDraw.Y += pExt->Shield->GetType()->BracketDelta;
+			position.Y += pExt->Shield->GetType()->BracketDelta;
 
-		pDisplayType->Draw(posDraw, iLength, iCur, iMax, isBuilding, hasShield);
+		pDisplayType->Draw(position, length, value, maxValue, isBuilding, isInfantry, hasShield);
 	}
 }
 
-void TechnoExt::GetValuesForDisplay(TechnoClass* pThis, DisplayInfoType infoType, int& iCur, int& iMax)
+void TechnoExt::GetValuesForDisplay(TechnoClass* pThis, DisplayInfoType infoType, int& value, int& maxValue)
 {
-	TechnoTypeClass* pType = pThis->GetTechnoType();
-	TechnoExt::ExtData* pExt = TechnoExt::ExtMap.Find(pThis);
+	const auto pType = pThis->GetTechnoType();
+	const auto pExt = TechnoExt::ExtMap.Find(pThis);
 
 	switch (infoType)
 	{
 	case DisplayInfoType::Health:
 	{
-		iCur = pThis->Health;
-		iMax = pType->Strength;
+		value = pThis->Health;
+		maxValue = pType->Strength;
 		break;
 	}
 	case DisplayInfoType::Shield:
 	{
 		if (pExt->Shield == nullptr || pExt->Shield->IsBrokenAndNonRespawning())
 			return;
-		iCur = pExt->Shield->GetHP();
-		iMax = pExt->Shield->GetType()->Strength.Get();
+
+		value = pExt->Shield->GetHP();
+		maxValue = pExt->Shield->GetType()->Strength.Get();
 		break;
 	}
 	case DisplayInfoType::Ammo:
 	{
 		if (pType->Ammo <= 0)
 			return;
-		iCur = pThis->Ammo;
-		iMax = pType->Ammo;
+
+		value = pThis->Ammo;
+		maxValue = pType->Ammo;
 		break;
 	}
 	case DisplayInfoType::MindControl:
 	{
 		if (pThis->CaptureManager == nullptr)
 			return;
-		iCur = pThis->CaptureManager->ControlNodes.Count;
-		iMax = pThis->CaptureManager->MaxControlNodes;
+
+		value = pThis->CaptureManager->ControlNodes.Count;
+		maxValue = pThis->CaptureManager->MaxControlNodes;
 		break;
 	}
 	case DisplayInfoType::Spawns:
 	{
 		if (pThis->SpawnManager == nullptr || pType->Spawns == nullptr || pType->SpawnsNumber <= 0)
 			return;
-		iCur = pThis->SpawnManager->CountAliveSpawns();
-		iMax = pType->SpawnsNumber;
+
+		value = pThis->SpawnManager->CountAliveSpawns();
+		maxValue = pType->SpawnsNumber;
 		break;
 	}
 	case DisplayInfoType::Passengers:
 	{
 		if (pType->Passengers <= 0)
 			return;
-		iCur = pThis->Passengers.NumPassengers;
-		iMax = pType->Passengers;
+
+		value = pThis->Passengers.NumPassengers;
+		maxValue = pType->Passengers;
 		break;
 	}
 	case DisplayInfoType::Tiberium:
 	{
 		if (pType->Storage <= 0)
 			return;
-		iCur = static_cast<int>(pThis->Tiberium.GetTotalAmount());
-		iMax = pType->Storage;
+
+		value = static_cast<int>(pThis->Tiberium.GetTotalAmount());
+		maxValue = pType->Storage;
 		break;
 	}
 	case DisplayInfoType::Experience:
 	{
-		iCur = static_cast<int>(pThis->Veterancy.Veterancy * RulesClass::Instance->VeteranRatio * pType->GetCost());
-		iMax = static_cast<int>(2.0 * RulesClass::Instance->VeteranRatio * pType->GetCost());
+		value = static_cast<int>(pThis->Veterancy.Veterancy * RulesClass::Instance->VeteranRatio * pType->GetCost());
+		maxValue = static_cast<int>(2.0 * RulesClass::Instance->VeteranRatio * pType->GetCost());
 		break;
 	}
 	case DisplayInfoType::Occupants:
 	{
 		if (pThis->WhatAmI() != AbstractType::Building)
 			return;
-		BuildingTypeClass* pBuildingType = abstract_cast<BuildingTypeClass*>(pType);
-		BuildingClass* pBuilding = abstract_cast<BuildingClass*>(pThis);
+
+		const auto pBuildingType = abstract_cast<BuildingTypeClass*>(pType);
+		const auto pBuilding = abstract_cast<BuildingClass*>(pThis);
+
 		if (!pBuildingType->CanBeOccupied)
 			return;
-		iCur = pBuilding->Occupants.Count;
-		iMax = pBuildingType->MaxNumberOccupants;
+
+		value = pBuilding->Occupants.Count;
+		maxValue = pBuildingType->MaxNumberOccupants;
 		break;
 	}
 	case DisplayInfoType::GattlingStage:
 	{
 		if (!pType->IsGattling)
 			return;
-		iCur = pThis->CurrentGattlingStage;
-		iMax = pType->WeaponStages;
+
+		value = pThis->CurrentGattlingStage;
+		maxValue = pType->WeaponStages;
 		break;
 	}
 	default:
 	{
-		iCur = pThis->Health;
-		iMax = pType->Strength;
+		value = pThis->Health;
+		maxValue = pType->Strength;
 		break;
 	}
 	}
+}
+
+// Checks if vehicle can deploy into a building at its current location. If unit has no DeploysInto set returns noDeploysIntoDefaultValue (def = false) instead.
+bool TechnoExt::CanDeployIntoBuilding(UnitClass* pThis, bool noDeploysIntoDefaultValue)
+{
+	if (!pThis)
+		return false;
+
+	auto const pDeployType = pThis->Type->DeploysInto;
+
+	if (!pDeployType)
+		return noDeploysIntoDefaultValue;
+
+	bool canDeploy = true;
+	auto mapCoords = CellClass::Coord2Cell(pThis->GetCoords());
+
+	if (pDeployType->GetFoundationWidth() > 2 || pDeployType->GetFoundationHeight(false) > 2)
+		mapCoords += CellStruct { -1, -1 };
+
+	pThis->Mark(MarkType::Up);
+
+	if (!pThis->Locomotor)
+		Game::RaiseError(E_POINTER);
+
+	pThis->Locomotor->Mark_All_Occupation_Bits(MarkType::Up);
+
+	if (!pDeployType->CanCreateHere(mapCoords, pThis->Owner))
+		canDeploy = false;
+
+	if (!pThis->Locomotor)
+		Game::RaiseError(E_POINTER);
+
+	pThis->Locomotor->Mark_All_Occupation_Bits(MarkType::Down);
+	pThis->Mark(MarkType::Down);
+
+	return canDeploy;
+}
+
+bool TechnoExt::IsTypeImmune(TechnoClass* pThis, TechnoClass* pSource)
+{
+	if (!pThis || !pSource)
+		return false;
+
+	auto const pType = pThis->GetTechnoType();
+
+	if (!pType->TypeImmune)
+		return false;
+
+	if (pType == pSource->GetTechnoType() && pThis->Owner == pSource->Owner)
+		return true;
+
+	return false;
 }
 
 // =============================
@@ -474,10 +654,11 @@ void TechnoExt::ExtData::Serialize(T& Stm)
 		.Process(this->AutoDeathTimer)
 		.Process(this->MindControlRingAnimType)
 		.Process(this->OriginalPassengerOwner)
-		.Process(this->CurrentLaserWeaponIndex)
 		.Process(this->IsInTunnel)
+		.Process(this->HasBeenPlacedOnMap)
 		.Process(this->DeployFireTimer)
 		.Process(this->ForceFullRearmDelay)
+		.Process(this->WHAnimRemainingCreationInterval)
 		;
 }
 
@@ -512,7 +693,6 @@ TechnoExt::ExtContainer::ExtContainer() : Container("TechnoClass") { }
 
 TechnoExt::ExtContainer::~ExtContainer() = default;
 
-void TechnoExt::ExtContainer::InvalidatePointer(void* ptr, bool bRemoved) { }
 
 // =============================
 // container hooks
@@ -521,7 +701,7 @@ DEFINE_HOOK(0x6F3260, TechnoClass_CTOR, 0x5)
 {
 	GET(TechnoClass*, pItem, ESI);
 
-	TechnoExt::ExtMap.FindOrAllocate(pItem);
+	TechnoExt::ExtMap.TryAllocate(pItem);
 
 	return 0;
 }

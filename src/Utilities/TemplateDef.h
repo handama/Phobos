@@ -52,8 +52,15 @@
 #include <CRT.h>
 #include <LocomotionClass.h>
 
+#include <Locomotion/TestLocomotionClass.h>
+
 namespace detail
 {
+	template<typename T>
+	concept HasFindOrAllocate = requires(const char* arg){
+		{ T::FindOrAllocate(arg) }->std::same_as<T*>;
+	};
+
 	template <typename T>
 	inline bool read(T& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate = false)
 	{
@@ -61,7 +68,11 @@ namespace detail
 		{
 			using base_type = std::remove_pointer_t<T>;
 			auto const pValue = parser.value();
-			auto const parsed = (allocate ? base_type::FindOrAllocate : base_type::Find)(pValue);
+			T parsed; //TODO: allocate should be a template param
+			if constexpr (HasFindOrAllocate<base_type>)
+				parsed = (allocate ? base_type::FindOrAllocate : base_type::Find)(pValue);
+			else
+				parsed = base_type::Find(pValue);
 
 			if (parsed || INIClass::IsBlank(pValue))
 			{
@@ -542,6 +553,48 @@ namespace detail
 	}
 
 	template <>
+	inline bool read<DirType>(DirType& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
+	{
+		int buffer;
+
+		if (parser.ReadInteger(pSection, pKey, &buffer))
+		{
+			if (buffer <= (int)DirType::NorthWest && buffer >= (int)DirType::North)
+			{
+				value = static_cast<DirType>(buffer);
+				return true;
+			}
+			else
+			{
+				Debug::INIParseFailed(pSection, pKey, parser.value(), "Expected a valid DirType (0-255).");
+			}
+		}
+
+		return false;
+	}
+
+	template <>
+	inline bool read<FacingType>(FacingType& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
+	{
+		int buffer;
+
+		if (parser.ReadInteger(pSection, pKey, &buffer))
+		{
+			if (buffer < (int)FacingType::Count && buffer >= (int)FacingType::None)
+			{
+				value = static_cast<FacingType>(buffer);
+				return true;
+			}
+			else
+			{
+				Debug::INIParseFailed(pSection, pKey, parser.value(), "Expected a valid FacingType (0-7 or -1).");
+			}
+		}
+
+		return false;
+	}
+
+	template <>
 	inline bool read<SuperWeaponAITargetingMode>(SuperWeaponAITargetingMode& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
 	{
 		if (parser.ReadString(pSection, pKey))
@@ -872,7 +925,162 @@ namespace detail
 		return value.Read(parser, pSection, pKey);
 	}
 
-		template <>
+
+	template <>
+	inline bool read<IronCurtainEffect>(IronCurtainEffect& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
+	{
+		if (parser.ReadString(pSection, pKey))
+		{
+			auto parsed = IronCurtainEffect::Kill;
+			auto str = parser.value();
+
+			if (_strcmpi(str, "invulnerable") == 0)
+			{
+				parsed = IronCurtainEffect::Invulnerable;
+			}
+			else if (_strcmpi(str, "ignore") == 0)
+			{
+				parsed = IronCurtainEffect::Ignore;
+			}
+			else if (_strcmpi(str, "kill") != 0)
+			{
+				Debug::INIParseFailed(pSection, pKey, parser.value(), "IronCurtainEffect can be either kill, invulnerable or ignore");
+				return false;
+			}
+
+			value = parsed;
+			return true;
+		}
+
+		return false;
+	}
+
+	template <>
+	inline bool read<TargetZoneScanType>(TargetZoneScanType& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
+	{
+		if (parser.ReadString(pSection, pKey))
+		{
+			if (_strcmpi(parser.value(), "same") == 0)
+			{
+				value = TargetZoneScanType::Same;
+			}
+			else if (_strcmpi(parser.value(), "any") == 0)
+			{
+				value = TargetZoneScanType::Any;
+			}
+			else if (_strcmpi(parser.value(), "inrange") == 0)
+			{
+				value = TargetZoneScanType::InRange;
+			}
+			else
+			{
+				Debug::INIParseFailed(pSection, pKey, parser.value(), "Expected a target zone scan type");
+				return false;
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
+	template <>
+	inline bool read<ChronoSparkleDisplayPosition>(ChronoSparkleDisplayPosition& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
+	{
+		if (parser.ReadString(pSection, pKey))
+		{
+			auto parsed = ChronoSparkleDisplayPosition::None;
+
+			auto str = parser.value();
+			char* context = nullptr;
+			for (auto cur = strtok_s(str, Phobos::readDelims, &context); cur; cur = strtok_s(nullptr, Phobos::readDelims, &context))
+			{
+				if (!_strcmpi(cur, "building"))
+				{
+					parsed |= ChronoSparkleDisplayPosition::Building;
+				}
+				else if (!_strcmpi(cur, "occupants"))
+				{
+					parsed |= ChronoSparkleDisplayPosition::Occupants;
+				}
+				else if (!_strcmpi(cur, "occupantslots"))
+				{
+					parsed |= ChronoSparkleDisplayPosition::OccupantSlots;
+				}
+				else if (!_strcmpi(cur, "all") )
+				{
+					parsed |= ChronoSparkleDisplayPosition::All;
+				}
+				else if (_strcmpi(cur, "none"))
+				{
+					Debug::INIParseFailed(pSection, pKey, parser.value(), "Expected a chrono sparkle position type");
+					return false;
+				}
+			}
+
+			value = parsed;
+			return true;
+		}
+
+		return false;
+	}
+
+	template <>
+	inline bool read<CLSID>(CLSID& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
+	{
+		if (!parser.ReadString(pSection, pKey))
+			return false;
+
+		// Semantic locomotor aliases
+		if (parser.value()[0] != '{')
+		{
+#define PARSE_IF_IS_LOCO(name)\
+if(_strcmpi(parser.value(), #name) == 0){ value = LocomotionClass::CLSIDs::name; return true; }
+
+			PARSE_IF_IS_LOCO(Drive);
+			PARSE_IF_IS_LOCO(Jumpjet);
+			PARSE_IF_IS_LOCO(Hover);
+			PARSE_IF_IS_LOCO(Rocket);
+			PARSE_IF_IS_LOCO(Tunnel);
+			PARSE_IF_IS_LOCO(Walk);
+			PARSE_IF_IS_LOCO(Fly);
+			PARSE_IF_IS_LOCO(Teleport);
+			PARSE_IF_IS_LOCO(Mech);
+			PARSE_IF_IS_LOCO(Ship);
+			PARSE_IF_IS_LOCO(Droppod);
+
+#undef PARSE_IF_IS_LOCO
+
+#define PARSE_IF_IS_PHOBOS_LOCO(name)\
+if(_strcmpi(parser.value(), #name) == 0){ value = __uuidof(name ## LocomotionClass); return true; }
+
+		// Add your locomotor parsing here
+#ifdef CUSTOM_LOCO_EXAMPLE_ENABLED // Add semantic parsing for loco
+			PARSE_IF_IS_PHOBOS_LOCO(Test);
+#endif
+
+#undef PARSE_IF_IS_PHOBOS_LOCO
+
+			return false;
+		}
+
+		CHAR bytestr[128];
+		WCHAR wcharstr[128];
+
+		strncpy(bytestr, parser.value(), 128);
+		bytestr[127] = NULL;
+		CRT::strtrim(bytestr);
+		if (!strlen(bytestr))
+			return false;
+
+		MultiByteToWideChar(0, 1, bytestr, -1, wcharstr, 128);
+		if (CLSIDFromString(wcharstr, &value) < 0)
+			return false;
+
+		return true;
+	}
+
+	template <>
 	inline bool read<HorizontalPosition>(HorizontalPosition& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
 	{
 		if (parser.ReadString(pSection, pKey))
@@ -969,112 +1177,8 @@ namespace detail
 		return false;
 	}
 
-
 	template <>
-	inline bool read<IronCurtainEffect>(IronCurtainEffect& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
-	{
-		if (parser.ReadString(pSection, pKey))
-		{
-			auto parsed = IronCurtainEffect::Kill;
-			auto str = parser.value();
-
-			if (_strcmpi(str, "invulnerable") == 0)
-			{
-				parsed = IronCurtainEffect::Invulnerable;
-			}
-			else if (_strcmpi(str, "ignore") == 0)
-			{
-				parsed = IronCurtainEffect::Ignore;
-			}
-			else if (_strcmpi(str, "kill") != 0)
-			{
-				Debug::INIParseFailed(pSection, pKey, parser.value(), "IronCurtainEffect can be either kill, invulnerable or ignore");
-				return false;
-			}
-
-			value = parsed;
-			return true;
-		}
-
-		return false;
-	}
-
-	template <>
-	inline bool read<TargetZoneScanType>(TargetZoneScanType& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
-	{
-		if (parser.ReadString(pSection, pKey))
-		{
-			if (_strcmpi(parser.value(), "same") == 0)
-			{
-				value = TargetZoneScanType::Same;
-			}
-			else if (_strcmpi(parser.value(), "any") == 0)
-			{
-				value = TargetZoneScanType::Any;
-			}
-			else if (_strcmpi(parser.value(), "inrange") == 0)
-			{
-				value = TargetZoneScanType::InRange;
-			}
-			else
-			{
-				Debug::INIParseFailed(pSection, pKey, parser.value(), "Expected a target zone scan type");
-				return false;
-			}
-
-			return true;
-		}
-
-		return false;
-	}
-
-	template <>
-	inline bool read<CLSID>(CLSID& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
-	{
-		if (!parser.ReadString(pSection, pKey))
-			return false;
-
-		// Semantic locomotor aliases
-		if (parser.value()[0] != '{')
-		{
-#define PARSE_IF_IS_LOCO(name)\
-if(_strcmpi(parser.value(), #name) == 0){ value = LocomotionClass::CLSIDs::name; return true; }
-
-			PARSE_IF_IS_LOCO(Drive);
-			PARSE_IF_IS_LOCO(Jumpjet);
-			PARSE_IF_IS_LOCO(Hover);
-			PARSE_IF_IS_LOCO(Rocket);
-			PARSE_IF_IS_LOCO(Tunnel);
-			PARSE_IF_IS_LOCO(Walk);
-			PARSE_IF_IS_LOCO(Fly);
-			PARSE_IF_IS_LOCO(Teleport);
-			PARSE_IF_IS_LOCO(Mech);
-			PARSE_IF_IS_LOCO(Ship);
-			PARSE_IF_IS_LOCO(Droppod);
-
-#undef PARSE_IF_IS_LOCO
-
-			return false;
-		}
-
-		CHAR bytestr[128];
-		WCHAR wcharstr[128];
-
-		strncpy(bytestr, parser.value(), 128);
-		bytestr[127] = NULL;
-		CRT::strtrim(bytestr);
-		if (!strlen(bytestr))
-			return false;
-
-		MultiByteToWideChar(0, 1, bytestr, -1, wcharstr, 128);
-		if (CLSIDFromString(wcharstr, &value) < 0)
-			return false;
-
-		return true;
-	}
-
-	template <>
-		inline bool read<DisplayInfoType>(DisplayInfoType& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
+	inline bool read<DisplayInfoType>(DisplayInfoType& value, INI_EX& parser, const char* pSection, const char* pKey, bool allocate)
 	{
 		if (parser.ReadString(pSection, pKey))
 		{
