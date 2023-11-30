@@ -166,8 +166,6 @@ public:
 		Valueable<double> CrushOverlayExtraForwardTilt;
 		Valueable<double> CrushSlowdownMultiplier;
 
-		Valueable<bool> DigitalDisplay_Disable;
-		ValueableVector<DigitalDisplayTypeClass*> DigitalDisplayTypes;
 
 		Valueable<int> AmmoPipFrame;
 		Valueable<int> EmptyAmmoPipFrame;
@@ -345,9 +343,6 @@ public:
 			, CrushSlowdownMultiplier { 0.2 }
 			, CrushForwardTiltPerFrame {}
 			, CrushOverlayExtraForwardTilt { 0.02 }
-
-			, DigitalDisplay_Disable { false }
-			, DigitalDisplayTypes {}
 
 			, AmmoPipFrame { 13 }
 			, EmptyAmmoPipFrame { -1 }

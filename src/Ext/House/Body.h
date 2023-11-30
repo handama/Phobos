@@ -45,7 +45,6 @@ public:
 		ExtData(HouseClass* OwnerObject) : Extension<HouseClass>(OwnerObject)
 			, PowerPlantEnhancers {}
 			, OwnedLimboDeliveredBuildings {}
-			, OwnedTimedAutoDeathObjects {}
 			, OwnedAutoDeathObjects {}
 			, OwnedTransportReloaders {}
 			, LimboAircraft {}

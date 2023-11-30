@@ -67,13 +67,11 @@ public:
 		static bool DevelopmentCommands;
 		static bool ArtImageSwap;
 		static bool ShowPlacementPreview;
-		static bool EnableBuildingPlacementPreview;
 		static bool DigitalDisplay_Enable;
 		static bool RealTimeTimers;
 		static bool RealTimeTimers_Adaptive;
 		static int CampaignDefaultGameSpeed;
 		static bool EnableBuildingPlacementPreview;
-		static bool DigitalDisplay_Enable;
 		static bool SkirmishUnlimitedColors;
 		static bool ShowDesignatorRange;
 		static bool SaveVariablesOnScenarioEnd;
