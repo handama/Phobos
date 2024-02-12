@@ -8,7 +8,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="YRpp\StaticInits.cpp" />
-    <ClCompile Include="src\*.cpp" />
+    <ClCompile Include="src\new.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
