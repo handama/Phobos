@@ -35,6 +35,7 @@ public:
 		TechnoClass* CaptureTarget;
 		DynamicVectorClass<FootClass*> AllyPassengers;
 		bool SelectNeural;
+		int CurrentLine;
 
 		ExtData(TeamClass* OwnerObject) : Extension<TeamClass>(OwnerObject)
 			, WaitNoTargetAttempts { 0 }
@@ -57,6 +58,7 @@ public:
 			, CaptureTarget { nullptr }
 			, AllyPassengers { }
 			, SelectNeural { true }
+			, CurrentLine { 0 }
 		{ }
 
 		virtual ~ExtData() = default;

@@ -158,7 +158,13 @@ public:
 			append("Owner = %s (%s), ", pFoot->Owner->get_ID(), pFoot->Owner->PlainName);
 			append("Location = (%d, %d), ", pFoot->GetMapCoords().X, pFoot->GetMapCoords().Y);
 			append("Mission = %d (%s), ", pFoot->CurrentMission, getMissionName((int)pFoot->CurrentMission));
+
+
+
+
 			append("Group = %d\n", pFoot->Group);
+
+			
 
 			if (pFoot->BelongsToATeam())
 			{
@@ -204,9 +210,32 @@ public:
 			}
 
 			auto pTarget = abstract_cast<TechnoClass*>(pFoot->Target);
+			
 			if (pTarget)
 			{
 				append("Target = %s, Distance = %d, Location = (%d, %d)\n", pTarget->GetTechnoType()->ID, (pTarget->DistanceFrom(pFoot) / 256), pTarget->GetMapCoords().X, pTarget->GetMapCoords().Y);
+			}
+
+			auto pDestination = abstract_cast<TechnoClass*>(pFoot->Destination);
+
+			if (pDestination)
+			{
+				append("Destination = %s, Distance = %d, Location = (%d, %d)\n", pDestination->GetTechnoType()->ID, (pDestination->DistanceFrom(pFoot) / 256), pDestination->GetMapCoords().X, pDestination->GetMapCoords().Y);
+			}
+			else
+			{
+				if (pFoot->Destination)
+				{
+					auto destCell = CellClass::Coord2Cell(pFoot->Destination->GetCoords());
+					append("Destination = (%d, %d)\n", destCell.X, destCell.Y);
+				}
+			}
+
+			auto pFocus = abstract_cast<TechnoClass*>(pFoot->Focus);
+
+			if (pFocus)
+			{
+				append("Focus = %s, Distance = %d, Location = (%d, %d)\n", pFocus->GetTechnoType()->ID, (pFocus->DistanceFrom(pFoot) / 256), pFocus->GetMapCoords().X, pFocus->GetMapCoords().Y);
 			}
 
 			append("Current HP = (%d / %d)", pFoot->Health, pType->Strength);
@@ -222,6 +251,13 @@ public:
 			if (pType->Ammo > 0)
 				append(", Ammo = (%d / %d)", pFoot->Ammo, pType->Ammo);
 
+			if (pFoot->AttachedTag)
+			{
+				append(", Tag = (%s), InstanceCount = (%d)", pFoot->AttachedTag->Type->get_ID(), pFoot->AttachedTag->InstanceCount);
+			}
+
+			append(", RecA = %d, RecB = %d", pFoot->RecruitableA, pFoot->RecruitableB);
+
 			append("\n");
 			display();
 		};
@@ -232,6 +268,9 @@ public:
 			auto pType = pBuilding->GetTechnoType();
 			append("ID = %s, ", pType->ID);
 			append("Owner = %s (%s), ", pBuilding->Owner->get_ID(), pBuilding->Owner->PlainName);
+
+		
+
 			append("Location = (%d, %d)\n", pBuilding->GetMapCoords().X, pBuilding->GetMapCoords().Y);
 
 			if (pBuilding->Factory && pBuilding->Factory->Object)
@@ -254,6 +293,43 @@ public:
 				append("\n");
 			}
 
+			HouseClass* pEnemyHouse = nullptr;
+
+			if (auto pHouse = pBuilding->Owner)
+			{
+				int angerLevel = -1;
+				bool isHumanHouse = false;
+
+				for (auto pNode : pHouse->AngerNodes)
+				{
+					if (!pNode.House->Type->MultiplayPassive
+						&& !pNode.House->Defeated
+						&& !pNode.House->IsObserver()
+						&& ((pNode.AngerLevel > angerLevel
+							)
+							|| angerLevel < 0))
+					{
+						angerLevel = pNode.AngerLevel;
+						pEnemyHouse = pNode.House;
+					}
+				}
+
+				if (pEnemyHouse)
+				{
+					append("Enemy = %s (%s),  AngerLevel = %d\n", pEnemyHouse->get_ID(), pEnemyHouse->PlainName, angerLevel);
+				}
+			}
+
+		/*	if (pBuilding->Owner->EnemyHouseIndex > 0)
+			{
+				auto pHouse = pBuilding->Owner->FindByIndex(pBuilding->Owner->EnemyHouseIndex);
+				if (pHouse)
+				{
+					append("Enemy = (%s)\n", pHouse->get_ID());
+				}
+			}*/
+
+
 			if (pBuilding->Type->Ammo > 0)
 				append("Ammo = (%d / %d)\n", pBuilding->Ammo, pBuilding->Type->Ammo);
 
@@ -270,8 +346,15 @@ public:
 			{
 				auto pTypeShieldData = TechnoTypeExt::ExtMap.Find(pBuilding->GetTechnoType());
 
-				append("Current Shield HP = (%d / %d)\n", pShieldData->GetHP(), pTypeShieldData->ShieldType->Strength);
+				append("Current Shield HP = (%d / %d)", pShieldData->GetHP(), pTypeShieldData->ShieldType->Strength);
 			}
+
+			if (pBuilding->AttachedTag)
+			{
+				append(", Tag = (%s), InstanceCount = (%d)", pBuilding->AttachedTag->Type->get_ID(), pBuilding->AttachedTag->InstanceCount);
+			}
+
+			append("\n");
 			display();
 		};
 

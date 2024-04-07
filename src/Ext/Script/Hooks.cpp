@@ -57,7 +57,17 @@ DEFINE_HOOK(0x6E9443, TeamClass_AI, 0x8)
 		return 0;
 	}
 
-	ScriptExt::ProcessAction(pTeam);
+	auto pScript = pTeam->CurrentScript;
+	if (pScript->CurrentMission == pTeamData->CurrentLine)
+	{
+		pTeamData->CurrentLine++;
+		Debug::Log("HandamaDebug: [%s] [%s](line: %d = %d,%d)\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument);
+	}
+
+
+	ScriptExt::ProcessAction
+	
+	(pTeam);
 
 	return 0;
 }
