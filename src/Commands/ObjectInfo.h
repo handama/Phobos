@@ -190,12 +190,78 @@ public:
 					pTeam->Type->ID, pTeam->CurrentScript->Type->get_ID(), pTeam->Type->TaskForce->ID);
 				display();
 
+				bool missingUnit = false;
+				for (int i = 0; i < 6; ++i)
+				{
+					auto pEntry = pTeam->Type->TaskForce->Entries[i];
+					if (pEntry.Type && pEntry.Amount > 0)
+					{
+						int missing = pEntry.Amount;
+
+						for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+						{
+							auto pUnitType = pUnit->GetTechnoType();
+
+							if (pUnitType
+								&& pUnit->IsAlive
+								&& pUnit->Health > 0
+								&& !pUnit->InLimbo)
+							{
+								if (pEntry.Type->ID == pUnitType->ID)
+								{
+									missing--;
+								}
+							}
+						}
+
+						if (missing > 0)
+						{
+							missingUnit = true;
+						}
+					}
+				}
 				if (pTeam->CurrentScript->CurrentMission >= 0)
 					append("Current Script [Line = Action, Argument]: %d = %d,%d", pTeam->CurrentScript->CurrentMission, pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Action, pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument);
-				else
+				else if (!missingUnit)
 					append("Current Script [Line = Action, Argument]: %d", pTeam->CurrentScript->CurrentMission);
+				else
+				{
+					append("Missing: ", pTeam->CurrentScript->CurrentMission);
+					for (int i = 0; i < 6; ++i)
+					{
+						auto pEntry = pTeam->Type->TaskForce->Entries[i];
+						if (pEntry.Type && pEntry.Amount > 0)
+						{
+							int missing = pEntry.Amount;
+
+							for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+							{
+								auto pUnitType = pUnit->GetTechnoType();
+
+								if (pUnitType
+									&& pUnit->IsAlive
+									&& pUnit->Health > 0
+									&& !pUnit->InLimbo)
+								{
+									if (pEntry.Type->ID == pUnitType->ID)
+									{
+										missing--;
+									}
+								}
+							}
+							
+							if (missing > 0)
+							{
+								append("(%d, %s) ", missing, pEntry.Type->ID);
+							}
+						}
+					}
+				}
+					
 
 				display();
+
+
 			}
 
 			if (pFoot->Passengers.NumPassengers > 0)
