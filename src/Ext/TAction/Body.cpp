@@ -8,6 +8,8 @@
 #include <SuperClass.h>
 #include <Ext/SWType/Body.h>
 #include <Utilities/SavegameDef.h>
+#include <AircraftClass.h>
+#include <FootClass.h>
 
 #include <Ext/Scenario/Body.h>
 
@@ -67,6 +69,8 @@ bool TActionExt::Execute(TActionClass* pThis, HouseClass* pHouse, ObjectClass* p
 		return TActionExt::RunSuperWeaponAtLocation(pThis, pHouse, pObject, pTrigger, location);
 	case PhobosTriggerAction::RunSuperWeaponAtWaypoint:
 		return TActionExt::RunSuperWeaponAtWaypoint(pThis, pHouse, pObject, pTrigger, location);
+	case PhobosTriggerAction::ParaDropAtWP:
+		return TActionExt::ParaDropAtWP(pThis, pHouse, pObject, pTrigger, location);
 	default:
 		bHandled = false;
 		return true;
@@ -425,6 +429,223 @@ bool TActionExt::RunSuperWeaponAt(TActionClass* pThis, int X, int Y)
 
 	return true;
 }
+
+bool TActionExt::ParaDropAtWP(TActionClass* pThis, HouseClass* pHouse, ObjectClass* pObject, TriggerClass* pTrigger, CellStruct const& location)
+{
+	if (!pThis)
+		return true;
+
+	TaskForceEntryStruct* tStruct = pThis->TeamType->TaskForce->Entries;
+	HouseClass* house = pThis->TeamType->Owner;
+	auto& waypoints = ScenarioExt::Global()->Waypoints;
+	int nWaypoint = pThis->TeamType->Waypoint;
+	CellStruct selectedWP;
+	TeamClass* pTeam = GameCreate<TeamClass>(pThis->TeamType, house, 1);
+
+	int level = pThis->TeamType->VeteranLevel;
+	//TeamClass* pTeam = pThis->TeamType->CreateTeam(house);
+		// Check if is a valid Waypoint
+	if (nWaypoint >= 0 && waypoints.find(nWaypoint) != waypoints.end() && waypoints[nWaypoint].X && waypoints[nWaypoint].Y)
+	{
+		selectedWP = waypoints[nWaypoint];
+	}
+	else
+	{
+		return true;
+	};
+
+	for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+	{
+		pTeam->LiberateMember(pUnit);
+	}
+
+
+	for (int i = 0; i < 6; ++i)
+	{
+		TaskForceEntryStruct currentEntry = tStruct[i];
+		if (currentEntry.Amount > 0)
+		{
+			auto pTechno = currentEntry.Type;
+			if (pTechno->WhatAmI() != AbstractType::BuildingType)
+			{
+				auto pPlaneType = AircraftTypeClass::Array->GetItem(AircraftTypeClass::FindIndex("PDPLANE"));
+				auto pTarget = MapClass::Instance->TryGetCellAt(selectedWP);
+
+				++Unsorted::IKnowWhatImDoing;
+				auto const pPlane = abstract_cast<AircraftClass*>(pPlaneType->CreateObject(house));
+				--Unsorted::IKnowWhatImDoing;
+
+				pPlane->Spawned = true;
+
+				//Get edge (direction for plane to come from)
+				auto edge = house->StartingEdge;
+				if (edge < Edge::North || edge > Edge::West)
+				{
+					edge = house->Edge;
+					if (edge < Edge::North || edge > Edge::West)
+					{
+						edge = Edge::North;
+					}
+				}
+
+				// seems to retrieve a random cell struct at a given edge
+				auto const spawn_cell = MapClass::Instance->PickCellOnEdge(
+					edge, CellStruct::Empty, CellStruct::Empty, SpeedType::Winged, true,
+					MovementZone::Normal);
+
+				pPlane->QueueMission(Mission::ParadropApproach, false);
+
+				if (pTarget)
+				{
+					pPlane->SetTarget(pTarget);
+				}
+
+				auto const spawn_crd = CellClass::Cell2Coord(spawn_cell);
+
+				++Unsorted::IKnowWhatImDoing;
+				auto const bSpawned = pPlane->Unlimbo(spawn_crd, Direction::North);
+				--Unsorted::IKnowWhatImDoing;
+
+				if (!bSpawned)
+				{
+					GameDelete(pPlane);
+					return true;
+				}
+
+				for (int k = 0; k < currentEntry.Amount; ++k)
+				{
+					++Unsorted::IKnowWhatImDoing;
+					auto const pNew = pTechno->CreateObject(house);
+					auto pFoot = static_cast<FootClass*>(pNew);
+					pTeam->AddMember(pFoot, true);
+					--Unsorted::IKnowWhatImDoing;
+
+					if (level == 2)
+					{
+						pFoot->Veterancy.SetVeteran();
+					}
+					else if (level >= 3)
+					{
+						pFoot->Veterancy.SetElite();
+					}
+					pFoot->Limbo();
+					pPlane->Passengers.AddPassenger(static_cast<FootClass*>(pNew));
+				}
+
+
+				pPlane->HasPassengers = true;
+				pPlane->NextMission();
+
+			}
+			else
+			{
+				return true;
+			}
+		}
+	}
+
+	return true;
+}
+
+class ParadropPlane
+{
+public:
+	Valueable<AircraftTypeClass*> Aircraft;
+	ValueableVector<TechnoTypeClass*> Types;
+	ValueableVector<int> Num;
+};
+
+template <>
+struct Savegame::PhobosStreamObject<ParadropPlane>
+{
+
+	bool ReadFromStream(PhobosStreamReader& Stm, ParadropPlane& Value, bool RegisterForChange) const
+	{
+		return Stm
+			.Process(Value.Aircraft, RegisterForChange)
+			.Process(Value.Types, RegisterForChange)
+			.Process(Value.Num, RegisterForChange)
+			.Success();
+	};
+
+	bool WriteToStream(PhobosStreamWriter& Stm, const ParadropPlane& Value) const
+	{
+		return Stm
+			.Process(Value.Aircraft)
+			.Process(Value.Types)
+			.Process(Value.Num)
+			.Success();
+	};
+};
+
+
+//A new SendPDPlane function
+//Allows vehicles, sends one single plane for all types
+//static void SendPDPlane(HouseClass* pOwner, CellClass* pTarget, AircraftTypeClass* pPlaneType,
+//	TechnoTypeClass* pType, int num)
+//{
+//	if (!pOwner || !pPlaneType || !pTarget || num == 0 || !pType)
+//	{
+//		return;
+//	}
+//
+//	++Unsorted::IKnowWhatImDoing;
+//	auto const pPlane = static_cast<FootClass*>(pPlaneType->CreateObject(pOwner));
+//	--Unsorted::IKnowWhatImDoing;
+//
+//	pPlane->Spawned = true;
+//
+//	//Get edge (direction for plane to come from)
+//	auto edge = pOwner->StartingEdge;
+//	if (edge < Edge::North || edge > Edge::West)
+//	{
+//		edge = pOwner->Edge;
+//		if (edge < Edge::North || edge > Edge::West)
+//		{
+//			edge = Edge::North;
+//		}
+//	}
+//
+//	// seems to retrieve a random cell struct at a given edge
+//	auto const spawn_cell = MapClass::Instance->PickCellOnEdge(
+//		edge, CellStruct::Empty, CellStruct::Empty, SpeedType::Winged, true,
+//		MovementZone::Normal);
+//
+//	pPlane->QueueMission(Mission::ParadropApproach, false);
+//
+//	if (pTarget)
+//	{
+//		pPlane->SetTarget(pTarget);
+//	}
+//
+//	auto const spawn_crd = CellClass::Cell2Coord(spawn_cell);
+//
+//	++Unsorted::IKnowWhatImDoing;
+//	auto const bSpawned = pPlane->Unlimbo(spawn_crd, Direction::North);
+//	--Unsorted::IKnowWhatImDoing;
+//
+//	if (!bSpawned)
+//	{
+//		GameDelete(pPlane);
+//		return;
+//	}
+//
+//
+//		//only allow infantry and vehicles
+//		auto const abs = pType->WhatAmI();
+//		if (abs == AbstractType::UnitType || abs == AbstractType::InfantryType)
+//		{
+//			for (int k = 0; k < num; ++k)
+//			{
+//				auto const pNew = pType->CreateObject(pOwner);
+//				pNew->Limbo();
+//				pPlane->Passengers.AddPassenger(static_cast<FootClass*>(pNew));
+//			}
+//		}
+//
+//	// pPlane->HasPassengers = true;
+//	pPlane->NextMission();
+//}
 
 // =============================
 // container

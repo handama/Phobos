@@ -322,7 +322,7 @@ public:
 				append(", Tag = (%s), InstanceCount = (%d)", pFoot->AttachedTag->Type->get_ID(), pFoot->AttachedTag->InstanceCount);
 			}
 
-			append(", RecA = %d, RecB = %d", pFoot->RecruitableA, pFoot->RecruitableB);
+			append(", RecA = %d, RecB = %d, UID = %d", pFoot->RecruitableA, pFoot->RecruitableB, pFoot->UniqueID);
 
 			append("\n");
 			display();
@@ -382,7 +382,7 @@ public:
 
 				if (pEnemyHouse)
 				{
-					append("Enemy = %s (%s),  AngerLevel = %d\n", pEnemyHouse->get_ID(), pEnemyHouse->PlainName, angerLevel);
+					append("Enemy = %s (%s),  AngerLevel = %d, UID = %d\n", pEnemyHouse->get_ID(), pEnemyHouse->PlainName, angerLevel, pBuilding->UniqueID);
 				}
 			}
 
@@ -405,14 +405,14 @@ public:
 				append("Target = %s, Distance = %d, Location = (%d, %d)\n", pTarget->GetTechnoType()->ID, (pTarget->DistanceFrom(pBuilding) / 256), pTarget->GetMapCoords().X, pTarget->GetMapCoords().Y);
 			}
 
-			append("Current HP = (%d / %d)\n", pBuilding->Health, pBuilding->Type->Strength);
+			append("Current HP = (%d / %d)", pBuilding->Health, pBuilding->Type->Strength);
 
 			auto pTechnoExt = TechnoExt::ExtMap.Find(pBuilding);
 			if (auto pShieldData = pTechnoExt->Shield.get())
 			{
 				auto pTypeShieldData = TechnoTypeExt::ExtMap.Find(pBuilding->GetTechnoType());
 
-				append("Current Shield HP = (%d / %d)", pShieldData->GetHP(), pTypeShieldData->ShieldType->Strength);
+				append(", Current Shield HP = (%d / %d)", pShieldData->GetHP(), pTypeShieldData->ShieldType->Strength);
 			}
 
 			if (pBuilding->AttachedTag)
