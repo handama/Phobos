@@ -18,6 +18,7 @@ enum class PhobosTriggerAction : unsigned int
 	BinaryOperation,
 	RunSuperWeaponAtLocation,
 	RunSuperWeaponAtWaypoint,
+	ParaDropAtWP,
 };
 
 class TActionExt
@@ -59,8 +60,10 @@ public:
 	ACTION_FUNC(BinaryOperation);
 	ACTION_FUNC(RunSuperWeaponAtLocation);
 	ACTION_FUNC(RunSuperWeaponAtWaypoint);
+	ACTION_FUNC(ParaDropAtWP);
 
 	static bool RunSuperWeaponAt(TActionClass* pThis, int X, int Y);
+	//static void SendPDPlane(HouseClass* pOwner, CellClass* pTarget, AircraftTypeClass* pPlaneType,TechnoTypeClass* pType, int num);
 
 #undef ACTION_FUNC
 #pragma pop_macro("ACTION_FUNC")
