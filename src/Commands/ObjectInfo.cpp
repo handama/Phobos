@@ -63,7 +63,8 @@ void ObjectInfoCommandClass::Execute(WWKey eInput) const
 		append("ID = %s, ", pType->ID);
 		append("Owner = %s (%s), ", pFoot->Owner->get_ID(), pFoot->Owner->PlainName);
 		append("Location = (%d, %d), ", pFoot->GetMapCoords().X, pFoot->GetMapCoords().Y);
-		append("Current Mission = %d (%s)\n", pFoot->CurrentMission, MissionControlClass::FindName(pFoot->CurrentMission));
+		append("Mission = %d (%s), ", pFoot->CurrentMission, MissionControlClass::FindName(pFoot->CurrentMission));
+		append("Group = %d\n", pFoot->Group);
 
 		if (pFoot->BelongsToATeam())
 		{
@@ -89,10 +90,74 @@ void ObjectInfoCommandClass::Execute(WWKey eInput) const
 				pTeam->Type->ID, pTeam->CurrentScript->Type->get_ID(), pTeam->Type->TaskForce->ID);
 			display();
 
+			bool missingUnit = false;
+			for (int i = 0; i < 6; ++i)
+			{
+				auto pEntry = pTeam->Type->TaskForce->Entries[i];
+				if (pEntry.Type && pEntry.Amount > 0)
+				{
+					int missing = pEntry.Amount;
+
+					for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+					{
+						auto pUnitType = pUnit->GetTechnoType();
+
+						if (pUnitType
+							&& pUnit->IsAlive
+							&& pUnit->Health > 0
+							&& !pUnit->InLimbo)
+						{
+							if (pEntry.Type->ID == pUnitType->ID)
+							{
+								missing--;
+							}
+						}
+					}
+
+					if (missing > 0)
+					{
+						missingUnit = true;
+					}
+				}
+			}
 			if (pTeam->CurrentScript->CurrentMission >= 0)
 				append("Current Script [Line = Action, Argument]: %d = %d,%d", pTeam->CurrentScript->CurrentMission, pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Action, pTeam->CurrentScript->Type->ScriptActions[pTeam->CurrentScript->CurrentMission].Argument);
-			else
+			else if (!missingUnit)
 				append("Current Script [Line = Action, Argument]: %d", pTeam->CurrentScript->CurrentMission);
+			else
+			{
+				append("Missing: ", pTeam->CurrentScript->CurrentMission);
+				for (int i = 0; i < 6; ++i)
+				{
+					auto pEntry = pTeam->Type->TaskForce->Entries[i];
+					if (pEntry.Type && pEntry.Amount > 0)
+					{
+						int missing = pEntry.Amount;
+
+						for (auto pUnit = pTeam->FirstUnit; pUnit; pUnit = pUnit->NextTeamMember)
+						{
+							auto pUnitType = pUnit->GetTechnoType();
+
+							if (pUnitType
+								&& pUnit->IsAlive
+								&& pUnit->Health > 0
+								&& !pUnit->InLimbo)
+							{
+								if (pEntry.Type->ID == pUnitType->ID)
+								{
+									missing--;
+								}
+							}
+						}
+
+						if (missing > 0)
+						{
+							append("(%d, %s) ", missing, pEntry.Type->ID);
+						}
+					}
+				}
+			}
+
 
 			display();
 		}
@@ -125,16 +190,45 @@ void ObjectInfoCommandClass::Execute(WWKey eInput) const
 			append("Target = %s, Distance = %d, Location = (%d, %d)\n", ID, (pFoot->DistanceFrom(pFoot->Target) / Unsorted::LeptonsPerCell), mapCoords.X, mapCoords.Y);
 		}
 
-		append("Current HP = (%d / %d)", pFoot->Health, pType->Strength);
+		auto pDestination = abstract_cast<TechnoClass*>(pFoot->Destination);
+
+		if (pDestination)
+		{
+			append("Destination = %s, Distance = %d, Location = (%d, %d)\n", pDestination->GetTechnoType()->ID, (pDestination->DistanceFrom(pFoot) / 256), pDestination->GetMapCoords().X, pDestination->GetMapCoords().Y);
+		}
+		else
+		{
+			if (pFoot->Destination)
+			{
+				auto destCell = CellClass::Coord2Cell(pFoot->Destination->GetCoords());
+				append("Destination = (%d, %d)\n", destCell.X, destCell.Y);
+			}
+		}
+
+		auto pFocus = abstract_cast<TechnoClass*>(pFoot->Focus);
+
+		if (pFocus)
+		{
+			append("Focus = %s, Distance = %d, Location = (%d, %d)\n", pFocus->GetTechnoType()->ID, (pFocus->DistanceFrom(pFoot) / 256), pFocus->GetMapCoords().X, pFocus->GetMapCoords().Y);
+		}
+
+		append("HP = (%d / %d)", pFoot->Health, pType->Strength);
 
 		auto pTechnoExt = TechnoExt::ExtMap.Find(pFoot);
 		auto pShieldData = pTechnoExt->Shield.get();
 
 		if (pTechnoExt->CurrentShieldType && pShieldData)
-			append(", Current Shield HP = (%d / %d)", pShieldData->GetHP(), pTechnoExt->CurrentShieldType->Strength);
+			append(", Shield HP = (%d / %d)", pShieldData->GetHP(), pTechnoExt->CurrentShieldType->Strength);
 
 		if (pType->Ammo > 0)
 			append(", Ammo = (%d / %d)", pFoot->Ammo, pType->Ammo);
+
+		if (pFoot->AttachedTag)
+		{
+			append(", Tag = (%s), InstanceCount = (%d)", pFoot->AttachedTag->Type->get_ID(), pFoot->AttachedTag->InstanceCount);
+		}
+
+		append(", RecA = %d, RecB = %d, UID = %d", pFoot->RecruitableA, pFoot->RecruitableB, pFoot->UniqueID);
 
 		append("\n");
 		display();
@@ -166,6 +260,33 @@ void ObjectInfoCommandClass::Execute(WWKey eInput) const
 				append(", %s", pBuilding->Occupants.GetItem(i)->Type->ID);
 			}
 			append("\n");
+		}
+
+		HouseClass* pEnemyHouse = nullptr;
+
+		if (auto pHouse = pBuilding->Owner)
+		{
+			int angerLevel = -1;
+			bool isHumanHouse = false;
+
+			for (auto pNode : pHouse->AngerNodes)
+			{
+				if (!pNode.House->Type->MultiplayPassive
+					&& !pNode.House->Defeated
+					&& !pNode.House->IsObserver()
+					&& ((pNode.AngerLevel > angerLevel
+						)
+						|| angerLevel < 0))
+				{
+					angerLevel = pNode.AngerLevel;
+					pEnemyHouse = pNode.House;
+				}
+			}
+
+			if (pEnemyHouse)
+			{
+				append("Enemy = %s (%s),  AngerLevel = %d, UID = %d\n", pEnemyHouse->get_ID(), pEnemyHouse->PlainName, angerLevel, pBuilding->UniqueID);
+			}
 		}
 
 		if (pBuilding->Type->Upgrades)
@@ -203,15 +324,22 @@ void ObjectInfoCommandClass::Execute(WWKey eInput) const
 			append("Target = %s, Distance = %d, Location = (%d, %d)\n", ID, (pBuilding->DistanceFrom(pBuilding->Target) / Unsorted::LeptonsPerCell), mapCoords.X, mapCoords.Y);
 		}
 
-		append("Current HP = (%d / %d)\n", pBuilding->Health, pBuilding->Type->Strength);
+		append("HP = (%d / %d)", pBuilding->Health, pBuilding->Type->Strength);
 
 		auto pTechnoExt = TechnoExt::ExtMap.Find(pBuilding);
 		auto pShieldData = pTechnoExt->Shield.get();
 
 		if (pTechnoExt->CurrentShieldType && pShieldData)
-			append("Current Shield HP = (%d / %d)\n", pShieldData->GetHP(), pTechnoExt->CurrentShieldType->Strength);
+			append(", Shield HP = (%d / %d)", pShieldData->GetHP(), pTechnoExt->CurrentShieldType->Strength);
 
+		if (pBuilding->AttachedTag)
+		{
+			append(", Tag = (%s), InstanceCount = (%d)", pBuilding->AttachedTag->Type->get_ID(), pBuilding->AttachedTag->InstanceCount);
+		}
+
+		append("\n");
 		display();
+
 	};
 
 	bool dumped = false;
