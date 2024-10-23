@@ -64,4 +64,5 @@ public:
 	static void UpdatePrimaryFactoryAI(BuildingClass* pThis);
 	static int CountOccupiedDocks(BuildingClass* pBuilding);
 	static bool HasFreeDocks(BuildingClass* pBuilding);
+	static void KickOutStuckUnits(BuildingClass* pThis);
 };
