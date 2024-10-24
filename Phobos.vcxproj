@@ -12,6 +12,8 @@
     <ClCompile Include="src\ObjectInfo.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Rules.h" />
+    <ClInclude Include="src\ToolTipManager.h" />
     <ClInclude Include="src\command.h" />
     <ClInclude Include="src\GeneralUtils.h" />
   </ItemGroup>
