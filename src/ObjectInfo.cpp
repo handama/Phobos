@@ -561,8 +561,12 @@ DEFINE_HOOK(4F4583, GScreenClass_DrawOnTop_TheDarkSideOfTheMoon, 6)
 					}
 					if (ObjectInfoDisplay::CanDisplay("megamission", name) || allDisplay)
 					{
-						append("Mega Mission = %d (%s)", pFoot->unknown_int_5C4, getMissionName((int)pFoot->unknown_int_5C4));
-						display();
+						if (pFoot->unknown_int_5C4 > -1)
+						{
+							append("Mega Mission = %d (%s)", pFoot->unknown_int_5C4, getMissionName((int)pFoot->unknown_int_5C4));
+							display();
+						}
+
 					}
 					if (ObjectInfoDisplay::CanDisplay("megatarget", name) || allDisplay)
 					{
@@ -600,7 +604,7 @@ DEFINE_HOOK(4F4583, GScreenClass_DrawOnTop_TheDarkSideOfTheMoon, 6)
 						{
 							if (megaDestination)
 							{
-								auto destCell = CellClass::Coord2Cell(pFoot->Destination->GetCoords());
+								auto destCell = CellClass::Coord2Cell(megaDestination->GetCoords());
 								append("Mega Destination = (%d, %d)", destCell.X, destCell.Y);
 								display();
 							}
