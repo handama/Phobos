@@ -71,6 +71,17 @@ void RulesExt::ExtData::LoadBeforeTypeData(RulesClass* pThis, CCINIClass* pINI)
 
 	INI_EX exINI(pINI);
 
+	this->AnimLabel.Read(pINI, GameStrings::General, "AnimLabel");
+	this->AnimLabel_Palette.LoadFromINI(pINI, GameStrings::General, "AnimLabel.Palette");
+	this->AnimLabel_Transparency.Read(pINI, GameStrings::General, "AnimLabel.Transparency");
+
+	if (strcmp(RulesExt::Global()->AnimLabel_Transparency.data(), "25%") == 0)
+		this->AnimLabel_Transparency_Flag = BlitterFlags::TransLucent25;
+	else if (strcmp(RulesExt::Global()->AnimLabel_Transparency.data(), "50%") == 0)
+		this->AnimLabel_Transparency_Flag = BlitterFlags::TransLucent50;
+	else if (strcmp(RulesExt::Global()->AnimLabel_Transparency.data(), "75%") == 0)
+		this->AnimLabel_Transparency_Flag = BlitterFlags::TransLucent75;
+
 	this->Storage_TiberiumIndex.Read(exINI, GameStrings::General, "Storage.TiberiumIndex");
 	this->HarvesterDumpAmount.Read(exINI, GameStrings::General, "HarvesterDumpAmount");
 	this->InfantryGainSelfHealCap.Read(exINI, GameStrings::General, "InfantryGainSelfHealCap");

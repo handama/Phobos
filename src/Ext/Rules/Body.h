@@ -32,6 +32,11 @@ public:
 		std::vector<std::vector<TechnoTypeClass*>> AITargetTypesLists;
 		std::vector<std::vector<ScriptTypeClass*>> AIScriptsLists;
 
+		PhobosFixedString<32u> AnimLabel;
+		CustomPalette AnimLabel_Palette;
+		PhobosFixedString<32u> AnimLabel_Transparency;
+		BlitterFlags AnimLabel_Transparency_Flag;
+
 		Valueable<int> Storage_TiberiumIndex;
 		Valueable<float> HarvesterDumpAmount;
 		Nullable<int> InfantryGainSelfHealCap;
@@ -224,6 +229,8 @@ public:
 		Valueable<bool> HarvesterScanAfterUnload;
 
 		ExtData(RulesClass* OwnerObject) : Extension<RulesClass>(OwnerObject)
+			, AnimLabel_Palette {}
+			, AnimLabel_Transparency_Flag { BlitterFlags::bf_400 }
 			, Storage_TiberiumIndex { -1 }
 			, HarvesterDumpAmount { 0.0f }
 			, InfantryGainSelfHealCap {}

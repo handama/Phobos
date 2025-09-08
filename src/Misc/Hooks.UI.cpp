@@ -14,6 +14,35 @@
 #include <Misc/FlyingStrings.h>
 #include <Utilities/Debug.h>
 
+DEFINE_HOOK(0x4F4583, UI_PlayAnimLabel, 0x6)
+{
+	static int idxFrame = 0;
+	static int CommandBarHeight = 32;
+
+	RectangleStruct boundRect;
+	Point2D Position;
+	SHPReference* pSHP;
+
+	pSHP = GameCreate<SHPReference>(RulesExt::Global()->AnimLabel.data());
+
+	if (!pSHP)
+		return 0;
+
+	ConvertClass* pPalette = RulesExt::Global()->AnimLabel_Palette.GetOrDefaultConvert(FileSystem::ANIM_PAL);
+
+	Position = { 0,DSurface::Composite->GetHeight() - pSHP->Height - CommandBarHeight };
+
+	DSurface::Composite->DrawSHP(pPalette, pSHP, idxFrame, &Position,
+		DSurface::Composite->GetRect(&boundRect), RulesExt::Global()->AnimLabel_Transparency_Flag, 0, 0, ZGradient::Ground,
+		1000, 0, nullptr, 0, 0, 0);
+
+	++idxFrame %= pSHP->Frames;
+	GameDelete(pSHP);
+
+	return 0;
+}
+
+
 DEFINE_HOOK(0x777C41, UI_ApplyAppIcon, 0x9)
 {
 	if (Phobos::AppIconPath != nullptr && strlen(Phobos::AppIconPath))
