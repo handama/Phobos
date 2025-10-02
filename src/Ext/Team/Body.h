@@ -6,6 +6,7 @@
 #include <Utilities/Container.h>
 #include <Utilities/TemplateDef.h>
 #include <Phobos.h>
+#include <set>
 
 class TeamExt
 {
@@ -36,6 +37,8 @@ public:
 		DynamicVectorClass<FootClass*> AllyPassengers;
 		bool SelectNeural;
 		int CurrentLine;
+		std::map<TechnoClass*, int> SeekEnemyRepeatedCount;
+		std::set<TechnoClass*> ForbiddenTargets;
 
 		ExtData(TeamClass* OwnerObject) : Extension<TeamClass>(OwnerObject)
 			, WaitNoTargetAttempts { 0 }
@@ -51,6 +54,8 @@ public:
 			, ForceJump_RepeatMode { false }
 			, TeamLeader { nullptr }
 			, PreviousScriptList { }
+			, SeekEnemyRepeatedCount { }
+			, ForbiddenTargets { }
 			, GenericStatus { 0 }
 			, AllPassengers { }
 			, AttackTargetRank { -1 }

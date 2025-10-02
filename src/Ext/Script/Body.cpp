@@ -303,6 +303,57 @@ void ScriptExt::ProcessAction(TeamClass * pTeam)
 		VariablesHandler(pTeam, static_cast<PhobosScripts>(action), argument);
 }
 
+static bool AllowedTargetByZone(TechnoClass* pThis, TechnoClass* pTarget, WeaponTypeClass* pWeapon = nullptr, bool useZone = false, int zone = -1)
+{
+	if (!pThis || !pTarget)
+		return false;
+
+	if (pThis->WhatAmI() == AbstractType::Aircraft)
+		return true;
+
+	auto const pType = pThis->GetTechnoType();
+	auto const mZone = pType->MovementZone;
+	int currentZone = useZone ? zone : MapClass::Instance->GetMovementZoneType(pThis->GetMapCoords(), mZone, pThis->OnBridge);
+
+	if (currentZone != -1)
+	{
+		int targetZone = MapClass::Instance->GetMovementZoneType(pTarget->GetMapCoords(), mZone, pTarget->OnBridge);
+
+		if (currentZone == targetZone)
+			return true;
+
+		auto const speedType = pType->SpeedType;
+		auto const cellStruct = MapClass::Instance->NearByLocation(CellClass::Coord2Cell(pTarget->Location),
+			speedType, -1, mZone, false, 1, 1, true,
+			false, false, speedType != SpeedType::Float, CellStruct::Empty, false, false);
+
+		if (cellStruct == CellStruct::Empty)
+			return false;
+
+		auto const pCell = MapClass::Instance->TryGetCellAt(cellStruct);
+
+		if (!pCell)
+			return false;
+
+		if (!pWeapon)
+		{
+			int weaponIndex = pThis->SelectWeapon(pTarget);
+
+			if (weaponIndex < 0)
+				return false;
+
+			pWeapon = pThis->GetWeapon(weaponIndex)->WeaponType;
+		}
+
+		const double distance = pCell->GetCoordsWithBridge().DistanceFrom(pTarget->GetAltCoords());
+
+		if (distance > pWeapon->Range)
+			return false;
+	}
+
+	return true;
+}
+
 void ScriptExt::ExecuteTimedAreaGuardAction(TeamClass * pTeam)
 {
 	auto pScript = pTeam->CurrentScript;
@@ -1101,16 +1152,30 @@ void ScriptExt::Mission_Attack(TeamClass * pTeam, bool repeatAction = true, int 
 					// Other cases
 					if (pUnitType->WhatAmI() != AbstractType::AircraftType)
 					{
+
 						if (pUnit->Target != pFocus)
+						{
+							pTeamData->SeekEnemyRepeatedCount[pFocus]++;
+							if (pTeamData->SeekEnemyRepeatedCount[pFocus] > 3)
+							{
+								pUnit->SetTarget(nullptr);
+								pUnit->QueueMission(Mission::Guard, false);
+								pTeamData->ForbiddenTargets.insert(pFocus);
+
+								pTeamData->IdxSelectedObjectFromAIList = -1;
+								pTeam->StepCompleted = true;
+
+								return;
+							}
 							pUnit->SetTarget(pFocus);
+						}
 
 						if (pUnit->GetCurrentMission() != Mission::Attack
 							&& pUnit->GetCurrentMission() != Mission::Unload
 							&& pUnit->GetCurrentMission() != Mission::Selling)
 						{
 							pUnit->QueueMission(Mission::Attack, false);
-						}
-
+						}						
 						continue;
 					}
 				}
@@ -1189,6 +1254,9 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass * pTechno, TeamClass * pTeam,
 			if (!pTeamData->SelectNeural)
 				if (object->Owner->IsNeutral())
 					continue;
+
+			if (pTeamData->ForbiddenTargets.find(object) != pTeamData->ForbiddenTargets.end())
+				continue;
 		}
 
 		// Note: the TEAM LEADER is picked for this task, be careful with leadership values in your mod
@@ -1270,6 +1338,9 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass * pTechno, TeamClass * pTeam,
 		{
 			double value = 0;
 
+			if (!AllowedTargetByZone(pTechno, object, pTechno->GetWeapon(pTechno->SelectWeapon(object))->WeaponType))
+				continue;
+
 			if (EvaluateObjectWithMask(object, method, attackAITargetType, idxAITargetTypeItem, pTechno))
 			{
 				CellStruct newCell;
@@ -1349,6 +1420,21 @@ TechnoClass* ScriptExt::GreatestThreat(TechnoClass * pTechno, TeamClass * pTeam,
 			}
 		}
 	}
+
+	//if (pTeamData && bestObject)
+	//{
+	//	pTeamData->SeekEnemyRepeatedCount[bestObject]++;
+	//	if (pTeamData->SeekEnemyRepeatedCount[bestObject] >= 5)
+	//	{
+	//		pTeamData->IdxSelectedObjectFromAIList = -1;
+	//		pTeam->StepCompleted = true;
+	//		auto pScript = pTeam->CurrentScript;
+	//		Debug::Log("bestObject: [%s] [%s] (line: %d = %d,%d) Jump to NEXT line: %d = %d,%d (Too many repetitions of enemy search)\n", pTeam->Type->ID, pScript->Type->ID, pScript->CurrentMission, pScript->Type->ScriptActions[pScript->CurrentMission].Action, pScript->Type->ScriptActions[pScript->CurrentMission].Argument, pScript->CurrentMission + 1, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Action, pScript->Type->ScriptActions[pScript->CurrentMission + 1].Argument);
+	//
+	//		return nullptr;
+	//	}
+	//}
+	
 
 	return bestObject;
 }
@@ -3297,7 +3383,6 @@ bool ScriptExt::MoveMissionEndStatus(TeamClass * pTeam, TechnoClass * pFocus, Fo
 	return bForceNextAction;
 }
 
-
 void ScriptExt::SkipNextAction(TeamClass * pTeam, int successPercentage = 0)
 {
 	// This team has no units! END
@@ -4911,9 +4996,9 @@ beginLoad:
 	//}
 }
 
-
 void ScriptExt::Mission_Attack_Individually(TeamClass * pTeam, int numberPerTarget, bool repeatAction = true, int calcThreatMode = 0, int attackAITargetType = -1, int idxAITargetTypeItem = -1)
 {
+	return;
 	auto pScript = pTeam->CurrentScript;
 	int scriptArgument = pScript->Type->ScriptActions[pScript->CurrentMission].Argument; // This is the target type
 	TechnoClass* selectedTarget = nullptr;
@@ -5573,8 +5658,23 @@ void ScriptExt::Mission_Attack_Individually(TeamClass * pTeam, int numberPerTarg
 					// Other cases
 					if (pUnitType->WhatAmI() != AbstractType::AircraftType)
 					{
+
 						if (pUnit->Target != pFocus)
+						{
+							pTeamData->SeekEnemyRepeatedCount[pFocus]++;
+							if (pTeamData->SeekEnemyRepeatedCount[pFocus] > 3)
+							{
+								pUnit->SetTarget(nullptr);
+								pUnit->QueueMission(Mission::Guard, false);
+								pTeamData->ForbiddenTargets.insert(pFocus);
+
+								pTeamData->IdxSelectedObjectFromAIList = -1;
+								pTeam->StepCompleted = true;
+
+								return;
+							}
 							pUnit->SetTarget(pFocus);
+						}
 
 						if (pUnit->GetCurrentMission() != Mission::Attack
 							&& pUnit->GetCurrentMission() != Mission::Unload
@@ -5582,7 +5682,6 @@ void ScriptExt::Mission_Attack_Individually(TeamClass * pTeam, int numberPerTarg
 						{
 							pUnit->QueueMission(Mission::Attack, false);
 						}
-
 						continue;
 					}
 				}
@@ -5640,9 +5739,6 @@ void ScriptExt::Mission_Attack_List_Individually(TeamClass * pTeam, int numberPe
 		ScriptExt::Mission_Attack_Individually(pTeam, numberPerTarget, repeatAction, calcThreatMode, attackAITargetType, -1);
 	}
 }
-
-
-
 
 void ScriptExt::SetAttackTargetRank(TeamClass * pTeam)
 {
