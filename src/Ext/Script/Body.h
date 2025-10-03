@@ -220,7 +220,6 @@ public:
 	static void Mission_Gather_NearTheLeader(TeamClass* pTeam, int countdown);
 	static void Mission_Attack(TeamClass* pTeam, bool repeatAction, int calcThreatMode, int attackAITargetType, int IdxAITargetTypeItem);
 	static TechnoClass* GreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode, HouseClass* onlyTargetThisHouseEnemy, int attackAITargetType, int idxAITargetTypeItem, bool agentMode, bool individual);
-	static void MultiGreatestThreat(TechnoClass* pTechno, TeamClass* pTeam, int number, int method, int calcThreatMode, HouseClass* onlyTargetThisHouseEnemy, int attackAITargetType, int idxAITargetTypeItem, bool agentMode, bool individual);
 
 	static bool EvaluateObjectWithMask(TechnoClass* pTechno, int mask, int attackAITargetType, int idxAITargetTypeItem, TechnoClass* pTeamLeader);
 
@@ -273,7 +272,12 @@ public:
 	static void MindControlledUnitsGoToGrinder(TeamClass* pTeam);
 	static void AllyUnitEnterTransport(TeamClass* pTeam);
 	static TechnoClass* FindBestObjectForAllyUnitEnterTransport(TechnoClass* pTechno, TeamClass* pTeam, int method, int calcThreatMode, bool pickAllies, int attackAITargetType, int idxAITargetTypeItem);
+	static bool CheckUnitTargetingCapability(TechnoClass* pTechno, bool targetInAir, bool agentMode);
+	static bool IsUnitAvailable(TechnoClass* pTechno, bool checkIfInTransportOrAbsorbed);
+	static bool IsUnitArmed(TechnoClass* pTechno);
 	static void SetPickNeutral(TeamClass* pTeam);
+	static void Log(const char* pFormat, ...);
+	static bool IsMindControlledByEnemy(HouseClass* pHouse, TechnoClass* pTechno);
 
 	static ExtContainer ExtMap;
 
